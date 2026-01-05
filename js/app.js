@@ -388,11 +388,43 @@ const Store = {
 function initRouter() {
     const navBtns = document.querySelectorAll('.nav-btn');
 
+    // Mobile Menu Logic
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const sidebar = document.querySelector('.sidebar');
+
+    // Create Overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'sidebar-overlay';
+    document.body.appendChild(overlay);
+
+    function toggleMenu() {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
+
+    function closeMenu() {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+    }
+
+    if (mobileBtn) {
+        mobileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMenu();
+        });
+    }
+
+    // Close when clicking overlay
+    overlay.addEventListener('click', closeMenu);
+
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             // Update UI
             navBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+
+            // Close Menu on Mobile Selection
+            closeMenu();
 
             // Route
             const target = btn.dataset.target;
