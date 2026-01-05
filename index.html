@@ -13,7 +13,36 @@
 </head>
 
 <body>
-    <div class="app-container">
+    <div id="login-container" class="login-container">
+        <div class="glass-panel login-box">
+            <div class="login-header">
+                <h1>SUDA</h1>
+                <p>Shop Lease Manager</p>
+                <div
+                    style="width: 50px; height: 4px; background: var(--primary-color); margin: 15px auto; border-radius: 2px;">
+                </div>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label">User ID</label>
+                    <input type="text" id="login-id" class="form-input" placeholder="Enter User ID" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="login-pass" class="form-input" placeholder="Enter Password" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Secure Login</button>
+            </form>
+            <div id="login-error"
+                style="color: #ef4444; font-size: 0.9rem; text-align: center; margin-top: 1rem; display: none;">
+                Invalid Credentials
+            </div>
+        </div>
+    </div>
+
+    <!-- App Container (Initially Hidden via CSS class) -->
+    <div id="app-container" class="app-container" style="display: none;">
+
         <aside class="sidebar">
             <div class="logo-area">
                 <h1>SUDA</h1>
@@ -64,6 +93,8 @@
                 <h2 id="page-title">Dashboard</h2>
                 <div class="user-profile">
                     <span>Admin User</span>
+                    <button id="btn-logout"
+                        style="background:none; border:none; cursor:pointer; font-size:0.8rem; color:var(--text-muted); text-decoration:underline; margin-right:10px;">Logout</button>
                     <div class="avatar">A</div>
                 </div>
             </header>

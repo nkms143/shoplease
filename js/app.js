@@ -3,12 +3,68 @@
  * Single file version for easy local execution (No Server Required)
  */
 
+const AuthModule = {
+    checkSession() {
+        return sessionStorage.getItem('suda_auth_token') === 'loggedin';
+    },
+
+    login(uid, pass) {
+        if (uid === 'admin' && pass === 'admin123') {
+            sessionStorage.setItem('suda_auth_token', 'loggedin');
+            return true;
+        }
+        return false;
+    },
+
+    logout() {
+        sessionStorage.removeItem('suda_auth_token');
+        location.reload();
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Normalize stored financial fields (coerce strings/currency to numeric strings)
-    if (Store.normalizePayments) Store.normalizePayments();
-    if (Store.normalizeRemittances) Store.normalizeRemittances();
-    Store.deduplicatePayments(); // Run cleanup on load
-    initRouter();
+    // 1. AUTH CHECK
+    const loginContainer = document.getElementById('login-container');
+    const appContainer = document.getElementById('app-container');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+    const logoutBtn = document.getElementById('btn-logout');
+
+    if (AuthModule.checkSession()) {
+        loginContainer.style.display = 'none';
+        appContainer.style.display = 'flex'; // Show Flex container
+
+        // Initialize App Logic ONLY if logged in
+        if (Store.normalizePayments) Store.normalizePayments();
+        if (Store.normalizeRemittances) Store.normalizeRemittances();
+        Store.deduplicatePayments();
+        initRouter();
+    } else {
+        loginContainer.style.display = 'flex';
+        appContainer.style.display = 'none';
+    }
+
+    // Login Event
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const uid = document.getElementById('login-id').value;
+            const pass = document.getElementById('login-pass').value;
+
+            if (AuthModule.login(uid, pass)) {
+                location.reload();
+            } else {
+                loginError.style.display = 'block';
+            }
+        });
+    }
+
+    // Logout Event
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            AuthModule.logout();
+        });
+    }
 });
 
 
