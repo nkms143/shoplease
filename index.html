@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Lease Manager | SUDA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo-area">
+                <h1>SUDA</h1>
+                <p>Shop Lease Model</p>
+            </div>
+            <nav class="main-nav">
+                <button class="nav-btn active" data-target="dashboard">
+                    <span class="icon">🏠</span> Dashboard
+                </button>
+                <button class="nav-btn" data-target="shop-module">
+                    <span class="icon">🏪</span> Shop Management
+                </button>
+                <button class="nav-btn" data-target="applicant-module">
+                    <span class="icon">👤</span> Applicant Details
+                </button>
+                <button class="nav-btn" data-target="rent">
+                    <span class="icon">💰</span> Rent Collection
+                </button>
+                <button class="nav-btn" data-target="report">
+                    <span class="icon">📊</span> Shop Transactions List
+                </button>
+                <button class="nav-btn" data-target="dcb-report">
+                    <span class="icon">📉</span> DCB Reports
+                </button>
+                <button class="nav-btn" data-target="gst-monthwise">
+                    <span class="icon">📋</span> GST Month-wise Report
+                </button>
+                <button class="nav-btn" data-target="notices">
+                    <span class="icon">📜</span> Notices
+                </button>
+                <button class="nav-btn" data-target="gst-remittance">
+                    <span class="icon">🏦</span> GST Remittance
+                </button>
+                <button class="nav-btn" data-target="lease-agreement">
+                    <span class="icon">📝</span> Lease Agreement Status
+                </button>
+                <button class="nav-btn" data-target="settings">
+                    <span class="icon">⚙️</span> Settings
+                </button>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h2 id="page-title">Dashboard</h2>
+                <div class="user-profile">
+                    <span>Admin User</span>
+                    <div class="avatar">A</div>
+                </div>
+            </header>
+
+            <div id="content-area" class="content-area">
+                <!-- Dynamic Content Loaded Here -->
+                <div class="glass-panel welcome-panel">
+                    <h3>Welcome to Shop Lease Manager</h3>
+                    <p>Select a module from the sidebar to begin.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/extra_modules.js"></script>
+</body>
+
+</html>
