@@ -36,8 +36,27 @@ const AuthModule = {
     },
 
     async logout() {
-        await supabaseClient.auth.signOut();
-        location.reload();
+        try {
+            // 1. Sign out from Supabase (clears auth tokens)
+            const { error } = await supabaseClient.auth.signOut();
+            if (error) {
+                console.error('Logout error:', error);
+            }
+
+            // 2. Clear local cache (optional but safer)
+            localStorage.removeItem('supabase.auth.token');
+            sessionStorage.clear();
+
+            // 3. Small delay to ensure browser flushes storage
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // 4. Reload page to show login screen
+            location.reload();
+        } catch (err) {
+            console.error('Logout failed:', err);
+            // Force reload anyway
+            location.reload();
+        }
     },
 
     // --- DATA REPAIR HELPER (Run in Console) ---
