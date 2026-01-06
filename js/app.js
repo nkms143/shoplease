@@ -579,12 +579,13 @@ const Store = {
         }
     },
 
-    terminateApplicant(shopNo, terminationRecord) {
+    async terminateApplicant(shopNo, terminationRecord) {
         let applicants = this.getApplicants();
-        const app = applicants.find(a => a.shopNo === shopNo);
+        // Use idsMatch
+        const app = applicants.find(a => this.idsMatch(a.shopNo, shopNo));
 
         if (app) {
-            // Save to History
+            // Save to History (Local only for now, unless extended)
             const historyRecord = {
                 ...app,
                 terminationDate: terminationRecord.date,
@@ -593,29 +594,11 @@ const Store = {
             };
             this.saveToHistory(historyRecord);
 
-            // Free up the shop
-            this.markShopAvailable(shopNo);
-
-            // Remove from Active
-            applicants = applicants.filter(a => a.shopNo !== shopNo);
-            localStorage.setItem(this.APPLICANTS_KEY, JSON.stringify(applicants));
+            // Use the ROBUST deleteApplicant to handle Cloud Sync/Cleanup
+            await this.deleteApplicant(shopNo);
+        } else {
+            alert("Applicant not found for termination.");
         }
-    },
-
-    deleteApplicant(shopNo) {
-        // Legacy delete - maybe deprecated but kept for now?
-        // Actually, let's keep it but maybe it shouldn't be used for termination anymore?
-        let applicants = this.getApplicants();
-        // Free up the shop FIRST
-        const app = applicants.find(a => a.shopNo === shopNo);
-        if (app) {
-            this.markShopAvailable(shopNo);
-        }
-        applicants = applicants.filter(a => a.shopNo !== shopNo);
-        localStorage.setItem(this.APPLICANTS_KEY, JSON.stringify(applicants));
-
-        // Cleanup payments for clean slate
-        this.deletePaymentsForShop(shopNo);
     },
 
     markShopAvailable(shopNo) {
@@ -1277,13 +1260,34 @@ const ShopModule = {
 
         // Delete Logic (Event Delegation)
         document.getElementById('shop-list-body').addEventListener('click', (e) => {
-            if (e.target.closest('.btn-delete-shop')) {
-                const btn = e.target.closest('.btn-delete-shop');
+            const target = e.target;
+
+            // DELETE
+            if (target.closest('.btn-delete-shop')) {
+                const btn = target.closest('.btn-delete-shop');
                 const shopNo = btn.dataset.shop;
                 if (confirm(`Are you sure you want to delete Shop ${shopNo}? This cannot be undone.`)) {
                     Store.deleteShop(shopNo);
                     this.renderList();
                 }
+            }
+            // TERMINATE
+            else if (target.closest('.btn-term-shop')) {
+                const shopNo = target.closest('.btn-term-shop').dataset.shop;
+                const reason = prompt("Enter reason for termination:", "Lease Expired");
+                if (reason) {
+                    Store.terminateApplicant(shopNo, { reason, date: new Date().toISOString() });
+                    this.renderList();
+                }
+            }
+            // RENEW
+            else if (target.closest('.btn-renew-shop')) {
+                const shopNo = target.closest('.btn-renew-shop').dataset.shop;
+                // Switch to Applicant Tab and Load
+                document.querySelector('.nav-link[data-module="applicant"]').click();
+                setTimeout(() => {
+                    ApplicantModule.loadApplicantForEdit(shopNo);
+                }, 100);
             }
         });
     },
