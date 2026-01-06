@@ -187,16 +187,28 @@ const Store = {
             // 2. Map Applicants
             this.cache.applicants = (t.data || []).map(row => ({
                 shopNo: row.shop_no,
+                // Map contact_no -> mobileNo (UI expects mobileNo)
+                mobileNo: row.contact_no,
                 applicantName: row.applicant_name,
-                proprietorName: row.proprietor_name,
+                proprietorShopName: row.proprietor_name, // Map DB prop_name -> JS propShopName
+                applicantType: row.proprietor_name ? 'Proprietor' : 'Individual', // Infer Type
                 contactNo: row.contact_no,
                 aadharNo: row.aadhar_no,
                 panNo: row.pan_no,
                 address: row.address,
-                baseRent: row.rent_base,
-                totalRent: row.rent_total,
+
+                // Financials
+                rentBase: row.rent_base,       // Correct: rentBase
+                gstAmount: row.gst_amount,     // Correct: gstAmount
+                rentTotal: row.rent_total,     // Correct: rentTotal
+
+                // Dates
                 leaseDate: row.lease_date,
                 rentStartDate: row.rent_start_date,
+                expiryDate: row.expiry_date,       // Correct: expiryDate
+                agreementDate: row.agreement_date, // Correct: agreementDate
+                paymentDay: row.payment_day,       // Correct: paymentDay
+
                 occupancyStartDate: row.rent_start_date || row.lease_date,
                 status: row.status
             }));
@@ -315,18 +327,26 @@ const Store = {
         }
 
         // 2. Cloud Sync
+        // 2. Cloud Sync
         const dbApp = {
             shop_no: applicant.shopNo,
             applicant_name: applicant.applicantName,
-            proprietor_name: applicant.proprietorName,
-            contact_no: applicant.contactNo,
-            aadhar_no: applicant.aadharNo,
-            pan_no: applicant.panNo,
+            proprietor_name: applicant.proprietorShopName || applicant.proprietorName, // Handle both key variations
+            contact_no: applicant.mobileNo || applicant.contactNo, // Handle key variations
+            aadhar_no: applicant.aadharNo || applicant.aadhar,
+            pan_no: applicant.panNo || applicant.pan,
             address: applicant.address,
+
             lease_date: applicant.leaseDate,
             rent_start_date: applicant.rentStartDate,
-            rent_base: parseFloat(applicant.baseRent || 0),
-            rent_total: parseFloat(applicant.totalRent || 0),
+            expiry_date: applicant.expiryDate,
+            agreement_date: applicant.agreementDate,
+            payment_day: parseInt(applicant.paymentDay) || 5,
+
+            rent_base: parseFloat(applicant.rentBase || applicant.baseRent || 0),
+            gst_amount: parseFloat(applicant.gstAmount || 0),
+            rent_total: parseFloat(applicant.rentTotal || applicant.totalRent || 0),
+
             status: 'Active'
         };
 
