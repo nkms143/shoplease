@@ -3,26 +3,93 @@
  * Single file version for easy local execution (No Server Required)
  */
 
+const SUPABASE_URL = 'https://ypwyrxtxkupvmhsegscs.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlwd3lyeHR4a3Vwdm1oc2Vnc2NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzE3NTcsImV4cCI6MjA4MzI0Nzc1N30.A8xX6E2FqDyWat6yGXbUntoJA19xGZxReQzpw5cIxyk';
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const AuthModule = {
-    checkSession() {
-        return sessionStorage.getItem('suda_auth_token') === 'loggedin';
+    async checkSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        return !!session;
     },
 
-    login(uid, pass) {
-        if (uid === 'admin' && pass === 'admin123') {
-            sessionStorage.setItem('suda_auth_token', 'loggedin');
-            return true;
+    async login(email, pass) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: pass
+        });
+        if (error) {
+            console.error('Login Error:', error.message);
+            return false;
         }
-        return false;
+        return true;
     },
 
-    logout() {
-        sessionStorage.removeItem('suda_auth_token');
+    async logout() {
+        await supabase.auth.signOut();
         location.reload();
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+// --- DATA MIGRATION HELPER (Run in Console) ---
+window.migrateDataToSupabase = async () => {
+    console.log("Starting Migration...");
+
+    // 1. Shops
+    const shops = Store.getShops();
+    for (const s of shops) {
+        const { error } = await supabase.from('shops').upsert({
+            shop_no: s.shopNo,
+            dimensions: s.dimensions,
+            status: s.status
+        }, { onConflict: 'shop_no' });
+        if (error) console.error('Shop Error:', s.shopNo, error);
+    }
+    console.log(`Migrated ${shops.length} Shops.`);
+
+    // 2. Tenants (Applicants)
+    const apps = Store.getApplicants();
+    for (const a of apps) {
+        const dbApp = {
+            shop_no: a.shopNo,
+            applicant_name: a.applicantName,
+            proprietor_name: a.proprietorName,
+            contact_no: a.contactNo,
+            aadhar_no: a.aadharNo,
+            pan_no: a.panNo,
+            address: a.address,
+            lease_date: a.leaseDate,
+            rent_start_date: a.rentStartDate,
+            rent_base: parseFloat(a.baseRent || 0),
+            rent_total: parseFloat(a.totalRent || 0),
+            status: 'Active'
+        };
+        const { error } = await supabase.from('tenants').insert(dbApp);
+        if (error) console.error('Tenant Error:', a.applicantName, error);
+    }
+    console.log(`Migrated ${apps.length} Tenants.`);
+
+    // 3. Payments
+    const payments = Store.getPayments();
+    for (const p of payments) {
+        const dbPay = {
+            shop_no: p.shopNo,
+            payment_date: p.paymentDate || p.timestamp.slice(0, 10),
+            payment_for_month: p.paymentForMonth,
+            amount_base: parseFloat(p.rentAmount || 0),
+            amount_gst: parseFloat(p.gstAmount || 0),
+            amount_penalty: parseFloat(p.penalty || 0),
+            amount_total: parseFloat(p.grandTotal || p.totalRent || 0),
+            payment_method: p.paymentMode || 'Cash'
+        };
+        const { error } = await supabase.from('payments').insert(dbPay);
+        if (error) console.error('Payment Error:', p.shopNo, error);
+    }
+    console.log(`Migrated ${payments.length} Payments.`);
+    alert("Migration Complete! Data is now in Supabase.");
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
     // 1. AUTH CHECK
     const loginContainer = document.getElementById('login-container');
     const appContainer = document.getElementById('app-container');
@@ -30,7 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginError = document.getElementById('login-error');
     const logoutBtn = document.getElementById('btn-logout');
 
-    if (AuthModule.checkSession()) {
+    const isLoggedIn = await AuthModule.checkSession();
+
+    if (isLoggedIn) {
         loginContainer.style.display = 'none';
         appContainer.style.display = 'flex'; // Show Flex container
 
@@ -46,14 +115,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Login Event
     if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const uid = document.getElementById('login-id').value;
             const pass = document.getElementById('login-pass').value;
 
-            if (AuthModule.login(uid, pass)) {
+            // Supabase uses Email/Password, so we treat 'uid' as email if it contains '@', else we might need mapping.
+            // For now, let's assume the user enters an email.
+            const success = await AuthModule.login(uid, pass);
+
+            if (success) {
                 location.reload();
             } else {
+                loginError.textContent = "Authentication Failed. Please check email/password.";
                 loginError.style.display = 'block';
             }
         });
@@ -61,8 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Logout Event
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            AuthModule.logout();
+        logoutBtn.addEventListener('click', async () => {
+            await AuthModule.logout();
         });
     }
 });
