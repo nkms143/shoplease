@@ -449,6 +449,12 @@ const Store = {
 
             // 1. Local Cache Update
             let applicants = this.getApplicants();
+
+            // RESOLVE CANONICAL ID (Fix "04" vs "4" Sync Mismatch)
+            const targetApp = applicants.find(a => this.idsMatch(a.shopNo, shopNo));
+            const canonicalShopNo = targetApp ? targetApp.shopNo : shopNo;
+            console.log(`Deleting Applicant. Arg: '${shopNo}' -> Canonical: '${canonicalShopNo}'`);
+
             // Use Robust Helper
             this.cache.applicants = applicants.filter(a => !this.idsMatch(a.shopNo, shopNo));
 
@@ -464,11 +470,11 @@ const Store = {
             this.deletePaymentsForShop(shopNo);
 
             // 2. Cloud Sync
-            // A. Delete Payments first (to avoid any potential FK issues, though schema says OK)
+            // A. Delete Payments first
             const { error: payError } = await supabaseClient
                 .from('payments')
                 .delete()
-                .eq('shop_no', shopNo);
+                .eq('shop_no', canonicalShopNo);
 
             if (payError) console.warn("Payment cleanup error (non-critical):", payError);
 
@@ -476,7 +482,7 @@ const Store = {
             const { error: delError } = await supabaseClient
                 .from('tenants')
                 .delete()
-                .eq('shop_no', shopNo);
+                .eq('shop_no', canonicalShopNo);
 
             if (delError) throw delError;
 
