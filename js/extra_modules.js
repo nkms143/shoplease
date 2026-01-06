@@ -1802,11 +1802,21 @@ const ReportModule = {
         const fromDate = new Date(startYear, 3, 1); // Month 3 is April
         const toDate = new Date(endYear, 2, 31);   // Month 2 is March. 31st.
 
+        const parseAsLocal = (dateStr) => {
+            if (!dateStr) return null;
+            // Handle YYYY-MM-DD explicitly to avoid UTC interpretation
+            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [y, m, d] = dateStr.split('-').map(Number);
+                return new Date(y, m - 1, d); // Local Midnight
+            }
+            return new Date(dateStr); // Fallback
+        };
+
         const applicants = Store.getApplicants();
         const payments = Store.getPayments();
         const settings = Store.getSettings();
         const penaltyRate = parseFloat(settings.penaltyRate) || 15;
-        const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
+        const implementationDate = parseAsLocal(settings.penaltyDate);
 
         let targets = applicants;
         if (shopNo !== 'ALL') {
@@ -1939,7 +1949,15 @@ const ReportModule = {
 
         // START DATE: Earliest of Lease Start or Report Start
         // We MUST scan from the very beginning of the lease to calculate "Opening Balance" (Arrear Demand) correctly.
-        const appStart = app.rentStartDate ? new Date(app.rentStartDate) : (app.leaseDate ? new Date(app.leaseDate) : null);
+        const parseLocal = (d) => {
+            if (!d) return null;
+            if (typeof d === 'string' && d.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [y, m, day] = d.split('-').map(Number);
+                return new Date(y, m - 1, day);
+            }
+            return new Date(d);
+        };
+        const appStart = parseLocal(app.rentStartDate || app.leaseDate);
 
         // Totals
         let currentDemandBase = 0, currentDemandGst = 0;
