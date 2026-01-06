@@ -5,24 +5,18 @@
 
 const SUPABASE_URL = 'https://ypwyrxtxkupvmhsegscs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlwd3lyeHR4a3Vwdm1oc2Vnc2NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzE3NTcsImV4cCI6MjA4MzI0Nzc1N30.A8xX6E2FqDyWat6yGXbUntoJA19xGZxReQzpw5cIxyk';
-// Use window.supabase to avoid shadowing, and name the client 'supabaseClient' (or keep it 'supabase' but assign properly if it wasn't const/let).
-// Better:
+// Use window.supabase to avoid shadowing, and name the client 'supabaseClient'
 const _supabase = window.supabase;
 const supabaseClient = _supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Map it back to 'supabase' global context or usage if needed, 
-// BUT my code uses 'supabase' variable later. 
-// So I will update the references or just do:
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 const AuthModule = {
     async checkSession() {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await supabaseClient.auth.getSession();
         return !!session;
     },
 
     async login(email, pass) {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
             email: email,
             password: pass
         });
@@ -34,7 +28,7 @@ const AuthModule = {
     },
 
     async logout() {
-        await supabase.auth.signOut();
+        await supabaseClient.auth.signOut();
         location.reload();
     }
 };
@@ -46,7 +40,7 @@ window.migrateDataToSupabase = async () => {
     // 1. Shops
     const shops = Store.getShops();
     for (const s of shops) {
-        const { error } = await supabase.from('shops').upsert({
+        const { error } = await supabaseClient.from('shops').upsert({
             shop_no: s.shopNo,
             dimensions: s.dimensions,
             status: s.status
@@ -72,7 +66,7 @@ window.migrateDataToSupabase = async () => {
             rent_total: parseFloat(a.totalRent || 0),
             status: 'Active'
         };
-        const { error } = await supabase.from('tenants').insert(dbApp);
+        const { error } = await supabaseClient.from('tenants').insert(dbApp);
         if (error) console.error('Tenant Error:', a.applicantName, error);
     }
     console.log(`Migrated ${apps.length} Tenants.`);
@@ -90,7 +84,7 @@ window.migrateDataToSupabase = async () => {
             amount_total: parseFloat(p.grandTotal || p.totalRent || 0),
             payment_method: p.paymentMode || 'Cash'
         };
-        const { error } = await supabase.from('payments').insert(dbPay);
+        const { error } = await supabaseClient.from('payments').insert(dbPay);
         if (error) console.error('Payment Error:', p.shopNo, error);
     }
     console.log(`Migrated ${payments.length} Payments.`);
