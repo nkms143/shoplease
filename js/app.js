@@ -516,6 +516,16 @@ const Store = {
             // D. Update Shop Status (Broad filter)
             await supabaseClient.from('shops').update({ status: 'Available' }).or(orQuery);
 
+            // C. SCORCHED EARTH FALLBACK
+            console.log("Cloud Sync: Executing Fallback Direct Deletions...");
+            await supabaseClient.from('tenants').delete().eq('shop_no', shopNo);
+            if (String(shopNo).trim() !== String(shopNo)) {
+                await supabaseClient.from('tenants').delete().eq('shop_no', String(shopNo).trim());
+            }
+            // Fallback Payments/Shops
+            await supabaseClient.from('payments').delete().eq('shop_no', shopNo);
+            await supabaseClient.from('shops').update({ status: 'Available' }).eq('shop_no', shopNo);
+
             console.log(`Success: Deleted applicant and cleared Shop ${shopNo}.`);
             alert(`Applicant deleted and Shop ${shopNo} is now Available.`);
 
