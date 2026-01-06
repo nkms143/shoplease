@@ -148,9 +148,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Logout Event
+    // Logout Event (Header)
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
+            await AuthModule.logout();
+        });
+    }
+
+    // Logout Event (Sidebar - Mobile Friendly)
+    const logoutBtnSidebar = document.getElementById('btn-logout-sidebar');
+    if (logoutBtnSidebar) {
+        logoutBtnSidebar.addEventListener('click', async () => {
             await AuthModule.logout();
         });
     }
