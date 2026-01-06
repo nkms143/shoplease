@@ -3,8 +3,16 @@
  * Single file version for easy local execution (No Server Required)
  */
 
-const SUPABASE_URL = 'https://ypwyrxtxkupvmhsegscs.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlwd3lyeHR4a3Vwdm1oc2Vnc2NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzE3NTcsImV4cCI6MjA4MzI0Nzc1N30.A8xX6E2FqDyWat6yGXbUntoJA19xGZxReQzpw5cIxyk';
+// CONFIGURATION
+const config = window.CONFIG || { SUPABASE_URL: '', SUPABASE_KEY: '' };
+if (!config.SUPABASE_URL) {
+    console.error("CRITICAL: Missing js/config.js. Please rename js/config.example.js and add your keys.");
+    alert("Configuration Missing! Application may not work.");
+}
+
+const SUPABASE_URL = config.SUPABASE_URL;
+const SUPABASE_KEY = config.SUPABASE_KEY;
+
 // Use window.supabase to avoid shadowing, and name the client 'supabaseClient'
 const _supabase = window.supabase;
 const supabaseClient = _supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
