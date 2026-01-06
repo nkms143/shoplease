@@ -51,8 +51,8 @@
     - [x] Restore "Renew/Terminate" buttons in Shop Inventory UI
     - [x] Fix DCB Report Mobile vs Desktop discrepancy (Normalized Timezone/Date Parsing)
 
-## Phase 4: Production Hygiene (Next Steps)
-- [ ] **Security Hardening**
-    - [ ] Implement Row Level Security (RLS) policies in Supabase
-- [ ] **Environment Management**
-    - [ ] Move Secrets (URL/Key) to Environment Variables
+## Phase 4: Production Hygiene (Completed)
+- [x] **Security Hardening**
+    - [x] Implement Row Level Security (RLS) policies in Supabase
+- [x] **Environment Management**
+    - [x] Move Secrets (URL/Key) to Environment Variables
