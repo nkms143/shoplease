@@ -1250,7 +1250,7 @@ const ApplicantModule = {
         form.querySelector('[name="applicantType"]').dispatchEvent(new Event('change'));
 
         if (app.applicantType === 'Proprietor') {
-            form.querySelector('[name="proprietorShopName"]').value = app.shopName || '';
+            form.querySelector('[name="proprietorShopName"]').value = app.proprietorShopName || '';
             form.querySelector('[name="shopGst"]').value = app.gstNo || '';
         }
 
