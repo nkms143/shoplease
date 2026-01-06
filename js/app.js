@@ -5,7 +5,15 @@
 
 const SUPABASE_URL = 'https://ypwyrxtxkupvmhsegscs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlwd3lyeHR4a3Vwdm1oc2Vnc2NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzE3NTcsImV4cCI6MjA4MzI0Nzc1N30.A8xX6E2FqDyWat6yGXbUntoJA19xGZxReQzpw5cIxyk';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Use window.supabase to avoid shadowing, and name the client 'supabaseClient' (or keep it 'supabase' but assign properly if it wasn't const/let).
+// Better:
+const _supabase = window.supabase;
+const supabaseClient = _supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Map it back to 'supabase' global context or usage if needed, 
+// BUT my code uses 'supabase' variable later. 
+// So I will update the references or just do:
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const AuthModule = {
     async checkSession() {
