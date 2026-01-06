@@ -1575,6 +1575,31 @@ const ApplicantModule = {
         `;
 
         this.setupFormLogic();
+        this.setupListEvents();
+    },
+
+    setupListEvents() {
+        const tbody = document.getElementById('applicant-list-body');
+        if (!tbody) return;
+
+        // Use Event Delegation
+        tbody.addEventListener('click', (e) => {
+            const deleteBtn = e.target.closest('.btn-delete-app');
+            const editBtn = e.target.closest('.btn-edit-app');
+
+            if (deleteBtn) {
+                const shopNo = deleteBtn.dataset.shop;
+                if (confirm(`Are you sure you want to PERMANENTLY delete the applicant for Shop ${shopNo}?\n\nThis will:\n1. Remove tenant data.\n2. Mark shop as Available.\n3. Delete associated payments.`)) {
+                    Store.deleteApplicant(shopNo);
+                    this.renderList();
+                    // Refill Shop Select (since a shop became available)
+                    this.populateShopSelect();
+                }
+            } else if (editBtn) {
+                const shopNo = editBtn.dataset.shop;
+                this.loadApplicantForEdit(shopNo);
+            }
+        });
     },
 
     setupFormLogic() {
