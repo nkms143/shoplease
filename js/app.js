@@ -1303,6 +1303,10 @@ const ShopModule = {
                 <td>${s.dimensions || '-'}</td>
                 <td><span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; background: ${s.status === 'Occupied' ? '#fecaca' : '#d1fae5'}; color: ${s.status === 'Occupied' ? '#dc2626' : '#059669'};">${s.status}</span></td>
                 <td>
+                     ${s.status === 'Occupied' ? `
+                        <button class="btn-renew-shop" data-shop="${s.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:5px;" title="Renew Lease">🔄</button>
+                        <button class="btn-term-shop" data-shop="${s.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:5px; color:#e11d48;" title="Terminate Lease">🚫</button>
+                     ` : ''}
                     <button class="btn-delete-shop" data-shop="${s.shopNo}" style="background:none; border:none; cursor:pointer;" title="Delete">
                         🗑️
                     </button>
