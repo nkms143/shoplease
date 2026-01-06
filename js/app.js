@@ -575,10 +575,39 @@ const Store = {
         }
     },
 
-    deletePayment(paymentId) {
+    async deletePayment(paymentId) {
+        // 1. Local Cache
         let payments = this.getPayments();
+
+        // Find the payment to verify ownership/shop
+        const payToDelete = payments.find(p => p.timestamp === paymentId);
+
         payments = payments.filter(p => p.timestamp !== paymentId);
         localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
+
+        // 2. Cloud Sync
+        if (payToDelete && payToDelete.receiptNo) {
+            try {
+                // Delete by receipt_no (most reliable unique key from DB perspective)
+                const { error } = await supabaseClient
+                    .from('payments')
+                    .delete()
+                    .eq('receipt_no', payToDelete.receiptNo);
+
+                if (error) throw error;
+                console.log(`Cloud: Payment ${payToDelete.receiptNo} deleted.`);
+                alert("Transaction deleted successfully.");
+            } catch (e) {
+                // Fallback: try deleting by created_at or other unique constraints if receipt_no fails?
+                // For now, assume receipt_no is good.
+                console.error("Delete Payment Cloud Failed:", e);
+                alert("Deleted locally, but Cloud Sync failed.");
+            }
+        } else {
+            // If no receiptNo, maybe it didn't sync yet?
+            // Just warn.
+            console.warn("Deleted payment had no receiptNo, skipping Cloud delete (might be local only?)");
+        }
     },
 
     deduplicatePayments() {
