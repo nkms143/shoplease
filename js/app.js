@@ -483,13 +483,37 @@ const Store = {
         }
     },
 
-    deleteShop(shopNo) {
+    async deleteShop(shopNo) {
+        // 1. Local Cache
         let shops = this.getShops();
         shops = shops.filter(s => s.shopNo !== shopNo);
         localStorage.setItem(this.SHOPS_KEY, JSON.stringify(shops));
 
-        // Also cleanup payments to prevent ghost data
+        // Cleanup payments locally
         this.deletePaymentsForShop(shopNo);
+
+        // 2. Cloud Sync
+        try {
+            // First, delete related Tenant if it exists (Optional, but safe)
+            await supabaseClient.from('tenants').delete().eq('shop_no', shopNo);
+
+            // Delete payments (Cloud)
+            await supabaseClient.from('payments').delete().eq('shop_no', shopNo);
+
+            // Finally, delete the Shop
+            const { error } = await supabaseClient
+                .from('shops')
+                .delete()
+                .eq('shop_no', shopNo);
+
+            if (error) throw error;
+
+            console.log(`Cloud: Shop ${shopNo} deleted.`);
+            alert(`Shop ${shopNo} deleted permanently.`);
+        } catch (e) {
+            console.error("Delete Shop Failed Check:", e);
+            alert("Shop deleted locally, but Cloud Sync failed. It may reappear on refresh.");
+        }
     },
 
     deletePaymentsForShop(shopNo) {
