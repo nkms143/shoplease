@@ -450,49 +450,71 @@ const Store = {
             // 1. Local Cache Update
             let applicants = this.getApplicants();
 
-            // RESOLVE CANONICAL ID (Fix "04" vs "4" Sync Mismatch)
-            const targetApp = applicants.find(a => this.idsMatch(a.shopNo, shopNo));
-            const canonicalShopNo = targetApp ? targetApp.shopNo : shopNo;
-            console.log(`Deleting Applicant. Arg: '${shopNo}' -> Canonical: '${canonicalShopNo}'`);
+            // Log for debugging
+            console.log(`Deleting Applicant for Shop Arg: '${shopNo}'`);
 
-            // Use Robust Helper
+            // Use Robust Helper for local filtering
             this.cache.applicants = applicants.filter(a => !this.idsMatch(a.shopNo, shopNo));
 
             // Mark Shop as Available locally
             const shop = this.cache.shops.find(s => this.idsMatch(s.shopNo, shopNo));
             if (shop) shop.status = 'Available';
 
-            // PERSIST Local Storage (Critical for offline/refresh resilience)
+            // PERSIST Local Storage
             localStorage.setItem(this.APPLICANTS_KEY, JSON.stringify(this.cache.applicants));
             localStorage.setItem(this.SHOPS_KEY, JSON.stringify(this.cache.shops));
 
             // Cleanup Payments (Ghost Data) locally
             this.deletePaymentsForShop(shopNo);
 
-            // 2. Cloud Sync
-            // A. Delete Payments first
-            const { error: payError } = await supabaseClient
-                .from('payments')
-                .delete()
-                .eq('shop_no', canonicalShopNo);
+            // 2. Cloud Sync - ROBUST STRATEGY (Fetch UUID then Delete)
 
-            if (payError) console.warn("Payment cleanup error (non-critical):", payError);
+            // A. Clean Payments first
+            // Normalize inputs for query
+            const sId = String(shopNo).trim();
+            const nId = Number(sId);
+            const isNum = !isNaN(nId);
 
-            // B. Delete Tenant
-            const { error: delError } = await supabaseClient
+            // Construct OR filter for likely variations
+            let orQuery = `shop_no.eq.${sId}`;
+            if (isNum) {
+                // If input is "04", add "4". If "4", add "04".
+                const altId = String(nId);
+                if (altId !== sId) orQuery += `,shop_no.eq.${altId}`; // "4"
+
+                const paddedId = nId < 10 && nId >= 0 ? `0${nId}` : String(nId);
+                if (paddedId !== sId && paddedId !== altId) orQuery += `,shop_no.eq.${paddedId}`; // "04"
+            }
+
+            console.log(`Cloud Sync: Searching for tenants matching: ${orQuery}`);
+
+            // B. Find Tenant UUIDs to delete
+            const { data: tenantsToDelete, error: fetchError } = await supabaseClient
                 .from('tenants')
-                .delete()
-                .eq('shop_no', canonicalShopNo);
+                .select('id, shop_no')
+                .or(orQuery);
 
-            if (delError) throw delError;
+            if (fetchError) console.warn("Error fetching tenants for delete:", fetchError);
 
-            // C. Update Shop Status
-            const { error: shopError } = await supabaseClient
-                .from('shops')
-                .update({ status: 'Available' })
-                .eq('shop_no', shopNo);
+            if (tenantsToDelete && tenantsToDelete.length > 0) {
+                const ids = tenantsToDelete.map(t => t.id);
+                console.log(`Cloud Sync: Found ${ids.length} tenants to delete via UUID:`, ids);
 
-            if (shopError) throw shopError;
+                const { error: delError } = await supabaseClient
+                    .from('tenants')
+                    .delete()
+                    .in('id', ids); // Delete by UUID
+
+                if (delError) throw delError;
+            } else {
+                console.warn("Cloud Sync: No matching tenants found to delete on server.");
+            }
+
+            // C. Also try to delete payments using the same broad filter
+            await supabaseClient.from('payments').delete().or(orQuery);
+
+            // D. Update Shop Status (Broad filter)
+            await supabaseClient.from('shops').update({ status: 'Available' }).or(orQuery);
 
             console.log(`Success: Deleted applicant and cleared Shop ${shopNo}.`);
             alert(`Applicant deleted and Shop ${shopNo} is now Available.`);
