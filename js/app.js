@@ -79,6 +79,8 @@ const AuthModule = {
         alert(`Repair Complete!\nFixed: ${successCount}\nFailed: ${failCount}\n\nPlease Refresh the Page.`);
     }
 };
+// Expose for Console Use
+window.repairData = AuthModule.repairData;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. AUTH CHECK
