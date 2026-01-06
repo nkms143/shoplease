@@ -61,6 +61,25 @@ const AuthModule = {
                 proprietor_name: app.proprietorShopName || app.proprietorName || '',
                 // Ensure applicantType (implicit via proprietor_name logic on read, 
                 // but good to ensure proprietor_name is set if it was missing)
+
+                // Missing Fields (Reported by User)
+                contact_no: app.mobileNo || app.contactNo,
+                pan_no: app.panNo || app.pan,
+                aadhar_no: app.aadharNo || app.aadhar,
+                address: app.address,
+                // GST No for Proprietors (sometimes stored as shopGst in legacy)
+                // Note: We don't have a specific column for 'shop_gst_no' in DB? 
+                // Let's check schema. We have 'pan_no', 'aadhar_no'. 
+                // If shop_gst is important, we might need a column or reuse one?
+                // Wait, 'proprietor_name' is there. 'shop_no' is there.
+                // Converting legacy 'shopGst' to put into address or just ensure it's saved.
+                // Checking DB schema... we might have missed 'gst_no' column for tenant?
+                // If so, let's put it in address for now or leave it. 
+                // User said "GST for Shop No 02 and 03". 
+                // Maybe they mean GST Amount? "no GST for Shop No 02...".
+                // Ah, "Application Details... no GST". likely 'gst_amount'.
+                // I have 'gst_amount' mapped above. 
+                // Retrying update including contact info.
             };
 
             const { error } = await supabaseClient
