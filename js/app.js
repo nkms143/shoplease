@@ -426,7 +426,20 @@ const Store = {
 
     getShopPayments(shopNo) {
         const payments = this.getPayments();
-        return payments.filter(p => p.shopNo === shopNo);
+        return payments.filter(p => this.idsMatch(p.shopNo, shopNo));
+    },
+
+    // Helper: Safely compare IDs (Handle "04" vs 4 vs " 04 ")
+    idsMatch(a, b) {
+        if (!a || !b) return false;
+        const sA = String(a).trim();
+        const sB = String(b).trim();
+        if (sA === sB) return true;
+
+        // Try numeric comparison if both are valid numbers
+        const nA = Number(sA);
+        const nB = Number(sB);
+        return !isNaN(nA) && !isNaN(nB) && nA === nB;
     },
 
     // --- DELETE/UPDATE METHODS ---
@@ -436,11 +449,11 @@ const Store = {
 
             // 1. Local Cache Update
             let applicants = this.getApplicants();
-            // Use String comparison to handle "04" vs 4 mismatches
-            this.cache.applicants = applicants.filter(a => String(a.shopNo) !== String(shopNo));
+            // Use Robust Helper
+            this.cache.applicants = applicants.filter(a => !this.idsMatch(a.shopNo, shopNo));
 
             // Mark Shop as Available locally
-            const shop = this.cache.shops.find(s => String(s.shopNo) === String(shopNo));
+            const shop = this.cache.shops.find(s => this.idsMatch(s.shopNo, shopNo));
             if (shop) shop.status = 'Available';
 
             // PERSIST Local Storage (Critical for offline/refresh resilience)
@@ -487,7 +500,7 @@ const Store = {
     async deleteShop(shopNo) {
         // 1. Local Cache
         let shops = this.getShops();
-        shops = shops.filter(s => String(s.shopNo) !== String(shopNo));
+        shops = shops.filter(s => !this.idsMatch(s.shopNo, shopNo));
         localStorage.setItem(this.SHOPS_KEY, JSON.stringify(shops));
 
         // Cleanup payments locally
@@ -520,7 +533,7 @@ const Store = {
     deletePaymentsForShop(shopNo) {
         let payments = this.getPayments();
         const initialCount = payments.length;
-        payments = payments.filter(p => String(p.shopNo) !== String(shopNo));
+        payments = payments.filter(p => !this.idsMatch(p.shopNo, shopNo));
 
         if (payments.length !== initialCount) {
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
