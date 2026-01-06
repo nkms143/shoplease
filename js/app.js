@@ -436,10 +436,11 @@ const Store = {
 
             // 1. Local Cache Update
             let applicants = this.getApplicants();
-            this.cache.applicants = applicants.filter(a => a.shopNo !== shopNo);
+            // Use String comparison to handle "04" vs 4 mismatches
+            this.cache.applicants = applicants.filter(a => String(a.shopNo) !== String(shopNo));
 
             // Mark Shop as Available locally
-            const shop = this.cache.shops.find(s => s.shopNo === shopNo);
+            const shop = this.cache.shops.find(s => String(s.shopNo) === String(shopNo));
             if (shop) shop.status = 'Available';
 
             // PERSIST Local Storage (Critical for offline/refresh resilience)
@@ -486,7 +487,7 @@ const Store = {
     async deleteShop(shopNo) {
         // 1. Local Cache
         let shops = this.getShops();
-        shops = shops.filter(s => s.shopNo !== shopNo);
+        shops = shops.filter(s => String(s.shopNo) !== String(shopNo));
         localStorage.setItem(this.SHOPS_KEY, JSON.stringify(shops));
 
         // Cleanup payments locally
@@ -519,7 +520,7 @@ const Store = {
     deletePaymentsForShop(shopNo) {
         let payments = this.getPayments();
         const initialCount = payments.length;
-        payments = payments.filter(p => p.shopNo !== shopNo);
+        payments = payments.filter(p => String(p.shopNo) !== String(shopNo));
 
         if (payments.length !== initialCount) {
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
