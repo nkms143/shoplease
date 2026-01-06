@@ -3,7 +3,10 @@
 node_modules/
 
 # Secrets
-js/config.js
+# IMPORTANT: For GitHub Pages deployment, config.js MUST be committed.
+# This means your API keys will be PUBLIC in your repository.
+# For production apps, use a backend or environment variables.
+# js/config.js  # Uncommented to allow deployment
 
 # System
 .DS_Store
