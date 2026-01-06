@@ -3345,7 +3345,13 @@ const ReceiptModule = {
         }
 
         const dateObj = new Date(validTs);
-        const uniqueSuffix = payment.timestamp.split('-').pop(); // Preservation of uniqueness from index
+
+        // Fix: Logic for uniqueSuffix was grabbing ISO time parts (e.g. 05T12:00:00).
+        // Only use legacy suffix if it looks like a simple index (short number), otherwise generate random.
+        let uniqueSuffix = payment.timestamp.split('-').pop();
+        if (uniqueSuffix.length > 5 || uniqueSuffix.includes(':') || uniqueSuffix.includes('T')) {
+            uniqueSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        }
 
         // Use stored immutable ID if available, else fallback to generated
         const receiptNo = payment.receiptId || `REC-${!isNaN(dateObj.getTime()) ? dateObj.getTime().toString().slice(-6) : 'GEN'}-${uniqueSuffix}`;
