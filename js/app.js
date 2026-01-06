@@ -66,6 +66,7 @@ const AuthModule = {
                 contact_no: app.mobileNo || app.contactNo,
                 pan_no: app.panNo || app.pan,
                 aadhar_no: app.aadharNo || app.aadhar,
+                gst_no: app.gstNo || app.shopGst, // Repair legacy data
                 address: app.address,
                 // GST No for Proprietors (sometimes stored as shopGst in legacy)
                 // Note: We don't have a specific column for 'shop_gst_no' in DB? 
@@ -205,6 +206,7 @@ const Store = {
                 contactNo: row.contact_no,
                 aadharNo: row.aadhar_no,
                 panNo: row.pan_no,
+                gstNo: row.gst_no, // New mapping
                 address: row.address,
 
                 // Financials
@@ -345,6 +347,7 @@ const Store = {
             contact_no: applicant.mobileNo || applicant.contactNo, // Handle key variations
             aadhar_no: applicant.aadharNo || applicant.aadhar,
             pan_no: applicant.panNo || applicant.pan,
+            gst_no: applicant.gstNo || applicant.shopGst, // New mapping
             address: applicant.address,
 
             lease_date: applicant.leaseDate,
