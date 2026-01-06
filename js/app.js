@@ -207,7 +207,7 @@ const Store = {
 
     async initData() {
         try {
-            console.log("Store: Initializing Data from Cloud...");
+            // console.log("Store: Initializing Data from Cloud...");
             const [s, t, p] = await Promise.all([
                 supabaseClient.from('shops').select('*'),
                 supabaseClient.from('tenants').select('*'),
@@ -276,7 +276,7 @@ const Store = {
             const savedRemittances = localStorage.getItem(this.REMITTANCE_KEY);
             if (savedRemittances) this.cache.remittances = JSON.parse(savedRemittances);
 
-            console.log("Store: Data Loaded", this.cache);
+            // console.log("Store: Data Loaded", this.cache);
         } catch (e) {
             console.error("Store Init Failed:", e);
             alert("Failed to load data from Cloud. Using Offline/Empty state.");
@@ -740,7 +740,7 @@ const Store = {
 
         if (changed) {
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
-            console.log('Store: normalized payments data');
+            // console.log('Store: normalized payments data');
         }
     },
 
