@@ -431,17 +431,34 @@ const Store = {
 
     // --- DELETE/UPDATE METHODS ---
     async deleteApplicant(shopNo) {
-        // 1. Local Cache Update
-        let applicants = this.getApplicants();
-        this.cache.applicants = applicants.filter(a => a.shopNo !== shopNo);
-
-        // Mark Shop as Available locally
-        const shop = this.cache.shops.find(s => s.shopNo === shopNo);
-        if (shop) shop.status = 'Available';
-
-        // 2. Cloud Sync
         try {
-            // Delete Tenant
+            console.log(`Attempting to delete applicant for Shop ${shopNo}...`);
+
+            // 1. Local Cache Update
+            let applicants = this.getApplicants();
+            this.cache.applicants = applicants.filter(a => a.shopNo !== shopNo);
+
+            // Mark Shop as Available locally
+            const shop = this.cache.shops.find(s => s.shopNo === shopNo);
+            if (shop) shop.status = 'Available';
+
+            // PERSIST Local Storage (Critical for offline/refresh resilience)
+            localStorage.setItem(this.APPLICANTS_KEY, JSON.stringify(this.cache.applicants));
+            localStorage.setItem(this.SHOPS_KEY, JSON.stringify(this.cache.shops));
+
+            // Cleanup Payments (Ghost Data) locally
+            this.deletePaymentsForShop(shopNo);
+
+            // 2. Cloud Sync
+            // A. Delete Payments first (to avoid any potential FK issues, though schema says OK)
+            const { error: payError } = await supabaseClient
+                .from('payments')
+                .delete()
+                .eq('shop_no', shopNo);
+
+            if (payError) console.warn("Payment cleanup error (non-critical):", payError);
+
+            // B. Delete Tenant
             const { error: delError } = await supabaseClient
                 .from('tenants')
                 .delete()
@@ -449,7 +466,7 @@ const Store = {
 
             if (delError) throw delError;
 
-            // Update Shop Status
+            // C. Update Shop Status
             const { error: shopError } = await supabaseClient
                 .from('shops')
                 .update({ status: 'Available' })
@@ -457,10 +474,12 @@ const Store = {
 
             if (shopError) throw shopError;
 
-            console.log(`Deleted applicant for Shop ${shopNo} and marked available.`);
+            console.log(`Success: Deleted applicant and cleared Shop ${shopNo}.`);
+            alert(`Applicant deleted and Shop ${shopNo} is now Available.`);
+
         } catch (e) {
             console.error("Delete Applicant Failed:", e);
-            alert("Deleted locally, but Cloud Sync failed!");
+            alert("Error: Deleted locally, but Cloud Sync failed! Check console for details.");
         }
     },
 
