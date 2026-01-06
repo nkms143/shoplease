@@ -430,6 +430,40 @@ const Store = {
     },
 
     // --- DELETE/UPDATE METHODS ---
+    async deleteApplicant(shopNo) {
+        // 1. Local Cache Update
+        let applicants = this.getApplicants();
+        this.cache.applicants = applicants.filter(a => a.shopNo !== shopNo);
+
+        // Mark Shop as Available locally
+        const shop = this.cache.shops.find(s => s.shopNo === shopNo);
+        if (shop) shop.status = 'Available';
+
+        // 2. Cloud Sync
+        try {
+            // Delete Tenant
+            const { error: delError } = await supabaseClient
+                .from('tenants')
+                .delete()
+                .eq('shop_no', shopNo);
+
+            if (delError) throw delError;
+
+            // Update Shop Status
+            const { error: shopError } = await supabaseClient
+                .from('shops')
+                .update({ status: 'Available' })
+                .eq('shop_no', shopNo);
+
+            if (shopError) throw shopError;
+
+            console.log(`Deleted applicant for Shop ${shopNo} and marked available.`);
+        } catch (e) {
+            console.error("Delete Applicant Failed:", e);
+            alert("Deleted locally, but Cloud Sync failed!");
+        }
+    },
+
     deleteShop(shopNo) {
         let shops = this.getShops();
         shops = shops.filter(s => s.shopNo !== shopNo);
