@@ -106,6 +106,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         appContainer.style.display = 'flex'; // Show Flex container
 
         // Initialize App Logic ONLY if logged in
+        await Store.initData(); // Fetch critical data from Cloud!
+
         if (Store.normalizePayments) Store.normalizePayments();
         if (Store.normalizeRemittances) Store.normalizeRemittances();
         Store.deduplicatePayments();
@@ -155,14 +157,95 @@ const Store = {
     REMITTANCE_KEY: 'suda_shop_remittances',
     HISTORY_KEY: 'suda_shop_history',
 
+    // --- CACHE & INIT ---
+    cache: {
+        shops: [],
+        applicants: [],
+        payments: [],
+        settings: { penaltyRate: 15, penaltyDate: null, logoUrl: null }, // Default
+        remittances: [],
+        history: []
+    },
+
+    async initData() {
+        try {
+            console.log("Store: Initializing Data from Cloud...");
+            const [s, t, p] = await Promise.all([
+                supabaseClient.from('shops').select('*'),
+                supabaseClient.from('tenants').select('*'),
+                supabaseClient.from('payments').select('*')
+            ]);
+
+            // 1. Map Shops
+            this.cache.shops = (s.data || []).map(row => ({
+                shopNo: row.shop_no,
+                dimensions: row.dimensions,
+                status: row.status,
+                shopId: row.id // Keep DB ID
+            }));
+
+            // 2. Map Applicants
+            this.cache.applicants = (t.data || []).map(row => ({
+                shopNo: row.shop_no,
+                applicantName: row.applicant_name,
+                proprietorName: row.proprietor_name,
+                contactNo: row.contact_no,
+                aadharNo: row.aadhar_no,
+                panNo: row.pan_no,
+                address: row.address,
+                baseRent: row.rent_base,
+                totalRent: row.rent_total,
+                leaseDate: row.lease_date,
+                rentStartDate: row.rent_start_date,
+                occupancyStartDate: row.rent_start_date || row.lease_date,
+                status: row.status
+            }));
+
+            // 3. Map Payments
+            this.cache.payments = (p.data || []).map(row => ({
+                shopNo: row.shop_no,
+                paymentDate: row.payment_date,
+                paymentForMonth: row.payment_for_month,
+                rentAmount: row.amount_base,
+                gstAmount: row.amount_gst,
+                penalty: row.amount_penalty,
+                grandTotal: row.amount_total, // Mapped back to JS property
+                totalRent: row.amount_total,  // Alias for compatibility
+                paymentMode: row.payment_method,
+                receiptNo: row.receipt_no,
+                timestamp: row.created_at
+            }));
+
+            // Load Settings/Remittances from LocalStorage for now (or move to DB later)
+            // Ideally, settings should be in DB too, but let's keep it simple for this phase.
+            // We'll stick to LocalStorage for Settings/History to save DB rows.
+            const savedSettings = localStorage.getItem(this.SETTINGS_KEY);
+            if (savedSettings) this.cache.settings = JSON.parse(savedSettings);
+
+            const savedRemittances = localStorage.getItem(this.REMITTANCE_KEY);
+            if (savedRemittances) this.cache.remittances = JSON.parse(savedRemittances);
+
+            console.log("Store: Data Loaded", this.cache);
+        } catch (e) {
+            console.error("Store Init Failed:", e);
+            alert("Failed to load data from Cloud. Using Offline/Empty state.");
+        }
+    },
+
+
     getRemittances() {
-        const data = localStorage.getItem(this.REMITTANCE_KEY);
-        return data ? JSON.parse(data) : [];
+        return this.cache.remittances; // From Cache
+    },
+
+    saveRemittance(remittance) {
+        this.cache.remittances.push(remittance);
+        localStorage.setItem(this.REMITTANCE_KEY, JSON.stringify(this.cache.remittances));
+        // TODO: Create 'remittances' table in Supabase
     },
 
     getHistory() {
-        const data = localStorage.getItem(this.HISTORY_KEY);
-        return data ? JSON.parse(data) : [];
+        // History is less critical, keep in localStorage for now
+        return JSON.parse(localStorage.getItem(this.HISTORY_KEY) || '[]');
     },
 
     saveToHistory(record) {
@@ -171,120 +254,140 @@ const Store = {
         localStorage.setItem(this.HISTORY_KEY, JSON.stringify(list));
     },
 
-    saveRemittance(remittance) {
-        const list = this.getRemittances();
-        list.push(remittance);
-        localStorage.setItem(this.REMITTANCE_KEY, JSON.stringify(list));
-    },
-
-    // ... existing saveSettings, etc ...
-
     getSettings() {
-        const data = localStorage.getItem(this.SETTINGS_KEY);
-        return data ? JSON.parse(data) : { penaltyRate: 15 };
+        return this.cache.settings;
     },
 
     saveSettings(settings) {
+        this.cache.settings = settings;
         localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
     },
 
+    // --- SHOPS ---
     getShops() {
-        const data = localStorage.getItem(this.SHOPS_KEY);
-        let shops = data ? JSON.parse(data) : [];
-
-        // Self-Healing: Backfill unique IDs for legacy data
-        let needsUpdate = false;
-        shops = shops.map(s => {
-            if (!s.shopId) {
-                s.shopId = 'STORE-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-                needsUpdate = true;
-            }
-            return s;
-        });
-
-        if (needsUpdate) {
-            localStorage.setItem(this.SHOPS_KEY, JSON.stringify(shops));
-        }
-
-        return shops;
+        return this.cache.shops;
     },
 
-    saveShop(shop) {
-        const shops = this.getShops();
+    async saveShop(shop) {
+        // 1. Optimistic Update (Cache)
+        const index = this.cache.shops.findIndex(s => s.shopNo === shop.shopNo);
+        if (index >= 0) this.cache.shops[index] = shop;
+        else this.cache.shops.push(shop);
 
-        // Ensure Unique ID
-        if (!shop.shopId) {
-            shop.shopId = 'STORE-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-        }
+        // 2. Cloud Sync
+        // Map JS -> DB
+        const dbShop = {
+            shop_no: shop.shopNo,
+            dimensions: shop.dimensions,
+            status: shop.status
+        };
 
-        const index = shops.findIndex(s => s.shopNo === shop.shopNo);
-        if (index >= 0) {
-            // Update existing (preserve ID if passed, or keep existing ID)
-            // If shop object passed has ID, use it. If not, keep existing ID.
-            const existingId = shops[index].shopId;
-            shops[index] = shop;
-            if (!shops[index].shopId) shops[index].shopId = existingId;
-        } else {
-            shops.push(shop);
+        try {
+            const { error } = await supabaseClient.from('shops').upsert(dbShop, { onConflict: 'shop_no' });
+            if (error) { throw error; }
+        } catch (e) {
+            console.error("Save Shop Failed:", e);
+            alert("Saved locally, but Cloud Sync failed!");
         }
-        localStorage.setItem(this.SHOPS_KEY, JSON.stringify(shops));
     },
 
-    markShopOccupied(shopNo) {
-        const shops = this.getShops();
-        const shop = shops.find(s => s.shopNo === shopNo);
+    async markShopOccupied(shopNo) {
+        const shop = this.cache.shops.find(s => s.shopNo === shopNo);
         if (shop) {
             shop.status = 'Occupied';
-            localStorage.setItem(this.SHOPS_KEY, JSON.stringify(shops));
+            // Sync Status Only
+            await supabaseClient.from('shops').update({ status: 'Occupied' }).eq('shop_no', shopNo);
         }
     },
 
+    // --- APPLICANTS ---
     getApplicants() {
-        const data = localStorage.getItem(this.APPLICANTS_KEY);
-        return data ? JSON.parse(data) : [];
+        return this.cache.applicants;
     },
 
-    saveApplicant(applicant) {
-        const applicants = this.getApplicants();
-        const index = applicants.findIndex(a => a.shopNo === applicant.shopNo);
+    async saveApplicant(applicant) {
+        // 1. Optimistic Update
+        const index = this.cache.applicants.findIndex(a => a.shopNo === applicant.shopNo);
         if (index >= 0) {
-            // UPDATE Existing
-            // Preserve occupancyStartDate if it exists, else set it if missing
-            if (!applicants[index].occupancyStartDate) {
-                applicants[index].occupancyStartDate = applicants[index].rentStartDate || applicants[index].leaseDate;
-            }
-
-            // Merge updates
-            applicants[index] = { ...applicants[index], ...applicant, occupancyStartDate: applicants[index].occupancyStartDate };
+            this.cache.applicants[index] = { ...this.cache.applicants[index], ...applicant };
         } else {
-            // CREATE New
-            // Initialize occupancy start date
-            applicant.occupancyStartDate = applicant.rentStartDate || applicant.leaseDate;
-            applicants.push(applicant);
-            Store.markShopOccupied(applicant.shopNo);
+            this.cache.applicants.push(applicant);
         }
 
-        localStorage.setItem(Store.APPLICANTS_KEY, JSON.stringify(applicants));
+        // 2. Cloud Sync
+        const dbApp = {
+            shop_no: applicant.shopNo,
+            applicant_name: applicant.applicantName,
+            proprietor_name: applicant.proprietorName,
+            contact_no: applicant.contactNo,
+            aadhar_no: applicant.aadharNo,
+            pan_no: applicant.panNo,
+            address: applicant.address,
+            lease_date: applicant.leaseDate,
+            rent_start_date: applicant.rentStartDate,
+            rent_base: parseFloat(applicant.baseRent || 0),
+            rent_total: parseFloat(applicant.totalRent || 0),
+            status: 'Active'
+        };
 
-        // Mark shop as occupied (if new or just to be safe)
-        this.markShopOccupied(applicant.shopNo);
+        try {
+            // Check if exists to determine insert/update (or just delete-insert effectively for simplified logic if strict Upsert is tricky with ID).
+            // Actually upsert on shop_no is tricky if we don't have a unique constraint on shop_no in tenants table?
+            // Wait, tenants usually move out. But active tenant per shop should be unique?
+            // For now, let's assume one active tenant per shop. 
+            // We'll rely on our 'status' field or just insert new row?
+            // "shops" has unique constraint. "tenants" might not.
+            // Let's delete existing active tenant for this shop and insert new (to be safe/lazy) or use an ID if we had it.
+
+            // Simpler: Just INSERT (History preserved) or UPDATE latest?
+            // Let's try to match by shop_no for now.
+            const { error } = await supabaseClient.from('tenants').delete().eq('shop_no', applicant.shopNo); // Clear old
+            const { error: insError } = await supabaseClient.from('tenants').insert(dbApp);
+
+            if (insError) throw insError;
+
+            await this.markShopOccupied(applicant.shopNo);
+        } catch (e) {
+            console.error("Save Applicant Failed:", e);
+        }
     },
 
+    // --- PAYMENTS ---
     getPayments() {
-        const data = localStorage.getItem(this.PAYMENTS_KEY);
-        return data ? JSON.parse(data) : [];
+        return this.cache.payments;
     },
 
-    savePayment(payment) {
-        const payments = this.getPayments();
-        // Check for duplicate (Same Shop, Same Month)
-        const exists = payments.find(p => p.shopNo === payment.shopNo && p.paymentForMonth === payment.paymentForMonth);
+    async savePayment(payment) {
+        // Check duplicate
+        const exists = this.cache.payments.find(p => p.shopNo === payment.shopNo && p.paymentForMonth === payment.paymentForMonth);
         if (exists) {
-            alert(`Payment for ${payment.shopNo} for month ${payment.paymentForMonth} already exists!`);
+            alert(`Payment for ${payment.shopNo} for ${payment.paymentForMonth} already exists!`);
             return;
         }
-        payments.push(payment);
-        localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
+
+        // 1. Optimistic
+        this.cache.payments.push(payment);
+
+        // 2. Cloud Sync
+        const dbPay = {
+            shop_no: payment.shopNo,
+            payment_date: payment.paymentDate,
+            payment_for_month: payment.paymentForMonth,
+            amount_base: parseFloat(payment.rentAmount || 0),
+            amount_gst: parseFloat(payment.gstAmount || 0),
+            amount_penalty: parseFloat(payment.penalty || 0),
+            amount_total: parseFloat(payment.grandTotal || 0),
+            payment_method: payment.paymentMode,
+            receipt_no: payment.receiptNo // Preserve if exists
+        };
+
+        try {
+            const { error } = await supabaseClient.from('payments').insert(dbPay);
+            if (error) throw error;
+        } catch (e) {
+            console.error("Save Payment Failed:", e);
+            alert("Payment saved locally but Cloud Sync failed.");
+        }
     },
 
 
