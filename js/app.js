@@ -30,65 +30,54 @@ const AuthModule = {
     async logout() {
         await supabaseClient.auth.signOut();
         location.reload();
-    }
-};
+    },
 
-// --- DATA MIGRATION HELPER (Run in Console) ---
-window.migrateDataToSupabase = async () => {
-    console.log("Starting Migration...");
+    // --- DATA REPAIR HELPER (Run in Console) ---
+    async repairData() {
+        console.log("Starting Repair Process...");
+        // 1. Get Legacy Data involved in the migration failure
+        const rawApps = localStorage.getItem('suda_shop_applicants');
 
-    // 1. Shops
-    const shops = Store.getShops();
-    for (const s of shops) {
-        const { error } = await supabaseClient.from('shops').upsert({
-            shop_no: s.shopNo,
-            dimensions: s.dimensions,
-            status: s.status
-        }, { onConflict: 'shop_no' });
-        if (error) console.error('Shop Error:', s.shopNo, error);
-    }
-    console.log(`Migrated ${shops.length} Shops.`);
+        if (!rawApps) {
+            alert("No legacy data found in LocalStorage to repair from!");
+            return;
+        }
 
-    // 2. Tenants (Applicants)
-    const apps = Store.getApplicants();
-    for (const a of apps) {
-        const dbApp = {
-            shop_no: a.shopNo,
-            applicant_name: a.applicantName,
-            proprietor_name: a.proprietorName,
-            contact_no: a.contactNo,
-            aadhar_no: a.aadharNo,
-            pan_no: a.panNo,
-            address: a.address,
-            lease_date: a.leaseDate,
-            rent_start_date: a.rentStartDate,
-            rent_base: parseFloat(a.baseRent || 0),
-            rent_total: parseFloat(a.totalRent || 0),
-            status: 'Active'
-        };
-        const { error } = await supabaseClient.from('tenants').insert(dbApp);
-        if (error) console.error('Tenant Error:', a.applicantName, error);
-    }
-    console.log(`Migrated ${apps.length} Tenants.`);
+        const applicants = JSON.parse(rawApps);
+        let successCount = 0;
+        let failCount = 0;
 
-    // 3. Payments
-    const payments = Store.getPayments();
-    for (const p of payments) {
-        const dbPay = {
-            shop_no: p.shopNo,
-            payment_date: p.paymentDate || p.timestamp.slice(0, 10),
-            payment_for_month: p.paymentForMonth,
-            amount_base: parseFloat(p.rentAmount || 0),
-            amount_gst: parseFloat(p.gstAmount || 0),
-            amount_penalty: parseFloat(p.penalty || 0),
-            amount_total: parseFloat(p.grandTotal || p.totalRent || 0),
-            payment_method: p.paymentMode || 'Cash'
-        };
-        const { error } = await supabaseClient.from('payments').insert(dbPay);
-        if (error) console.error('Payment Error:', p.shopNo, error);
+        for (const app of applicants) {
+            console.log(`Repiring Shop ${app.shopNo}...`);
+
+            // Map the missing fields
+            const updatePayload = {
+                expiry_date: app.expiryDate,
+                agreement_date: app.agreementDate,
+                payment_day: parseInt(app.paymentDay) || 5,
+                gst_amount: parseFloat(app.gstAmount || 0),
+                rent_base: parseFloat(app.rentBase || app.baseRent || 0),
+                rent_total: parseFloat(app.rentTotal || app.totalRent || 0),
+                proprietor_name: app.proprietorShopName || app.proprietorName || '',
+                // Ensure applicantType (implicit via proprietor_name logic on read, 
+                // but good to ensure proprietor_name is set if it was missing)
+            };
+
+            const { error } = await supabaseClient
+                .from('tenants')
+                .update(updatePayload)
+                .eq('shop_no', app.shopNo);
+
+            if (error) {
+                console.error(`Failed to repair ${app.shopNo}:`, error);
+                failCount++;
+            } else {
+                successCount++;
+            }
+        }
+
+        alert(`Repair Complete!\nFixed: ${successCount}\nFailed: ${failCount}\n\nPlease Refresh the Page.`);
     }
-    console.log(`Migrated ${payments.length} Payments.`);
-    alert("Migration Complete! Data is now in Supabase.");
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
