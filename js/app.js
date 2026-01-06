@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SUDA Shop Lease Model Software
  * Single file version for easy local execution (No Server Required)
  */
@@ -467,67 +467,35 @@ const Store = {
             // Cleanup Payments (Ghost Data) locally
             this.deletePaymentsForShop(shopNo);
 
-            // 2. Cloud Sync - ROBUST STRATEGY (Fetch UUID then Delete)
+            // 2. Cloud Sync - ROBUST SIMPLE STRATEGY
+            // Attempt deletion using multiple common formats sequentially.
+            // This avoids complex query syntax errors.
+            console.log(`Cloud Sync: Deleting Tenant for Shop '${shopNo}' (Sequential Try)`);
 
-            // A. Clean Payments first
-            // Normalize inputs for query
-            const sId = String(shopNo).trim();
-            const nId = Number(sId);
-            const isNum = !isNaN(nId);
-
-            // Construct OR filter for likely variations
-            let orQuery = `shop_no.eq.${sId}`;
-            if (isNum) {
-                // If input is "04", add "4". If "4", add "04".
-                const altId = String(nId);
-                if (altId !== sId) orQuery += `,shop_no.eq.${altId}`; // "4"
-
-                const paddedId = nId < 10 && nId >= 0 ? `0${nId}` : String(nId);
-                if (paddedId !== sId && paddedId !== altId) orQuery += `,shop_no.eq.${paddedId}`; // "04"
-            }
-
-            console.log(`Cloud Sync: Searching for tenants matching: ${orQuery}`);
-
-            // B. Find Tenant UUIDs to delete
-            const { data: tenantsToDelete, error: fetchError } = await supabaseClient
-                .from('tenants')
-                .select('id, shop_no')
-                .or(orQuery);
-
-            if (fetchError) console.warn("Error fetching tenants for delete:", fetchError);
-
-            if (tenantsToDelete && tenantsToDelete.length > 0) {
-                const ids = tenantsToDelete.map(t => t.id);
-                console.log(`Cloud Sync: Found ${ids.length} tenants to delete via UUID:`, ids);
-
-                const { error: delError } = await supabaseClient
-                    .from('tenants')
-                    .delete()
-                    .in('id', ids); // Delete by UUID
-
-                if (delError) throw delError;
-            } else {
-                console.warn("Cloud Sync: No matching tenants found to delete on server.");
-            }
-
-            // C. Also try to delete payments using the same broad filter
-            await supabaseClient.from('payments').delete().or(orQuery);
-
-            // D. Update Shop Status (Broad filter)
-            await supabaseClient.from('shops').update({ status: 'Available' }).or(orQuery);
-
-            // C. SCORCHED EARTH FALLBACK
-            console.log("Cloud Sync: Executing Fallback Direct Deletions...");
+            // Try 1: Exact Match (Most likely)
             await supabaseClient.from('tenants').delete().eq('shop_no', shopNo);
-            if (String(shopNo).trim() !== String(shopNo)) {
-                await supabaseClient.from('tenants').delete().eq('shop_no', String(shopNo).trim());
+
+            // Try 2: Trimmed Match
+            const trimmed = String(shopNo).trim();
+            if (trimmed !== String(shopNo)) await supabaseClient.from('tenants').delete().eq('shop_no', trimmed);
+
+            // Try 3: Numeric Match
+            const numericVal = Number(shopNo);
+            if (!isNaN(numericVal)) {
+                await supabaseClient.from('tenants').delete().eq('shop_no', numericVal); // 4
+                if (numericVal < 10) await supabaseClient.from('tenants').delete().eq('shop_no', `0${numericVal}`); // "04"
+                await supabaseClient.from('tenants').delete().eq('shop_no', String(numericVal)); // "4"
             }
-            // Fallback Payments/Shops
+
+            // Cleanup Payments & Update Shop (Simple Broad Sweep)
             await supabaseClient.from('payments').delete().eq('shop_no', shopNo);
             await supabaseClient.from('shops').update({ status: 'Available' }).eq('shop_no', shopNo);
+            if (!isNaN(numericVal)) {
+                await supabaseClient.from('shops').update({ status: 'Available' }).eq('shop_no', numericVal);
+            }
 
             console.log(`Success: Deleted applicant and cleared Shop ${shopNo}.`);
-            alert(`Applicant deleted and Shop ${shopNo} is now Available.`);
+            alert(`SUCCESS: Applicant for Shop ${shopNo} deleted.`);
 
         } catch (e) {
             console.error("Delete Applicant Failed:", e);
@@ -575,7 +543,7 @@ const Store = {
 
         if (payments.length !== initialCount) {
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
-            console.log(`Cleaned up payments for deleted Shop/Applicant: ${shopNo}`);
+            console.log(`Cleaned up payments for deleted Shop / Applicant: ${shopNo} `);
         }
     },
 
@@ -668,7 +636,7 @@ const Store = {
         const cleaned = [];
 
         payments.forEach(p => {
-            const key = `${p.shopNo}-${p.paymentForMonth}`;
+            const key = `${p.shopNo} -${p.paymentForMonth} `;
             // Keep the LATEST one if duplicates exist (assuming newer is correction or just duplicate)
             // But if we want to be safe, just keep the first one found?
             // Actually, if we just overwrite, we keep the last one.
@@ -932,11 +900,11 @@ function handleRoute(route) {
 const DashboardModule = {
     render(container) {
         container.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-                <!-- KPI Cards -->
+    < div style = "display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;" >
+                < !--KPI Cards-- >
                 <div class="glass-panel" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white;">
                     <h4 style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Total Revenue</h4>
-                    <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-revenue">0</span></div>
+                    <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">â‚¹<span id="kpi-revenue">0</span></div>
                     <div style="font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-top: 0.5rem; display:none;">+12% from last month</div>
                 </div>
 
@@ -950,12 +918,12 @@ const DashboardModule = {
 
                 <div class="glass-panel" style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); color: white;">
                     <h4 style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Pending Dues</h4>
-                    <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-dues">0</span></div>
+                    <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">â‚¹<span id="kpi-dues">0</span></div>
                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-top: 0.5rem;">Estimated Arrears</div>
                 </div>
-            </div>
+            </div >
 
-            <!-- Charts Section -->
+            < !--Charts Section-- >
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
                 <div class="glass-panel">
                     <h4 style="margin-bottom: 1rem; color: var(--text-color);">Revenue Trend (Last 6 Months)</h4>
@@ -971,24 +939,24 @@ const DashboardModule = {
                 </div>
             </div>
 
-            <!-- Recent Activity -->
-            <div class="glass-panel">
-                <h4 style="margin-bottom: 1rem; color: var(--text-color);">Recent Payments</h4>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Shop No</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dash-recent-list"></tbody>
-                    </table>
-                </div>
-            </div>
-        `;
+            <!--Recent Activity-- >
+    <div class="glass-panel">
+        <h4 style="margin-bottom: 1rem; color: var(--text-color);">Recent Payments</h4>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Shop No</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="dash-recent-list"></tbody>
+            </table>
+        </div>
+    </div>
+`;
 
         this.loadData();
     },
@@ -1029,7 +997,7 @@ const DashboardModule = {
         document.getElementById('kpi-revenue').textContent = totalRev.toLocaleString('en-IN');
         // Update label to reflect scope
         const kpiLabel = document.querySelector('#kpi-revenue').parentNode.previousElementSibling;
-        if (kpiLabel) kpiLabel.textContent = `Revenue (FY ${startYear}-${String(startYear + 1).slice(-2)})`;
+        if (kpiLabel) kpiLabel.textContent = `Revenue(FY ${startYear} - ${String(startYear + 1).slice(-2)})`;
 
 
         // --- KPI: Dues Estimate ---
@@ -1082,7 +1050,7 @@ const DashboardModule = {
 
             for (let i = 5; i >= 0; i--) {
                 const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const monthStr = `${d.getFullYear()} -${String(d.getMonth() + 1).padStart(2, '0')} `;
                 const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
                 labels.push(label);
 
@@ -1098,7 +1066,7 @@ const DashboardModule = {
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Revenue (₹)',
+                        label: 'Revenue (â‚¹)',
                         data: data,
                         backgroundColor: '#6366f1',
                         borderRadius: 4,
@@ -1170,17 +1138,17 @@ const DashboardModule = {
                         const day = String(d.getDate()).padStart(2, '0');
                         const month = String(d.getMonth() + 1).padStart(2, '0');
                         const year = d.getFullYear();
-                        dateDisplay = `${day}-${month}-${year}`;
+                        dateDisplay = `${day} -${month} -${year} `;
                     }
                 }
                 return `
-                <tr>
+    < tr >
                     <td>${dateDisplay}</td>
                     <td><strong>${p.shopNo}</strong></td>
-                    <td>₹${(parseFloat(p.grandTotal || 0)).toFixed(2)}</td>
+                    <td>â‚¹${(parseFloat(p.grandTotal || 0)).toFixed(2)}</td>
                     <td><span style="font-size:0.75rem; background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px;">Paid</span></td>
-                </tr>
-            `}).join('');
+                </tr >
+    `}).join('');
         }
     }
 };
@@ -1191,7 +1159,7 @@ const DashboardModule = {
 const ShopModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel">
+    < div class="glass-panel" >
                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Shop Inventory</h3>
                     <button class="btn-primary" id="btn-add-shop">
@@ -1234,8 +1202,8 @@ const ShopModule = {
                         </tbody>
                     </table>
                 </div>
-            </div>
-        `;
+            </div >
+    `;
 
         this.setupLogic();
         this.renderList();
@@ -1298,17 +1266,17 @@ const ShopModule = {
         }
 
         tbody.innerHTML = shops.map(s => `
-            <tr>
+    < tr >
                 <td><strong>${s.shopNo}</strong></td>
                 <td>${s.dimensions || '-'}</td>
                 <td><span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; background: ${s.status === 'Occupied' ? '#fecaca' : '#d1fae5'}; color: ${s.status === 'Occupied' ? '#dc2626' : '#059669'};">${s.status}</span></td>
                 <td>
                     <button class="btn-delete-shop" data-shop="${s.shopNo}" style="background:none; border:none; cursor:pointer;" title="Delete">
-                        🗑️
+                        ðŸ—‘ï¸
                     </button>
                 </td>
-            </tr>
-        `).join('');
+            </tr >
+    `).join('');
     }
 };
 
@@ -1318,7 +1286,7 @@ const ShopModule = {
 const ApplicantModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel">
+    < div class="glass-panel" >
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Applicant Details</h3>
                     <button class="btn-primary" id="btn-add-applicant">
@@ -1348,8 +1316,8 @@ const ApplicantModule = {
                         </tbody>
                     </table>
                 </div>
-            </div>
-        `;
+            </div >
+    `;
 
         document.getElementById('btn-add-applicant').addEventListener('click', () => {
             this.showForm(); // Must render form first
@@ -1454,18 +1422,18 @@ const ApplicantModule = {
             html += '<tr style="border-bottom:1px solid #cbd5e1;"><th style="padding:4px;">Period / Renewal</th><th style="padding:4px;">Effective Dates</th><th style="padding:4px;">Rent Total</th></tr>';
 
             app.leaseHistory.forEach(h => {
-                html += `<tr style="border-bottom:1px solid #e2e8f0;">
+                html += `< tr style = "border-bottom:1px solid #e2e8f0;" >
                     <td style="padding:4px;">${h.periodLabel || 'Previous Renewal'}</td>
-                    <td style="padding:4px;">${h.startDate} ➝ ${h.endDate}</td>
-                    <td style="padding:4px; font-weight:bold;">₹${h.rentTotal}</td>
-                </tr>`;
+                    <td style="padding:4px;">${h.startDate} âž ${h.endDate}</td>
+                    <td style="padding:4px; font-weight:bold;">â‚¹${h.rentTotal}</td>
+                </tr > `;
             });
             html += '</table>';
-            html += '<p style="font-size:0.8rem; color:green; margin-top:5px;">✓ These blocks are active for calculation.</p>';
+            html += '<p style="font-size:0.8rem; color:green; margin-top:5px;">âœ“ These blocks are active for calculation.</p>';
             displayDiv.innerHTML = html;
             displayDiv.style.display = 'none';
         } else {
-            displayDiv.innerHTML = '<p style="font-size:0.8rem; color:#ef4444; font-weight:bold;">⚠ No History Blocks Found.</p><p style="font-size:0.8rem; color:#64748b;">This means all past months will use the CURRENT rent. If this is wrong, use the JSON editor below to add a block.</p>';
+            displayDiv.innerHTML = '<p style="font-size:0.8rem; color:#ef4444; font-weight:bold;">âš  No History Blocks Found.</p><p style="font-size:0.8rem; color:#64748b;">This means all past months will use the CURRENT rent. If this is wrong, use the JSON editor below to add a block.</p>';
             displayDiv.style.display = 'none';
         }
 
@@ -1507,7 +1475,7 @@ const ApplicantModule = {
         document.getElementById('btn-add-applicant').style.display = 'none';
 
         container.innerHTML = `
-            <div class="glass-panel" style="background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6);">
+    < div class="glass-panel" style = "background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6);" >
                 <h4 style="margin-bottom: 1.5rem; color: var(--primary-color);">New Shop Lease Registration</h4>
                 <form id="applicant-form">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
@@ -1623,8 +1591,8 @@ const ApplicantModule = {
                         <button type="submit" class="btn-primary">Save Applicant</button>
                     </div>
                 </form>
-            </div>
-        `;
+            </div >
+    `;
 
         this.setupFormLogic();
         this.setupListEvents();
@@ -1641,7 +1609,7 @@ const ApplicantModule = {
 
             if (deleteBtn) {
                 const shopNo = deleteBtn.dataset.shop;
-                if (confirm(`Are you sure you want to PERMANENTLY delete the applicant for Shop ${shopNo}?\n\nThis will:\n1. Remove tenant data.\n2. Mark shop as Available.\n3. Delete associated payments.`)) {
+                if (confirm(`Are you sure you want to PERMANENTLY delete the applicant for Shop ${shopNo} ?\n\nThis will: \n1.Remove tenant data.\n2.Mark shop as Available.\n3.Delete associated payments.`)) {
                     Store.deleteApplicant(shopNo);
                     this.renderList();
                     // Refill Shop Select (since a shop became available)
@@ -1770,19 +1738,19 @@ const ApplicantModule = {
         }
 
         tbody.innerHTML = applicants.map(app => `
-            <tr>
+    < tr >
                 <td><strong>${app.shopNo}</strong></td>
                 <td>${app.applicantName}</td>
                 <td><span style="font-size: 0.85rem; padding: 2px 8px; background: #e0e7ff; border-radius: 4px; color: #4338ca;">${app.applicantType}</span></td>
-                <td>₹${app.rentTotal}</td>
+                <td>â‚¹${app.rentTotal}</td>
                 <td>${app.expiryDate}</td>
                 <td>${app.paymentDay}th</td>
                  <td>
-                    <button class="btn-edit-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:8px;" title="Edit">✏️</button>
-                    <button class="btn-delete-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; color:#dc2626;" title="Delete">🗑️</button>
+                    <button class="btn-edit-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:8px;" title="Edit">âœï¸</button>
+                    <button class="btn-delete-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; color:#dc2626;" title="Delete">ðŸ—‘ï¸</button>
                  </td>
-            </tr>
-        `).join('');
+            </tr >
+    `).join('');
     }
 };
 
@@ -1792,7 +1760,7 @@ const ApplicantModule = {
 const RentModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel">
+    < div class="glass-panel" >
                 <h3>Rent Collection</h3>
                 
                 <div style="margin-top: 1.5rem; max-width: 600px;">
@@ -1846,7 +1814,7 @@ const RentModule = {
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label" for="penalty-amount">Total Delay Penalty (₹15/day)</label>
+                                <label class="form-label" for="penalty-amount">Total Delay Penalty (â‚¹15/day)</label>
                                 <input type="number" id="penalty-amount" class="form-input" style="color: #ef4444;" value="0">
                             </div>
 
@@ -1903,10 +1871,10 @@ const RentModule = {
                     </div>
                 </div>
             </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
-            <!-- PAYMENT HISTORY SECTION -->
+            < !--PAYMENT HISTORY SECTION-- >
             <div id="payment-history-area" style="display: none; margin-top: 2rem; max-width: 800px;">
                 <div class="glass-panel">
                     <h4 style="margin-bottom: 1rem;">Payment History</h4>
@@ -1928,7 +1896,7 @@ const RentModule = {
                     to { opacity: 1; transform: translateY(0); }
                 }
             </style>
-        `;
+`;
 
         this.populateShopSelect();
         this.setupLogic();
@@ -1950,7 +1918,7 @@ const RentModule = {
         }
 
         let html = `
-            <table class="data-table" style="font-size: 0.9rem;">
+    < table class="data-table" style = "font-size: 0.9rem;" >
                 <thead>
                     <tr>
                         <th>Time</th>
@@ -1975,17 +1943,17 @@ const RentModule = {
                     <td>${time}</td>
                     <td>${p.shopNo}</td>
                     <td>${p.paymentForMonth}</td>
-                    <td>₹${p.grandTotal}</td>
+                    <td>â‚¹${p.grandTotal}</td>
                     <td>
                         <button class="btn-primary" style="padding: 2px 8px; font-size: 0.8rem; background: #64748b;" onclick="RentModule.printReceiptFor('${p.timestamp}')">
-                            🖨 Print Receipt
+                            ðŸ–¨ Print Receipt
                         </button>
                     </td>
                 </tr>
             `;
         });
 
-        html += '</tbody></table>';
+        html += '</tbody></table > ';
         container.innerHTML = html;
 
         // Helper exposed globally now as a static method
@@ -2083,7 +2051,7 @@ const RentModule = {
 
         const settings = Store.getSettings();
         const lbl = document.querySelector('label[for="penalty-amount"]');
-        if (lbl) lbl.textContent = `Total Delay Penalty (₹${settings.penaltyRate}/day)`;
+        if (lbl) lbl.textContent = `Total Delay Penalty (â‚¹${settings.penaltyRate}/day)`;
 
         // Recalc triggers: Checkbox Change, Date Change, Penalty Input
         monthContainer.addEventListener('change', () => {
@@ -2330,11 +2298,11 @@ const RentModule = {
                 <tr>
                     <td>${dateDisplay}</td>
                     <td>${p.paymentForMonth}</td>
-                    <td>₹${p.grandTotal}</td>
+                    <td>â‚¹${p.grandTotal}</td>
                     <td><span style="font-family:monospace; font-size:0.85rem;">${recId}</span></td>
                     <td>
                         <button class="btn-primary" style="padding: 2px 8px; font-size: 0.8rem; background: #64748b;" onclick="RentModule.printReceiptFor('${p.timestamp}')">
-                            🖨 Print
+                            ðŸ–¨ Print
                         </button>
                     </td>
                 </tr>
@@ -2389,7 +2357,7 @@ const RentModule = {
             const label = document.createElement('label');
             label.htmlFor = `chk-${val}`;
             label.style.marginLeft = '8px';
-            label.textContent = `${display} ${isPaid ? '(✅ PAID)' : '(Pending)'}`;
+            label.textContent = `${display} ${isPaid ? '(âœ… PAID)' : '(Pending)'}`;
             label.style.color = isPaid ? 'green' : 'inherit';
 
             div.appendChild(checkbox);
@@ -2801,13 +2769,13 @@ const PaymentReportModule = {
                     <td><strong>${p.paymentForMonth || '-'}</strong></td>
                     <td>${p.paymentDate || '-'}</td>
                     <td><strong>${p.shopNo}</strong></td>
-                    <td>₹${rentAmount.toFixed(2)}</td>
-                    <td>₹${gstAmount.toFixed(2)}</td>
-                    <td style="color: ${penalty > 0 ? '#ef4444' : 'inherit'};">${penalty > 0 ? '₹' + penalty.toFixed(2) : '-'}</td>
-                    <td style="font-weight: 500; color: #047857;">₹${grandTotal.toFixed(2)}</td>
+                    <td>â‚¹${rentAmount.toFixed(2)}</td>
+                    <td>â‚¹${gstAmount.toFixed(2)}</td>
+                    <td style="color: ${penalty > 0 ? '#ef4444' : 'inherit'};">${penalty > 0 ? 'â‚¹' + penalty.toFixed(2) : '-'}</td>
+                    <td style="font-weight: 500; color: #047857;">â‚¹${grandTotal.toFixed(2)}</td>
                     <td style="font-size: 0.9rem;">${formatPaymentMethod(p)}</td>
                     <td>
-                        <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
+                        <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">âŒ</button>
                     </td>
                 </tr>
             `;
@@ -2815,14 +2783,15 @@ const PaymentReportModule = {
 
         summary.innerHTML = `
             <div style="font-size: 1.1rem; line-height: 1.6;">
-                <div>Total Base Rent: <strong>₹${totalBaseRent.toFixed(2)}</strong></div>
-                <div>Total GST Collected: <strong>₹${totalGST.toFixed(2)}</strong></div>
-                <div>Total Penalties: <span style="color: #ef4444;">₹${totalPenalty.toFixed(2)}</span></div>
+                <div>Total Base Rent: <strong>â‚¹${totalBaseRent.toFixed(2)}</strong></div>
+                <div>Total GST Collected: <strong>â‚¹${totalGST.toFixed(2)}</strong></div>
+                <div>Total Penalties: <span style="color: #ef4444;">â‚¹${totalPenalty.toFixed(2)}</span></div>
                 <hr style="margin: 0.5rem 0; opacity: 0.3;">
-                <div style="font-size: 1.3rem;">Grand Total: <span style="color: #047857;">₹${totalCollected.toFixed(2)}</span></div>
+                <div style="font-size: 1.3rem;">Grand Total: <span style="color: #047857;">â‚¹${totalCollected.toFixed(2)}</span></div>
             </div>
         `;
     }
 };
 
 window.RentModule = RentModule;
+
