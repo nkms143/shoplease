@@ -19,8 +19,23 @@ const supabaseClient = _supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const AuthModule = {
     async checkSession() {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        return !!session;
+        try {
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            if (error) {
+                // Check for "Refresh Token Not Found" or similar
+                if (error.message && (error.message.includes('Refresh Token') || error.code === 'refresh_token_not_found')) {
+                    console.warn("Invalid Session (Refresh Token), forcing logout.");
+                    localStorage.removeItem('supabase.auth.token'); // Hard Clear
+                    await this.logout();
+                    return false;
+                }
+                throw error;
+            }
+            return !!session;
+        } catch (e) {
+            console.error("Session Check Failed:", e);
+            return false;
+        }
     },
 
     async login(email, pass) {
@@ -1432,107 +1447,7 @@ const ApplicantModule = {
         this.renderList();
     },
 
-    loadApplicantForEdit(shopNo) {
-        const apps = Store.getApplicants();
-        const app = apps.find(a => a.shopNo === shopNo);
-        if (!app) return;
 
-        this.showForm();
-        this.populateShopSelect();
-
-        // Important: For Edit, we need to allow selecting the CURRENT shop even if occupied
-        const select = document.getElementById('applicant-shop-select');
-        // Check if current shop is already in option (it might not be if occupied)
-        if (!Array.from(select.options).find(o => o.value === app.shopNo)) {
-            const opt = document.createElement('option');
-            opt.value = app.shopNo;
-            opt.textContent = `${app.shopNo} (Current)`;
-            select.appendChild(opt);
-        }
-
-        // Fill Data
-        const form = document.getElementById('applicant-form');
-        form.querySelector('[name="shopNo"]').value = app.shopNo;
-        // Make Shop Readonly during edit? Or allow move? 
-        // Let's Keep simple: Update Logic uses ShopNo as key, so maybe disable shop selection or handle gracefully.
-        // Better: Disable Shop Select in Edit Mode to prevent Primary Key change issues for now.
-        form.querySelector('[name="shopNo"]').style.pointerEvents = 'none';
-        form.querySelector('[name="shopNo"]').style.background = '#f1f5f9';
-
-        form.querySelector('[name="applicantName"]').value = app.applicantName;
-        form.querySelector('[name="mobileNo"]').value = app.mobileNo || ''; // Load mobile
-        form.querySelector('[name="applicantType"]').value = app.applicantType;
-        form.querySelector('[name="applicantType"]').dispatchEvent(new Event('change'));
-
-        if (app.applicantType === 'Proprietor') {
-            form.querySelector('[name="proprietorShopName"]').value = app.proprietorShopName || '';
-            form.querySelector('[name="shopGst"]').value = app.gstNo || '';
-        }
-
-        form.querySelector('[name="pan"]').value = app.panNo || '';
-        form.querySelector('[name="aadhar"]').value = app.aadharNo || '';
-        form.querySelector('[name="address"]').value = app.address || '';
-
-        form.querySelector('[name="rentBase"]').value = app.rentBase;
-        form.querySelector('#rentBase').dispatchEvent(new Event('input')); // Trigger Calc
-
-        form.querySelector('[name="paymentDay"]').value = app.paymentDay;
-        form.querySelector('[name="leaseDate"]').value = app.leaseDate;
-        form.querySelector('[name="expiryDate"]').value = app.expiryDate;
-        form.querySelector('[name="agreementDate"]').value = app.agreementDate;
-        if (app.rentStartDate) form.querySelector('[name="rentStartDate"]').value = app.rentStartDate;
-        // Show Occupancy Date field for manual fix
-        form.querySelector('#group-occupancy-date').style.display = 'block';
-        if (app.occupancyStartDate) form.querySelector('[name="occupancyStartDate"]').value = app.occupancyStartDate;
-
-        // Show Lease History (Blocks) for manual fix
-        // Show Lease History (Blocks) for manual fix
-        form.querySelector('#group-rent-history').style.display = 'none'; // HIDDEN by User Request
-
-        // --- VISUALIZATION TABLE ---
-        let displayDiv = form.querySelector('#lease-history-display');
-        if (!displayDiv) {
-            // Create container if missing (safe injection)
-            displayDiv = document.createElement('div');
-            displayDiv.id = 'lease-history-display';
-            displayDiv.style.gridColumn = 'span 2';
-            displayDiv.style.marginBottom = '1rem';
-            displayDiv.style.background = '#f8fafc';
-            displayDiv.style.padding = '10px';
-            displayDiv.style.borderRadius = '8px';
-            displayDiv.style.border = '1px solid #e2e8f0';
-            const jsonGroup = form.querySelector('#group-rent-history');
-            jsonGroup.parentNode.insertBefore(displayDiv, jsonGroup); // Insert BEFORE the JSON editor
-        }
-
-        if (app.leaseHistory && app.leaseHistory.length > 0) {
-            let html = '<label class="form-label" style="display:block; margin-bottom:0.5rem; font-weight:bold; color:#475569;">Active History Blocks (Visible Logic)</label>';
-            html += '<table style="width:100%; text-align:left; font-size:0.9rem; border-collapse: collapse;">';
-            html += '<tr style="border-bottom:1px solid #cbd5e1;"><th style="padding:4px;">Period / Renewal</th><th style="padding:4px;">Effective Dates</th><th style="padding:4px;">Rent Total</th></tr>';
-
-            app.leaseHistory.forEach(h => {
-                html += `<tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:4px;">${h.periodLabel || 'Previous Renewal'}</td>
-                    <td style="padding:4px;">${h.startDate} ➝ ${h.endDate}</td>
-                    <td style="padding:4px; font-weight:bold;">₹${h.rentTotal}</td>
-                </tr>`;
-            });
-            html += '</table>';
-            html += '<p style="font-size:0.8rem; color:green; margin-top:5px;">✓ These blocks are active for calculation.</p>';
-            displayDiv.innerHTML = html;
-            displayDiv.style.display = 'none';
-        } else {
-            displayDiv.innerHTML = '<p style="font-size:0.8rem; color:#ef4444; font-weight:bold;">⚠ No History Blocks Found.</p><p style="font-size:0.8rem; color:#64748b;">This means all past months will use the CURRENT rent. If this is wrong, use the JSON editor below to add a block.</p>';
-            displayDiv.style.display = 'none';
-        }
-
-        // Populate JSON Editor
-        if (app.leaseHistory) {
-            form.querySelector('[name="rentHistoryJSON"]').value = JSON.stringify(app.leaseHistory, null, 2);
-        } else {
-            form.querySelector('[name="rentHistoryJSON"]').value = '[]';
-        }
-    },
 
     populateShopSelect() {
         const shops = Store.getShops();
@@ -1855,8 +1770,9 @@ const ApplicantModule = {
     },
 
     loadApplicantForEdit(shopNo) {
+        console.log("Loading for Edit:", shopNo);
         const app = Store.getApplicants().find(a => a.shopNo === shopNo);
-        if (!app) return;
+        if (!app) { console.error("App not found"); return; }
 
         this.showForm();
         this.populateShopSelect(); // Ensure connection to master list
@@ -1866,14 +1782,19 @@ const ApplicantModule = {
         // Populate
         const shopSel = form.querySelector('[name="shopNo"]');
 
+        console.log("Current Shop Value:", app.shopNo, "Select Options:", shopSel.options.length);
+
         // FIX: If the shop is Occupied, it won't be in the 'Available' list.
         // We must manually add it as an option so the value can be set.
         let optionExists = Array.from(shopSel.options).some(opt => opt.value === String(app.shopNo));
         if (!optionExists) {
+            console.log("Option missing, adding manually.");
             const opt = document.createElement('option');
             opt.value = app.shopNo;
             opt.textContent = `${app.shopNo} (Current)`;
             shopSel.appendChild(opt);
+        } else {
+            console.log("Option exists.");
         }
 
         shopSel.value = app.shopNo;
