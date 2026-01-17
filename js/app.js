@@ -314,6 +314,32 @@ const Store = {
         localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
     },
 
+    // --- STORAGE ---
+    async uploadFile(file, path) {
+        try {
+            const { data, error } = await supabaseClient
+                .storage
+                .from('agreements')
+                .upload(path, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            if (error) throw error;
+
+            // Get Public URL
+            const { data: { publicUrl } } = supabaseClient
+                .storage
+                .from('agreements')
+                .getPublicUrl(path);
+
+            return publicUrl;
+        } catch (e) {
+            console.error("Upload Failed:", e);
+            throw e;
+        }
+    },
+
     // --- SHOPS ---
     getShops() {
         return this.cache.shops;
