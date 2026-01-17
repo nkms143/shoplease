@@ -160,11 +160,57 @@ window.repairData = AuthModule.repairData;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. AUTH CHECK
+    // 0. INITIALIZE UI EVENTS (Immediate)
     const loginContainer = document.getElementById('login-container');
     const appContainer = document.getElementById('app-container');
     const loginForm = document.getElementById('login-form');
     const loginError = document.getElementById('login-error');
     const logoutBtn = document.getElementById('btn-logout');
+
+    // Forgot Password Event Logic
+    const forgotLink = document.getElementById('forgot-password-link');
+    const forgotModal = document.getElementById('forgot-password-modal');
+    const cancelResetBtn = document.getElementById('btn-cancel-reset');
+    const sendResetBtn = document.getElementById('btn-send-reset');
+    const resetEmailInput = document.getElementById('reset-email');
+
+    if (forgotLink && forgotModal) {
+        forgotLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            forgotModal.style.display = 'flex';
+        });
+
+        cancelResetBtn.addEventListener('click', () => {
+            forgotModal.style.display = 'none';
+        });
+
+        sendResetBtn.addEventListener('click', async () => {
+            const email = resetEmailInput.value.trim();
+            if (!email) {
+                alert('Please enter your email address.');
+                return;
+            }
+
+            const originalText = sendResetBtn.textContent;
+            sendResetBtn.textContent = 'Sending...';
+            sendResetBtn.disabled = true;
+
+            const result = await AuthModule.sendPasswordReset(email);
+
+            sendResetBtn.textContent = originalText;
+            sendResetBtn.disabled = false;
+
+            if (result.success) {
+                alert(`Password reset link sent to ${email}. Please check your inbox.`);
+                forgotModal.style.display = 'none';
+                resetEmailInput.value = '';
+            } else {
+                alert('Error: ' + (result.error || 'Failed to send reset link.'));
+            }
+        });
+    }
+
+    // 1. AUTH CHECK (Async)
 
     const isLoggedIn = await AuthModule.checkSession();
 
@@ -211,48 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Forgot Password Event Logic
-    const forgotLink = document.getElementById('forgot-password-link');
-    const forgotModal = document.getElementById('forgot-password-modal');
-    const cancelResetBtn = document.getElementById('btn-cancel-reset');
-    const sendResetBtn = document.getElementById('btn-send-reset');
-    const resetEmailInput = document.getElementById('reset-email');
 
-    if (forgotLink && forgotModal) {
-        forgotLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            forgotModal.style.display = 'flex';
-        });
-
-        cancelResetBtn.addEventListener('click', () => {
-            forgotModal.style.display = 'none';
-        });
-
-        sendResetBtn.addEventListener('click', async () => {
-            const email = resetEmailInput.value.trim();
-            if (!email) {
-                alert('Please enter your email address.');
-                return;
-            }
-
-            const originalText = sendResetBtn.textContent;
-            sendResetBtn.textContent = 'Sending...';
-            sendResetBtn.disabled = true;
-
-            const result = await AuthModule.sendPasswordReset(email);
-
-            sendResetBtn.textContent = originalText;
-            sendResetBtn.disabled = false;
-
-            if (result.success) {
-                alert(`Password reset link sent to ${email}. Please check your inbox.`);
-                forgotModal.style.display = 'none';
-                resetEmailInput.value = '';
-            } else {
-                alert('Error: ' + (result.error || 'Failed to send reset link.'));
-            }
-        });
-    }
 });
 
 
