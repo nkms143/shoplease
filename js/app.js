@@ -1863,6 +1863,17 @@ const ApplicantModule = {
 
         // Populate
         const shopSel = form.querySelector('[name="shopNo"]');
+
+        // FIX: If the shop is Occupied, it won't be in the 'Available' list.
+        // We must manually add it as an option so the value can be set.
+        let optionExists = Array.from(shopSel.options).some(opt => opt.value === String(app.shopNo));
+        if (!optionExists) {
+            const opt = document.createElement('option');
+            opt.value = app.shopNo;
+            opt.textContent = `${app.shopNo} (Current)`;
+            shopSel.appendChild(opt);
+        }
+
         shopSel.value = app.shopNo;
         shopSel.style.pointerEvents = 'none';
         shopSel.style.background = '#f1f5f9';
