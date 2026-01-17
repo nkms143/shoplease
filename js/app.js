@@ -1859,6 +1859,8 @@ const ApplicantModule = {
         if (!app) return;
 
         this.showForm();
+        this.populateShopSelect(); // Ensure connection to master list
+
         const form = document.getElementById('applicant-form');
 
         // Populate
