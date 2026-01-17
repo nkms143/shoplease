@@ -1828,6 +1828,59 @@ const ApplicantModule = {
         proceedWithSave();
     },
 
+    loadApplicantForEdit(shopNo) {
+        const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+        if (!app) return;
+
+        this.showForm();
+        const form = document.getElementById('applicant-form');
+
+        // Populate
+        const shopSel = form.querySelector('[name="shopNo"]');
+        shopSel.value = app.shopNo;
+        shopSel.style.pointerEvents = 'none';
+        shopSel.style.background = '#f1f5f9';
+
+        form.querySelector('[name="applicantName"]').value = app.applicantName;
+        form.querySelector('[name="mobileNo"]').value = app.contactNo || app.mobileNo;
+
+        const typeSel = form.querySelector('[name="applicantType"]');
+        typeSel.value = app.applicantType || 'Individual';
+        typeSel.dispatchEvent(new Event('change'));
+
+        form.querySelector('[name="proprietorShopName"]').value = app.proprietorName || app.proprietorShopName || '';
+        form.querySelector('[name="shopGst"]').value = app.gstNo || '';
+
+        form.querySelector('[name="pan"]').value = app.panNo || '';
+        form.querySelector('[name="aadhar"]').value = app.aadharNo || '';
+        form.querySelector('[name="address"]').value = app.address || '';
+
+        const rBase = form.querySelector('#rentBase');
+        rBase.value = app.rentBase;
+        rBase.dispatchEvent(new Event('input')); // Trigger GST calc
+
+        form.querySelector('[name="paymentDay"]').value = app.paymentDay;
+        form.querySelector('[name="leaseDate"]').value = app.leaseDate;
+        form.querySelector('[name="expiryDate"]').value = app.expiryDate;
+        form.querySelector('[name="agreementDate"]').value = app.agreementDate;
+        form.querySelector('[name="rentStartDate"]').value = app.rentStartDate;
+
+        if (app.occupancyStartDate) {
+            form.querySelector('[name="occupancyStartDate"]').value = app.occupancyStartDate;
+            document.getElementById('group-occupancy-date').style.display = 'block';
+        }
+
+        // Show Current Agreement Link if exists
+        const linkDiv = document.getElementById('current-agreement-link');
+        if (linkDiv) {
+            if (app.agreementUrl) {
+                linkDiv.innerHTML = `<a href="${app.agreementUrl}" target="_blank" style="color: #2563eb; text-decoration: underline;">📄 View Current Agreement</a>`;
+            } else {
+                linkDiv.innerHTML = '';
+            }
+        }
+    },
+
     renderList() {
         const applicants = Store.getApplicants();
         const tbody = document.getElementById('applicant-list-body');
