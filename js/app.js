@@ -175,8 +175,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resetEmailInput = document.getElementById('reset-email');
 
     if (forgotLink && forgotModal) {
+        // Debug Log
+        console.log("Forgot Password UI Initialized");
+
         forgotLink.addEventListener('click', (e) => {
+            console.log("Forgot Password Clicked");
             e.preventDefault();
+            e.stopPropagation(); // Just in case
             forgotModal.style.display = 'flex';
         });
 
