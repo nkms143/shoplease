@@ -200,7 +200,7 @@ const Store = {
         shops: [],
         applicants: [],
         payments: [],
-        settings: { penaltyRate: 15, penaltyDate: null, logoUrl: null }, // Default
+        settings: { penaltyRate: 16, penaltyDate: '2025-01-01', logoUrl: null }, // Default
         remittances: [],
         history: []
     },
@@ -366,16 +366,16 @@ const Store = {
         }
 
         // 2. Cloud Sync
-        // 2. Cloud Sync
         const dbApp = {
             shop_no: applicant.shopNo,
             applicant_name: applicant.applicantName,
-            proprietor_name: applicant.proprietorShopName || applicant.proprietorName, // Handle both key variations
-            contact_no: applicant.mobileNo || applicant.contactNo, // Handle key variations
+            proprietor_name: applicant.proprietorShopName || applicant.proprietorName,
+            contact_no: applicant.mobileNo || applicant.contactNo,
             aadhar_no: applicant.aadharNo || applicant.aadhar,
             pan_no: applicant.panNo || applicant.pan,
-            gst_no: applicant.gstNo || applicant.shopGst, // New mapping
+            gst_no: applicant.gstNo || applicant.shopGst,
             address: applicant.address,
+            agreement_url: applicant.agreementUrl || null,
 
             lease_date: applicant.leaseDate,
             rent_start_date: applicant.rentStartDate,
@@ -391,24 +391,41 @@ const Store = {
         };
 
         try {
-            // Check if exists to determine insert/update (or just delete-insert effectively for simplified logic if strict Upsert is tricky with ID).
-            // Actually upsert on shop_no is tricky if we don't have a unique constraint on shop_no in tenants table?
-            // Wait, tenants usually move out. But active tenant per shop should be unique?
-            // For now, let's assume one active tenant per shop. 
-            // We'll rely on our 'status' field or just insert new row?
-            // "shops" has unique constraint. "tenants" might not.
-            // Let's delete existing active tenant for this shop and insert new (to be safe/lazy) or use an ID if we had it.
+            // ROBUST STRATEGY: Check if exists first (to avoid deleting data)
+            const { data: existingRows, error: fetchError } = await supabaseClient
+                .from('tenants')
+                .select('id')
+                .eq('shop_no', applicant.shopNo);
 
-            // Simpler: Just INSERT (History preserved) or UPDATE latest?
-            // Let's try to match by shop_no for now.
-            const { error } = await supabaseClient.from('tenants').delete().eq('shop_no', applicant.shopNo); // Clear old
-            const { error: insError } = await supabaseClient.from('tenants').insert(dbApp);
+            if (fetchError) throw fetchError;
 
-            if (insError) throw insError;
+            if (existingRows && existingRows.length > 0) {
+                // Update the existing record(s) - usually just one
+                const idToUpdate = existingRows[0].id;
+                const { error: updateError } = await supabaseClient
+                    .from('tenants')
+                    .update(dbApp)
+                    .eq('id', idToUpdate);
+
+                if (updateError) throw updateError;
+
+                // Optional: If duplicates exist (ghost data), warn or clean
+                if (existingRows.length > 1) {
+                    console.warn(`Duplicate tenants found for shop ${applicant.shopNo}. Updated first, consider cleanup.`);
+                }
+            } else {
+                // Insert new
+                const { error: insertError } = await supabaseClient
+                    .from('tenants')
+                    .insert(dbApp);
+
+                if (insertError) throw insertError;
+            }
 
             await this.markShopOccupied(applicant.shopNo);
         } catch (e) {
             console.error("Save Applicant Failed:", e);
+            alert("Saved locally, but Cloud Sync failed! " + (e.message || ""));
         }
     },
 
@@ -1298,24 +1315,7 @@ const ShopModule = {
                     this.renderList();
                 }
             }
-            // TERMINATE
-            else if (target.closest('.btn-term-shop')) {
-                const shopNo = target.closest('.btn-term-shop').dataset.shop;
-                const reason = prompt("Enter reason for termination:", "Lease Expired");
-                if (reason) {
-                    Store.terminateApplicant(shopNo, { reason, date: new Date().toISOString() });
-                    this.renderList();
-                }
-            }
-            // RENEW
-            else if (target.closest('.btn-renew-shop')) {
-                const shopNo = target.closest('.btn-renew-shop').dataset.shop;
-                // Switch to Applicant Tab and Load
-                document.querySelector('.nav-link[data-module="applicant"]').click();
-                setTimeout(() => {
-                    ApplicantModule.loadApplicantForEdit(shopNo);
-                }, 100);
-            }
+            // TERMINATE & RENEW REMOVED (Moved to Lease Agreement Status Module)
         });
     },
 
@@ -1334,10 +1334,6 @@ const ShopModule = {
                 <td>${s.dimensions || '-'}</td>
                 <td><span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; background: ${s.status === 'Occupied' ? '#fecaca' : '#d1fae5'}; color: ${s.status === 'Occupied' ? '#dc2626' : '#059669'};">${s.status}</span></td>
                 <td>
-                     ${s.status === 'Occupied' ? `
-                        <button class="btn-renew-shop" data-shop="${s.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:5px;" title="Renew Lease">🔄</button>
-                        <button class="btn-term-shop" data-shop="${s.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:5px; color:#e11d48;" title="Terminate Lease">🚫</button>
-                     ` : ''}
                     <button class="btn-delete-shop" data-shop="${s.shopNo}" style="background:none; border:none; cursor:pointer;" title="Delete">
                         🗑️
                     </button>
@@ -1651,6 +1647,14 @@ const ApplicantModule = {
                             <small style="color:red;">WARNING: Only edit if you know what you are doing.</small>
                         </div>
 
+                        <!-- AGREEMENT UPLOAD -->
+                        <div class="form-group" style="grid-column: span 2; border-top: 1px dashed #cbd5e1; padding-top: 1rem; margin-top: 1rem;">
+                            <label class="form-label">Upload Lease Agreement (PDF/Image)</label>
+                            <input type="file" id="agreement-upload" class="form-input" accept=".pdf,image/*">
+                            <small style="color: var(--text-muted);">Max 5MB. Will be stored securely in cloud.</small>
+                            <div id="current-agreement-link" style="margin-top: 5px; font-size: 0.9rem;"></div>
+                        </div>
+
                     </div>
 
                     <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
@@ -1775,24 +1779,53 @@ const ApplicantModule = {
             return;
         }
 
-        try {
-            Store.saveApplicant(data);
-            alert('Applicant saved successfully!');
-            const container = document.getElementById('applicant-form-container');
-            const form = document.getElementById('applicant-form');
-            container.style.display = 'none';
-            document.getElementById('btn-add-applicant').style.display = 'block';
-            this.renderList();
-            // Reset UI
-            container.style.display = 'none';
-            document.getElementById('btn-add-applicant').style.display = 'block';
-            form.querySelector('[name="shopNo"]').style.pointerEvents = 'auto';
-            form.querySelector('[name="shopNo"]').style.background = 'white';
-            form.reset();
-        } catch (e) {
-            console.error(e);
-            alert('Error saving data');
-        }
+        // --- FILE UPLOAD LOGIC ---
+        const fileInput = document.getElementById('agreement-upload');
+        const file = fileInput.files[0];
+
+        const proceedWithSave = async () => {
+            try {
+                if (file) {
+                    const fileExt = file.name.split('.').pop();
+                    const shopClean = data.shopNo.replace(/[^a-zA-Z0-9]/g, '');
+                    const filePath = `${shopClean}_${Date.now()}.${fileExt}`;
+
+                    // Upload via Store helper
+                    // Note: uploadFile returns the public URL
+                    data.agreementUrl = await Store.uploadFile(file, filePath);
+                }
+
+                Store.saveApplicant(data);
+
+                // Success Response
+                alert('Applicant saved successfully!');
+
+                // Close Form
+                const container = document.getElementById('applicant-form-container');
+                const form = document.getElementById('applicant-form');
+
+                container.style.display = 'none';
+                document.getElementById('btn-add-applicant').style.display = 'block';
+
+                // Reset styling and form
+                if (form) {
+                    const shopSel = form.querySelector('[name="shopNo"]');
+                    if (shopSel) {
+                        shopSel.style.pointerEvents = 'auto';
+                        shopSel.style.background = 'white';
+                    }
+                    form.reset();
+                }
+
+                this.renderList();
+
+            } catch (err) {
+                console.error(err);
+                alert('Save Failed: ' + (err.message || 'Unknown error'));
+            }
+        };
+
+        proceedWithSave();
     },
 
     renderList() {

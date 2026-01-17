@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "type": "msedge",
+            "name": "https://nkms143.github.io/shoplease/",
+            "request": "launch",
+            "url": "https://nkms143.github.io/shoplease/"
+        }
+    ]
+}

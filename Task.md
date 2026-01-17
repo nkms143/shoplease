@@ -43,7 +43,8 @@
 - [x] **Receipt Number Fix**
     - [x] Remove long ISO timestamp from Receipt No (Use random 3-digit suffix)
 - [x] **Delete Functionality Fix**
-    - [x] Implement `deleteApplicant` to remove data and clear shop status (Fix Ghost Data)
+    - [x] Fix "04" vs 4 Deletion Bug (Implemented "Scorched Earth" UUID+Fallback delete)
+    - [x] **Safe Save Refactor** (Replaced risky Delete-Then-Insert with Select-Update/Insert)
     - [x] Fix `deleteShop` to properly delete from Cloud DB (Fix Reappearing Shops)
     - [x] Fix `deletePayment` to properly sync deletions (Fix Reappearing Transactions)
     - [x] Fix `ApplicantModule` buttons (Delete/Edit) not clicking (Missing Event Listener)
@@ -56,3 +57,12 @@
     - [x] Implement Row Level Security (RLS) policies in Supabase
 - [x] **Environment Management**
     - [x] Move Secrets (URL/Key) to Environment Variables
+- [x] **Database Optimization**
+    - [x] Fix Auth RLS Init Plan Performance Warning (Created `supabase_rls_fix.sql`)
+
+## Phase 5: Features (Current)
+- [x] **Lease Agreement Upload**
+    - [x] Create Supabase Storage Bucket & Policies (`supabase_storage_setup.sql`)
+    - [x] Add Upload Field to New Applicant Form
+    - [x] Add Upload Field to Renewal Modal
+    - [x] Implement File Upload Logic in Frontend (`Store.uploadFile`)

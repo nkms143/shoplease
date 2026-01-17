@@ -1381,6 +1381,13 @@ const LeaseStatusModule = {
                             </div>
                         </div>
 
+                        <!-- AGREEMENT UPLOAD (RENEWAL) -->
+                        <div class="form-group" style="margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
+                            <label class="form-label">Upload New Agreement (Optional)</label>
+                            <input type="file" id="renew-agreement-upload" class="form-input" accept=".pdf,image/*">
+                            <small style="color: var(--text-muted);">Max 5MB.</small>
+                        </div>
+
                         <div style="margin-top: 1.5rem; text-align: right;">
                              <button type="button" class="btn-primary" style="background: #94a3b8; margin-right: 0.5rem;" id="btn-close-renew">Cancel</button>
                              <button type="submit" class="btn-primary">Save Renewal</button>
@@ -1554,88 +1561,107 @@ const LeaseStatusModule = {
         const data = Object.fromEntries(formData.entries());
         const shopNo = data.shopNo;
 
-        try {
-            const applicants = Store.getApplicants();
-            const index = applicants.findIndex(a => a.shopNo === shopNo);
+        // Wrap in async immediately invoked function or promise chain to handle async upload
+        const processRenewal = async () => {
+            try {
+                const applicants = Store.getApplicants();
+                const index = applicants.findIndex(a => a.shopNo === shopNo);
 
-            if (index === -1) throw new Error('Applicant not found');
+                if (index === -1) throw new Error('Applicant not found');
 
-            // Snapshot previous values BEFORE modifying applicant record
-            const prev = {
-                leaseDate: applicants[index].leaseDate,
-                expiryDate: applicants[index].expiryDate,
-                agreementDate: applicants[index].agreementDate,
-                rentStartDate: applicants[index].rentStartDate,
-                paymentDay: applicants[index].paymentDay,
-                rentBase: applicants[index].rentBase,
-                gstAmount: applicants[index].gstAmount,
-                rentTotal: applicants[index].rentTotal,
-                occupancyStartDate: applicants[index].occupancyStartDate
-            };
+                // Snapshot previous values BEFORE modifying applicant record
+                const prev = {
+                    leaseDate: applicants[index].leaseDate,
+                    expiryDate: applicants[index].expiryDate,
+                    agreementDate: applicants[index].agreementDate,
+                    rentStartDate: applicants[index].rentStartDate,
+                    paymentDay: applicants[index].paymentDay,
+                    rentBase: applicants[index].rentBase,
+                    gstAmount: applicants[index].gstAmount,
+                    rentTotal: applicants[index].rentTotal,
+                    occupancyStartDate: applicants[index].occupancyStartDate
+                };
 
-            // Preserve original occupancy date if not already set (Fix for Rent Collection history)
-            if (!applicants[index].occupancyStartDate) {
-                applicants[index].occupancyStartDate = applicants[index].rentStartDate || applicants[index].leaseDate;
-            }
-
-            // Update dates (apply new values)
-            applicants[index].leaseDate = data.leaseDate;
-            applicants[index].expiryDate = data.expiryDate;
-            applicants[index].agreementDate = data.agreementDate;
-            applicants[index].rentStartDate = data.rentStartDate;
-            applicants[index].paymentDay = data.paymentDay;
-
-            // Archive Current Lease as a "History Block" so previous period dues are preserved
-            if (!applicants[index].leaseHistory) {
-                applicants[index].leaseHistory = [];
-            }
-            // Create Block for the expiring lease using PREVIOUS snapshot
-            const historyBlock = {
-                periodLabel: `Lease ${prev.leaseDate || 'N/A'} to ${prev.expiryDate || 'N/A'}`,
-                startDate: prev.rentStartDate || prev.occupancyStartDate || prev.leaseDate,
-                endDate: data.rentStartDate || data.leaseDate || prev.expiryDate,
-
-                // Snapshot of Financials (previous values)
-                rentBase: prev.rentBase,
-                gstAmount: prev.gstAmount,
-                rentTotal: prev.rentTotal,
-
-                // Snapshot of Dates (Reference)
-                leaseDate: prev.leaseDate,
-                expiryDate: prev.expiryDate,
-                agreementDate: prev.agreementDate,
-
-                archivedAt: new Date().toISOString()
-            };
-
-            // Avoid duplicate archive blocks with same start+end
-            const exists = applicants[index].leaseHistory.some(h => h.startDate === historyBlock.startDate && h.endDate === historyBlock.endDate);
-            if (!exists) applicants[index].leaseHistory.push(historyBlock);
-
-            // Handle Rent Update (apply new values if requested)
-            const updateRent = document.getElementById('chk-update-rent').checked;
-            if (updateRent) {
-                const newBase = parseFloat(document.getElementById('new-base-rent').value);
-                if (isNaN(newBase) || newBase <= 0) {
-                    throw new Error('Please enter a valid Base Rent amount');
+                // Preserve original occupancy date if not already set (Fix for Rent Collection history)
+                if (!applicants[index].occupancyStartDate) {
+                    applicants[index].occupancyStartDate = applicants[index].rentStartDate || applicants[index].leaseDate;
                 }
-                const newGst = parseFloat((newBase * 0.18).toFixed(2));
-                const newTotal = parseFloat((newBase + newGst).toFixed(2));
 
-                applicants[index].rentBase = newBase;
-                applicants[index].gstAmount = newGst;
-                applicants[index].rentTotal = newTotal;
+                // Update dates (apply new values)
+                applicants[index].leaseDate = data.leaseDate;
+                applicants[index].expiryDate = data.expiryDate;
+                applicants[index].agreementDate = data.agreementDate;
+                applicants[index].rentStartDate = data.rentStartDate;
+                applicants[index].paymentDay = data.paymentDay;
+
+                // FILE UPLOAD LOGIC
+                const fileInput = document.getElementById('renew-agreement-upload');
+                if (fileInput && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    const fileExt = file.name.split('.').pop();
+                    const shopClean = shopNo.replace(/[^a-zA-Z0-9]/g, '');
+                    const filePath = `renewals/${shopClean}_${Date.now()}.${fileExt}`;
+
+                    // Upload and set URL
+                    applicants[index].agreementUrl = await Store.uploadFile(file, filePath);
+                }
+
+                // Archive Current Lease as a "History Block" so previous period dues are preserved
+                if (!applicants[index].leaseHistory) {
+                    applicants[index].leaseHistory = [];
+                }
+                // Create Block for the expiring lease using PREVIOUS snapshot
+                const historyBlock = {
+                    periodLabel: `Lease ${prev.leaseDate || 'N/A'} to ${prev.expiryDate || 'N/A'}`,
+                    startDate: prev.rentStartDate || prev.occupancyStartDate || prev.leaseDate,
+                    endDate: data.rentStartDate || data.leaseDate || prev.expiryDate,
+
+                    // Snapshot of Financials (previous values)
+                    rentBase: prev.rentBase,
+                    gstAmount: prev.gstAmount,
+                    rentTotal: prev.rentTotal,
+
+                    // Snapshot of Dates (Reference)
+                    leaseDate: prev.leaseDate,
+                    expiryDate: prev.expiryDate,
+                    agreementDate: prev.agreementDate,
+
+                    archivedAt: new Date().toISOString()
+                };
+
+                // Avoid duplicate archive blocks with same start+end
+                const exists = applicants[index].leaseHistory.some(h => h.startDate === historyBlock.startDate && h.endDate === historyBlock.endDate);
+                if (!exists) applicants[index].leaseHistory.push(historyBlock);
+
+                // Handle Rent Update (apply new values if requested)
+                const updateRent = document.getElementById('chk-update-rent').checked;
+                if (updateRent) {
+                    const newBase = parseFloat(document.getElementById('new-base-rent').value);
+                    if (isNaN(newBase) || newBase <= 0) {
+                        throw new Error('Please enter a valid Base Rent amount');
+                    }
+                    const newGst = parseFloat((newBase * 0.18).toFixed(2));
+                    const newTotal = parseFloat((newBase + newGst).toFixed(2));
+
+                    applicants[index].rentBase = newBase;
+                    applicants[index].gstAmount = newGst;
+                    applicants[index].rentTotal = newTotal;
+                }
+
+                // SAVE using Store.saveApplicant to ensure Cloud Sync
+                await Store.saveApplicant(applicants[index]);
+
+                alert('Lease Renewed & Synced Successfully!');
+                document.getElementById('renewal-modal').style.display = 'none';
+                this.renderActiveList();
+
+            } catch (e) {
+                console.error(e);
+                alert('Error updating lease: ' + e.message);
             }
+        };
 
-            localStorage.setItem(Store.APPLICANTS_KEY, JSON.stringify(applicants));
-
-            alert('Lease Renewed Successfully!');
-            document.getElementById('renewal-modal').style.display = 'none';
-            this.renderActiveList();
-
-        } catch (e) {
-            alert('Error updating lease: ' + e.message);
-        }
+        processRenewal();
     }
 };
 
