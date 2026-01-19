@@ -23,9 +23,9 @@ window.openForgotModal = function (e) {
     if (m) {
         m.style.setProperty('display', 'flex', 'important');
         m.style.setProperty('z-index', '2147483647', 'important'); // Max Z-Index
-        // Ensure Login Container doesn't cover it
+        // Ensure Login Container doesn't cover it (Login is 20000)
         const login = document.getElementById('login-container');
-        if (login) login.style.zIndex = '1';
+        if (login) login.style.zIndex = '999'; // Lower it below Modal (2Billion)
 
         console.log("Global: Force Opened Forgot Modal", m.style.display);
     } else {
@@ -36,6 +36,8 @@ window.openForgotModal = function (e) {
 window.closeForgotModal = function () {
     const m = document.getElementById('forgot-password-modal');
     if (m) m.style.display = 'none';
+    const login = document.getElementById('login-container');
+    if (login) login.style.zIndex = ''; // Restore CSS default (20000)
 };
 
 // Use window.supabase to avoid shadowing, and name the client 'supabaseClient'
