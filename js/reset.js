@@ -3,12 +3,11 @@
  * Handles only the update password flow
  */
 
-const SUPABASE_URL = config.SUPABASE_URL;
-const SUPABASE_KEY = config.SUPABASE_KEY;
-
-const supabaseResetClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Supabase client inside DOMContentLoaded to ensure config.js has loaded
+    const SUPABASE_URL = window.CONFIG.SUPABASE_URL;
+    const SUPABASE_KEY = window.CONFIG.SUPABASE_KEY;
+    const supabaseResetClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const btnUpdate = document.getElementById('btn-update');
     const inputPass = document.getElementById('new-password');
     const msgDiv = document.getElementById('message');
