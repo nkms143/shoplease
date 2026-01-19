@@ -263,6 +263,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("Auth Event:", event);
             if (event === 'PASSWORD_RECOVERY') {
                 console.log("Recovery Mode Detected! Showing Update Modal.");
+
+                // BLOCK ACCESS: Hide the app container immediately
+                if (appContainer) appContainer.style.display = 'none';
+                if (loginContainer) loginContainer.style.display = 'none'; // Ensure clean slate
+
                 updatePassModal.style.display = 'flex';
             }
         });
@@ -284,9 +289,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             updatePassBtn.disabled = false;
 
             if (res.success) {
-                alert("Password Updated Successfully! You can now login.");
+                alert("Password Updated Successfully! Please login with your new password.");
                 updatePassModal.style.display = 'none';
-                window.location.hash = ''; // Clear hash if any
+                window.location.hash = ''; // Clear hash
+
+                // FORCE LOGOUT to ensure clean state
+                await AuthModule.logout();
                 location.reload();
             } else {
                 alert("Error: " + res.error);
