@@ -80,9 +80,20 @@ const AuthModule = {
     async sendPasswordReset(email) {
         if (!email) return { error: 'Email is required' };
         try {
-            // Github Pages lives at /shoplease/, so we need the full path, not just origin.
-            // We strip any existing hash or query params to be clean.
-            const redirectUrl = window.location.origin + window.location.pathname;
+            // Use dedicated reset page
+            // Logic: github.io/shoplease/ -> github.io/shoplease/reset.html
+            // Or localhost:8000/ -> localhost:8000/reset.html
+
+            // Get base path (handles /shoplease/ or /)
+            let basePath = window.location.pathname;
+            // Remove 'index.html' if present
+            basePath = basePath.replace('index.html', '');
+            // Ensure trailing slash
+            if (!basePath.endsWith('/')) basePath += '/';
+
+            const redirectUrl = window.location.origin + basePath + 'reset.html';
+
+            console.log("Sending Reset for URL:", redirectUrl);
 
             const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
                 redirectTo: redirectUrl,

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password - SUDA Shop Lease</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg-gradient);
+        }
+
+        .reset-container {
+            width: 90%;
+            max-width: 400px;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="reset-container">
+        <h2 style="color: var(--primary-color); margin-bottom: 0.5rem;">Set New Password</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Please enter your new password to secure your account.
+        </p>
+
+        <div class="form-group">
+            <label class="form-label" for="new-password">New Password</label>
+            <input type="password" id="new-password" class="form-input" placeholder="Min 6 characters" required>
+        </div>
+
+        <button id="btn-update" class="btn-primary" style="width: 100%;">Update Password</button>
+        <div id="message" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
+
+        <div style="text-align: center; margin-top: 1.5rem;">
+            <a href="index.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">Back to
+                Login</a>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/reset.js"></script>
+</body>
+
+</html>
