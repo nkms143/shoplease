@@ -263,55 +263,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Update Password Modal Logic
-    const updatePassModal = document.getElementById('update-password-modal');
-    const updatePassBtn = document.getElementById('btn-update-password');
-    const newPassInput = document.getElementById('new-password');
-
-    if (updatePassModal && updatePassBtn) {
-        // Listen for Password Reset Event from Supabase
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            console.log("Auth Event:", event);
-            if (event === 'PASSWORD_RECOVERY') {
-                console.log("Recovery Mode Detected! Showing Update Modal.");
-
-                // BLOCK ACCESS: Hide the app container immediately
-                if (appContainer) appContainer.style.display = 'none';
-                if (loginContainer) loginContainer.style.display = 'none'; // Ensure clean slate
-
-                updatePassModal.style.display = 'flex';
-            }
-        });
-
-        updatePassBtn.addEventListener('click', async () => {
-            const newPass = newPassInput.value;
-            if (!newPass || newPass.length < 6) {
-                alert("Password must be at least 6 characters.");
-                return;
-            }
-
-            const originalText = updatePassBtn.textContent;
-            updatePassBtn.textContent = "Updating...";
-            updatePassBtn.disabled = true;
-
-            const res = await AuthModule.updatePassword(newPass);
-
-            updatePassBtn.textContent = originalText;
-            updatePassBtn.disabled = false;
-
-            if (res.success) {
-                alert("Password Updated Successfully! Please login with your new password.");
-                updatePassModal.style.display = 'none';
-                window.location.hash = ''; // Clear hash
-
-                // FORCE LOGOUT to ensure clean state
-                await AuthModule.logout();
-                location.reload();
-            } else {
-                alert("Error: " + res.error);
-            }
-        });
-    }
+    // Password Reset now handled by dedicated reset.html page
+    // Removed old PASSWORD_RECOVERY modal logic to prevent duplicate modals
 
     // 1. AUTH CHECK (Async)
 
