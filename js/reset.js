@@ -6,7 +6,7 @@
 const SUPABASE_URL = config.SUPABASE_URL;
 const SUPABASE_KEY = config.SUPABASE_KEY;
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseResetClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 document.addEventListener('DOMContentLoaded', async () => {
     const btnUpdate = document.getElementById('btn-update');
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Wait for Supabase to process the hash and establish session
     let sessionReady = false;
 
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabaseResetClient.auth.onAuthStateChange((event, session) => {
         console.log("Auth Event:", event, "Session:", session);
 
         if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Also try to get session immediately (in case event already fired)
     setTimeout(async () => {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabaseResetClient.auth.getSession();
         console.log("Manual session check:", session, error);
 
         if (session && !sessionReady) {
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             console.log("Calling updateUser...");
-            const { data, error } = await supabase.auth.updateUser({
+            const { data, error } = await supabaseResetClient.auth.updateUser({
                 password: newPassword
             });
 
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             msgDiv.style.color = 'green';
 
             // Force logout to ensure they login with new credentials
-            await supabase.auth.signOut();
+            await supabaseResetClient.auth.signOut();
 
             setTimeout(() => {
                 window.location.href = 'index.html';
