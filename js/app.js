@@ -15,10 +15,22 @@ const SUPABASE_KEY = config.SUPABASE_KEY;
 
 // GLOBAL UI HELPERS (For direct access from HTML)
 window.openForgotModal = function (e) {
-    if (e) e.preventDefault();
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
     const m = document.getElementById('forgot-password-modal');
-    if (m) m.style.display = 'flex';
-    console.log("Global: Opened Forgot Modal");
+    if (m) {
+        m.style.setProperty('display', 'flex', 'important');
+        m.style.setProperty('z-index', '2147483647', 'important'); // Max Z-Index
+        // Ensure Login Container doesn't cover it
+        const login = document.getElementById('login-container');
+        if (login) login.style.zIndex = '1';
+
+        console.log("Global: Force Opened Forgot Modal", m.style.display);
+    } else {
+        console.error("Global: Modal Not Found!");
+    }
 };
 
 window.closeForgotModal = function () {
@@ -202,15 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resetEmailInput = document.getElementById('reset-email');
 
     if (forgotLink && forgotModal) {
-        // Debug Log
-        console.log("Forgot Password UI Initialized");
-
-        forgotLink.addEventListener('click', (e) => {
-            console.log("Forgot Password Clicked");
-            e.preventDefault();
-            e.stopPropagation(); // Just in case
-            forgotModal.style.display = 'flex';
-        });
+        // Redundant listeners removed. Handled by global window.openForgotModal & inline onclick.
 
         cancelResetBtn.addEventListener('click', () => {
             forgotModal.style.display = 'none';
