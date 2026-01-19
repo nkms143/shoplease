@@ -181,8 +181,9 @@ const AuthModule = {
         alert(`Repair Complete!\nFixed: ${successCount}\nFailed: ${failCount}\n\nPlease Refresh the Page.`);
     }
 };
-// Expose for Console Use
+// Expose for Console Use & HTML Inline Access
 window.repairData = AuthModule.repairData;
+window.logout = AuthModule.logout.bind(AuthModule); // Bind to keep context
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. AUTH CHECK
