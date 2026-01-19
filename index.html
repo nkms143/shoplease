@@ -35,7 +35,7 @@
                 <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Secure Login</button>
             </form>
             <div style="text-align: right; margin-top: 10px;">
-                <a href="#" id="forgot-password-link"
+                <a href="javascript:void(0)" onclick="openForgotModal(event)" id="forgot-password-link"
                     style="color: #64748b; font-size: 0.9rem; text-decoration: none;">Forgot Password?</a>
             </div>
             <div id="login-error"
@@ -128,15 +128,35 @@
             <input type="email" id="reset-email" class="form-input" placeholder="Enter your email" required
                 style="width: 100%; box-sizing: border-box; margin-bottom: 1rem;">
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button id="btn-cancel-reset" class="btn-primary" style="background: #94a3b8;">Cancel</button>
+                <button id="btn-cancel-reset" class="btn-primary" style="background: #94a3b8;"
+                    onclick="closeForgotModal()">Cancel</button>
                 <button id="btn-send-reset" class="btn-primary">Send Reset Link</button>
             </div>
         </div>
     </div>
 
-    <script src="js/config.js"></script>
-    <script src="js/app.js"></script>
-    <script src="js/extra_modules.js"></script>
+    <!-- UPDATE Password Modal (For when user clicks email link) -->
+    <div id="update-password-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center;">
+        <div
+            style="background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0; color: #334155;">Set New Password</h3>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Please enter your new password below.
+            </p>
+
+            <div class="form-group">
+                <label class="form-label" for="new-password">New Password</label>
+                <input type="password" id="new-password" class="form-input" placeholder="New Password" required>
+            </div>
+
+            <button id="btn-update-password" class="btn-primary" style="width: 100%; margin-top: 1rem;">Update
+                Password</button>
+        </div>
+    </div>
+
+    <script src="js/config.js?v=2"></script>
+    <script src="js/app.js?v=2"></script>
+    <script src="js/extra_modules.js?v=2"></script>
 </body>
 
 </html>

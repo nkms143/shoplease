@@ -13,6 +13,19 @@ if (!config.SUPABASE_URL) {
 const SUPABASE_URL = config.SUPABASE_URL;
 const SUPABASE_KEY = config.SUPABASE_KEY;
 
+// GLOBAL UI HELPERS (For direct access from HTML)
+window.openForgotModal = function (e) {
+    if (e) e.preventDefault();
+    const m = document.getElementById('forgot-password-modal');
+    if (m) m.style.display = 'flex';
+    console.log("Global: Opened Forgot Modal");
+};
+
+window.closeForgotModal = function () {
+    const m = document.getElementById('forgot-password-modal');
+    if (m) m.style.display = 'none';
+};
+
 // Use window.supabase to avoid shadowing, and name the client 'supabaseClient'
 const _supabase = window.supabase;
 const supabaseClient = _supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -60,6 +73,19 @@ const AuthModule = {
             return { success: true };
         } catch (err) {
             console.error('Password Reset Error:', err);
+            return { error: err.message };
+        }
+    },
+
+    async updatePassword(newPassword) {
+        try {
+            const { data, error } = await supabaseClient.auth.updateUser({
+                password: newPassword
+            });
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error('Update Password Error:', err);
             return { error: err.message };
         }
     },
@@ -211,6 +237,48 @@ document.addEventListener('DOMContentLoaded', async () => {
                 resetEmailInput.value = '';
             } else {
                 alert('Error: ' + (result.error || 'Failed to send reset link.'));
+            }
+        });
+    }
+
+    // Update Password Modal Logic
+    const updatePassModal = document.getElementById('update-password-modal');
+    const updatePassBtn = document.getElementById('btn-update-password');
+    const newPassInput = document.getElementById('new-password');
+
+    if (updatePassModal && updatePassBtn) {
+        // Listen for Password Reset Event from Supabase
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            console.log("Auth Event:", event);
+            if (event === 'PASSWORD_RECOVERY') {
+                console.log("Recovery Mode Detected! Showing Update Modal.");
+                updatePassModal.style.display = 'flex';
+            }
+        });
+
+        updatePassBtn.addEventListener('click', async () => {
+            const newPass = newPassInput.value;
+            if (!newPass || newPass.length < 6) {
+                alert("Password must be at least 6 characters.");
+                return;
+            }
+
+            const originalText = updatePassBtn.textContent;
+            updatePassBtn.textContent = "Updating...";
+            updatePassBtn.disabled = true;
+
+            const res = await AuthModule.updatePassword(newPass);
+
+            updatePassBtn.textContent = originalText;
+            updatePassBtn.disabled = false;
+
+            if (res.success) {
+                alert("Password Updated Successfully! You can now login.");
+                updatePassModal.style.display = 'none';
+                window.location.hash = ''; // Clear hash if any
+                location.reload();
+            } else {
+                alert("Error: " + res.error);
             }
         });
     }
