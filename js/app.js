@@ -80,8 +80,12 @@ const AuthModule = {
     async sendPasswordReset(email) {
         if (!email) return { error: 'Email is required' };
         try {
+            // Github Pages lives at /shoplease/, so we need the full path, not just origin.
+            // We strip any existing hash or query params to be clean.
+            const redirectUrl = window.location.origin + window.location.pathname;
+
             const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin,
+                redirectTo: redirectUrl,
             });
             if (error) throw error;
             return { success: true };
