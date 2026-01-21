@@ -3391,10 +3391,15 @@ const ReceiptModule = {
         const dateObj = new Date(validTs);
 
         // Fix: Logic for uniqueSuffix was grabbing ISO time parts (e.g. 05T12:00:00).
-        // Only use legacy suffix if it looks like a simple index (short number), otherwise generate random.
+        // For legacy payments without receiptId, generate a DETERMINISTIC suffix from timestamp
         let uniqueSuffix = payment.timestamp.split('-').pop();
         if (uniqueSuffix.length > 5 || uniqueSuffix.includes(':') || uniqueSuffix.includes('T')) {
-            uniqueSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            // Use a hash of the full timestamp to generate a deterministic 3-digit suffix
+            // This ensures the same receipt ID is generated every time for the same payment
+            const hash = payment.timestamp.split('').reduce((acc, char) => {
+                return ((acc << 5) - acc) + char.charCodeAt(0);
+            }, 0);
+            uniqueSuffix = (Math.abs(hash) % 1000).toString().padStart(3, '0');
         }
 
         // Use stored immutable ID if available, else fallback to generated
