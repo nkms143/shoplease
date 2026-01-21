@@ -632,6 +632,45 @@ const Store = {
         return payments.filter(p => this.idsMatch(p.shopNo, shopNo));
     },
 
+    // --- RECEIPT NUMBER GENERATION ---
+    /**
+     * Generates the next receipt number in format: SUDA-0001/2025-26
+     * Counter resets every financial year (April to March)
+     */
+    getNextReceiptNumber() {
+        const financialYear = this.getCurrentFinancialYear();
+        const counterKey = `receipt_counter_${financialYear}`;
+
+        // Get current counter for this financial year
+        let counter = parseInt(localStorage.getItem(counterKey) || '0');
+        counter++;
+
+        // Save updated counter
+        localStorage.setItem(counterKey, counter.toString());
+
+        // Format: SUDA-0001/2025-26
+        const paddedCounter = counter.toString().padStart(4, '0');
+        return `SUDA-${paddedCounter}/${financialYear}`;
+    },
+
+    /**
+     * Returns current financial year in format: 2025-26
+     * Financial year runs from April to March
+     */
+    getCurrentFinancialYear() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1; // 1-12
+
+        // If January-March, FY is (year-1)-(year)
+        // If April-December, FY is (year)-(year+1)
+        if (month >= 1 && month <= 3) {
+            return `${year - 1}-${String(year).slice(-2)}`;
+        } else {
+            return `${year}-${String(year + 1).slice(-2)}`;
+        }
+    },
+
     // Helper: Safely compare IDs (Handle "04" vs 4 vs " 04 ")
     idsMatch(a, b) {
         if (!a || !b) return false;
@@ -2456,8 +2495,8 @@ const RentModule = {
                     penalty: p.toFixed(2),
                     grandTotal: (rTotal + p).toFixed(2),
                     timestamp: new Date().toISOString() + '-' + index, // Unique ID
-                    // Generate Immutable Receipt ID
-                    receiptId: `REC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    // Generate Standardized Receipt ID: SUDA-0001/2025-26
+                    receiptId: Store.getNextReceiptNumber(),
                     // Payment Method Details
                     paymentMethod: paymentMethod,
                     receiptNo: paymentMethod === 'cash' ? document.getElementById('receipt-no').value.trim() : null,
