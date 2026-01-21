@@ -396,6 +396,7 @@ const Store = {
                 grandTotal: row.amount_total, // Mapped back to JS property
                 totalRent: row.amount_total,  // Alias for compatibility
                 paymentMode: row.payment_method,
+                paymentMethod: row.payment_method,  // Alias for compatibility (new code uses this)
                 // Load receipt_no from DB into both fields for backward compatibility
                 receiptId: row.receipt_no,  // New standardized field
                 receiptNo: row.receipt_no,  // Old manual field (cash payments)
@@ -615,7 +616,7 @@ const Store = {
             amount_gst: parseFloat(payment.gstAmount || 0),
             amount_penalty: parseFloat(payment.penalty || 0),
             amount_total: parseFloat(payment.grandTotal || 0),
-            payment_method: payment.paymentMode,
+            payment_method: payment.paymentMethod || payment.paymentMode,
             // Use new receiptId (SUDA-0001/2025-26) with fallback to old receiptNo for backward compatibility
             receipt_no: payment.receiptId || payment.receiptNo
         };
