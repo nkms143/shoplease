@@ -400,6 +400,12 @@ const Store = {
                 // Load receipt_no from DB into both fields for backward compatibility
                 receiptId: row.receipt_no,  // New standardized field
                 receiptNo: row.receipt_no,  // Old manual field (cash payments)
+
+                // Transaction Details
+                transactionNo: row.transaction_no,
+                ddChequeNo: row.dd_cheque_no,
+                ddChequeDate: row.dd_cheque_date,
+
                 timestamp: row.created_at
             }));
 
@@ -618,7 +624,12 @@ const Store = {
             amount_total: parseFloat(payment.grandTotal || 0),
             payment_method: payment.paymentMethod || payment.paymentMode,
             // Use new receiptId (SUDA-0001/2025-26) with fallback to old receiptNo for backward compatibility
-            receipt_no: payment.receiptId || payment.receiptNo
+            receipt_no: payment.receiptId || payment.receiptNo,
+
+            // Transaction Details
+            transaction_no: payment.transactionNo || null,
+            dd_cheque_no: payment.ddChequeNo || null,
+            dd_cheque_date: payment.ddChequeDate || null
         };
 
         try {
