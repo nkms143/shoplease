@@ -396,7 +396,9 @@ const Store = {
                 grandTotal: row.amount_total, // Mapped back to JS property
                 totalRent: row.amount_total,  // Alias for compatibility
                 paymentMode: row.payment_method,
-                receiptNo: row.receipt_no,
+                // Load receipt_no from DB into both fields for backward compatibility
+                receiptId: row.receipt_no,  // New standardized field
+                receiptNo: row.receipt_no,  // Old manual field (cash payments)
                 timestamp: row.created_at
             }));
 
@@ -614,7 +616,8 @@ const Store = {
             amount_penalty: parseFloat(payment.penalty || 0),
             amount_total: parseFloat(payment.grandTotal || 0),
             payment_method: payment.paymentMode,
-            receipt_no: payment.receiptNo // Preserve if exists
+            // Use new receiptId (SUDA-0001/2025-26) with fallback to old receiptNo for backward compatibility
+            receipt_no: payment.receiptId || payment.receiptNo
         };
 
         try {
@@ -863,27 +866,27 @@ const Store = {
         localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
 
         // 2. Cloud Sync
-        if (payToDelete && payToDelete.receiptNo) {
+        const receiptIdentifier = payToDelete?.receiptId || payToDelete?.receiptNo;
+
+        if (receiptIdentifier) {
             try {
-                // Delete by receipt_no (most reliable unique key from DB perspective)
+                // Delete by receipt_no (which stores either receiptId or old receiptNo)
                 const { error } = await supabaseClient
                     .from('payments')
                     .delete()
-                    .eq('receipt_no', payToDelete.receiptNo);
+                    .eq('receipt_no', receiptIdentifier);
 
                 if (error) throw error;
-                console.log(`Cloud: Payment ${payToDelete.receiptNo} deleted.`);
+                console.log(`Cloud: Payment ${receiptIdentifier} deleted.`);
                 alert("Transaction deleted successfully.");
             } catch (e) {
-                // Fallback: try deleting by created_at or other unique constraints if receipt_no fails?
-                // For now, assume receipt_no is good.
                 console.error("Delete Payment Cloud Failed:", e);
                 alert("Deleted locally, but Cloud Sync failed.");
             }
         } else {
-            // If no receiptNo, maybe it didn't sync yet?
-            // Just warn.
-            console.warn("Deleted payment had no receiptNo, skipping Cloud delete (might be local only?)");
+            // If no receipt identifier, it might be a very old payment or local-only
+            console.warn("Deleted payment had no receipt identifier, skipping Cloud delete (might be local only?)");
+            alert("Transaction deleted locally (no cloud sync available).");
         }
     },
 
@@ -909,6 +912,107 @@ const Store = {
             console.log(`Cleaned up ${payments.length - cleaned.length} duplicate payment records.`);
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(cleaned));
         }
+    },
+
+    /**
+     * ONE-TIME MIGRATION: Assign standardized receipt IDs to old payments
+     * This will NOT overwrite existing manual receipt numbers for cash payments
+     * Run manually in console: Store.migrateOldReceiptIds()
+     */
+    async migrateOldReceiptIds() {
+        console.log('🔄 Starting receipt ID migration...');
+
+        const payments = this.getPayments();
+        let updatedCount = 0;
+        let skippedCount = 0;
+
+        // Sort by payment date to assign sequential numbers in chronological order
+        const sortedPayments = [...payments].sort((a, b) => {
+            const dateA = new Date(a.paymentDate || a.timestamp);
+            const dateB = new Date(b.paymentDate || b.timestamp);
+            return dateA - dateB;
+        });
+
+        // Track counters per financial year
+        const fyCounters = {};
+
+        for (const payment of sortedPayments) {
+            // Skip if already has receiptId (new payment)
+            if (payment.receiptId) {
+                skippedCount++;
+                continue;
+            }
+
+            // Calculate FY from payment date
+            const payDate = new Date(payment.paymentDate || payment.timestamp);
+            const fy = this.getFinancialYearFromDate(payDate);
+
+            // Initialize counter for this FY if not exists
+            if (!fyCounters[fy]) {
+                fyCounters[fy] = 0;
+            }
+
+            // Increment counter
+            fyCounters[fy]++;
+
+            // Generate receipt ID
+            const paddedCounter = fyCounters[fy].toString().padStart(4, '0');
+            payment.receiptId = `SUDA-${paddedCounter}/${fy}`;
+
+            updatedCount++;
+            console.log(`✓ ${payment.shopNo} (${payment.paymentForMonth}) → ${payment.receiptId}`);
+        }
+
+        // Save updated payments to localStorage
+        this.cache.payments = payments;
+        localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
+
+        // Update cloud database
+        console.log('☁️ Syncing to cloud...');
+        let cloudUpdated = 0;
+        let cloudFailed = 0;
+
+        for (const payment of sortedPayments) {
+            if (!payment.receiptId) continue; // Skip ones we didn't update
+
+            try {
+                const { error } = await supabaseClient
+                    .from('payments')
+                    .update({ receipt_no: payment.receiptId })
+                    .eq('shop_no', payment.shopNo)
+                    .eq('payment_for_month', payment.paymentForMonth);
+
+                if (error) throw error;
+                cloudUpdated++;
+            } catch (e) {
+                console.error(`Failed to update ${payment.shopNo} - ${payment.paymentForMonth}:`, e);
+                cloudFailed++;
+            }
+        }
+
+        // Update localStorage counters for future payments
+        console.log('📝 Updating counters for future use...');
+        for (const [fy, count] of Object.entries(fyCounters)) {
+            const counterKey = `receipt_counter_${fy}`;
+            const currentCounter = parseInt(localStorage.getItem(counterKey) || '0');
+            // Only update if our migrated count is higher
+            if (count > currentCounter) {
+                localStorage.setItem(counterKey, count.toString());
+                console.log(`Set counter for ${fy}: ${count}`);
+            }
+        }
+
+        console.log('✅ Migration complete!');
+        console.log(`   Updated: ${updatedCount} payments`);
+        console.log(`   Skipped: ${skippedCount} (already had receiptId)`);
+        console.log(`   Cloud synced: ${cloudUpdated}`);
+        if (cloudFailed > 0) {
+            console.warn(`   Cloud failed: ${cloudFailed}`);
+        }
+
+        alert(`Migration Complete!\n\nUpdated: ${updatedCount} payments\nSkipped: ${skippedCount} (already updated)\nCloud synced: ${cloudUpdated}${cloudFailed > 0 ? `\nFailed: ${cloudFailed}` : ''}`);
+
+        return { updatedCount, skippedCount, cloudUpdated, cloudFailed };
     }
     ,
 
@@ -2881,7 +2985,8 @@ const PaymentReportModule = {
             let paymentDetailsText = '';
             if (p.paymentMethod === 'cash') {
                 paymentMethodText = 'Cash';
-                paymentDetailsText = p.receiptNo || '';
+                // For cash, try manual receiptNo first, then fall back to receiptId
+                paymentDetailsText = p.receiptNo || p.receiptId || '';
             } else if (p.paymentMethod === 'dd-cheque') {
                 paymentMethodText = 'DD/Cheque';
                 paymentDetailsText = `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
@@ -3007,7 +3112,8 @@ const PaymentReportModule = {
         const formatPaymentMethod = (p) => {
             if (!p.paymentMethod) return '-';
             if (p.paymentMethod === 'cash') {
-                return `Cash<br><small style="color: #475569;">${p.receiptNo || ''}</small>`;
+                // For cash, try manual receiptNo first, then fall back to receiptId
+                return `Cash<br><small style="color: #475569;">${p.receiptNo || p.receiptId || ''}</small>`;
             }
             if (p.paymentMethod === 'dd-cheque') {
                 return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;

@@ -2593,7 +2593,8 @@ const GstMonthwiseReportModule = {
             // Format payment method reference
             let methodRef = '';
             if (p.paymentMethod === 'cash') {
-                methodRef = p.receiptNo || '';
+                // For cash, try manual receiptNo first, then fall back to receiptId
+                methodRef = p.receiptNo || p.receiptId || '';
             } else if (p.paymentMethod === 'dd-cheque') {
                 methodRef = `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
             } else if (p.paymentMethod === 'online') {
@@ -2701,7 +2702,8 @@ const GstMonthwiseReportModule = {
 
             let methodRef = '';
             if (p.paymentMethod === 'cash') {
-                methodRef = p.receiptNo || '';
+                // For cash, try manual receiptNo first, then fall back to receiptId
+                methodRef = p.receiptNo || p.receiptId || '';
             } else if (p.paymentMethod === 'dd-cheque') {
                 methodRef = `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
             } else if (p.paymentMethod === 'online') {
@@ -2803,7 +2805,8 @@ const GstMonthwiseReportModule = {
 
             let methodRef = '';
             if (p.paymentMethod === 'cash') {
-                methodRef = p.receiptNo || '';
+                // For cash, try manual receiptNo first, then fall back to receiptId
+                methodRef = p.receiptNo || p.receiptId || '';
             } else if (p.paymentMethod === 'dd-cheque') {
                 methodRef = `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
             } else if (p.paymentMethod === 'online') {
