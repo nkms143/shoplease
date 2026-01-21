@@ -2641,14 +2641,16 @@ const RentModule = {
             document.getElementById('cash-fields').style.display = 'none';
             document.getElementById('dd-cheque-fields').style.display = 'none';
             document.getElementById('online-fields').style.display = 'none';
-            detailsArea.style.display = 'none';
-            currentApplicant = null;
+            const savedShopNo = currentApplicant.shopNo;
+
             detailsArea.style.display = 'none';
             currentApplicant = null;
 
             // Refund/Update Logic
             this.updateRecentList();
-            this.renderHistory(currentApplicant.shopNo); // Refresh History
+            if (savedShopNo) {
+                this.renderHistory(savedShopNo); // Refresh History
+            }
         });
     },
 
