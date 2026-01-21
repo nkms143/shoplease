@@ -674,6 +674,21 @@ const Store = {
         }
     },
 
+    /**
+     * Get financial year from any date (accepts Date object)
+     * Used by migration to determine FY for old payments
+     */
+    getFinancialYearFromDate(date) {
+        const year = date.getFullYear();
+        const month = date.getMonth(); // 0-11
+
+        if (month < 3) { // Jan-Mar (0,1,2)
+            return `${year - 1}-${String(year).slice(-2)}`;
+        } else { // Apr-Dec (3-11)
+            return `${year}-${String(year + 1).slice(-2)}`;
+        }
+    },
+
     // Helper: Safely compare IDs (Handle "04" vs 4 vs " 04 ")
     idsMatch(a, b) {
         if (!a || !b) return false;
