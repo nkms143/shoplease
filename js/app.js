@@ -652,18 +652,65 @@ const Store = {
      * Generates the next receipt number in format: SUDA-0001/2025-26
      * Counter resets every financial year (April to March)
      */
+    // --- ASYNC RECEIPT GENERATION (Cloud-First) ---
+    /**
+     * Fetches the highest receipt number from Supabase and increments it.
+     * Prevents duplicates by ignoring local cache and checking the real database.
+     */
+    async getNextReceiptNumberAsync() {
+        const fy = this.getCurrentFinancialYear();
+
+        // 1. Check Cloud for highest number
+        // We look for any receipt starting with "SUDA-" and ending with "/2025-26"
+        const { data, error } = await supabaseClient
+            .from('payments')
+            .select('receipt_no')
+            .ilike('receipt_no', `SUDA-%/${fy}`)
+            .order('receipt_no', { ascending: false })
+            .limit(1);
+
+        let nextNum = 1;
+
+        if (error) {
+            console.error("Cloud Receipt Check Failed:", error);
+            // Fallback to local if Cloud fails (Safety Net)
+            // But warn the user? For now, we silent fail to local.
+            return this.getNextReceiptNumber();
+        }
+
+        if (data && data.length > 0) {
+            const lastReceipt = data[0].receipt_no;
+            const match = lastReceipt.match(/SUDA-(\d+)\//);
+            if (match) {
+                nextNum = parseInt(match[1]) + 1;
+            }
+        } else {
+            // Cloud has 0 receipts for this FY.
+            // We should also check LocalStorage just in case Local is ahead (un-synced)
+            // to avoid collision if Cloud is empty but Local has 10 awaiting sync.
+            const localKey = `receipt_counter_${fy}`;
+            const localCount = parseInt(localStorage.getItem(localKey) || '0');
+            if (localCount >= nextNum) {
+                nextNum = localCount + 1;
+            }
+        }
+
+        // 2. Update Local Counter to match (Sync)
+        const counterKey = `receipt_counter_${fy}`;
+        localStorage.setItem(counterKey, nextNum.toString());
+
+        // 3. Return Formatted
+        const padded = nextNum.toString().padStart(4, '0');
+        return `SUDA-${padded}/${fy}`;
+    },
+
     getNextReceiptNumber() {
+        // ... (Keep old sync method as fallback/helper)
         const financialYear = this.getCurrentFinancialYear();
         const counterKey = `receipt_counter_${financialYear}`;
-
-        // Get current counter for this financial year
         let counter = parseInt(localStorage.getItem(counterKey) || '0');
         counter++;
-
-        // Save updated counter
         localStorage.setItem(counterKey, counter.toString());
-
-        // Format: SUDA-0001/2025-26
         const paddedCounter = counter.toString().padStart(4, '0');
         return `SUDA-${paddedCounter}/${financialYear}`;
     },
@@ -2472,7 +2519,7 @@ const RentModule = {
             }
         });
 
-        btnCollect.addEventListener('click', () => {
+        btnCollect.addEventListener('click', async () => {
             if (!currentApplicant) { return; }
 
             const checkedBoxes = Array.from(monthContainer.querySelectorAll('input[type="checkbox"]:checked'));
@@ -2540,127 +2587,117 @@ const RentModule = {
 
             let successCount = 0;
 
-            checkedBoxes.forEach((cb, index) => {
-                const monthVal = cb.value; // "YYYY-MM"
-                const [year, month] = monthVal.split('-');
+            // Async Save Loop
+            // Show Loading State
+            const originalText = btnCollect.textContent;
+            btnCollect.textContent = "Saving... (Syncing Cloud)";
+            btnCollect.disabled = true;
 
-                // Construct Target Date: Use the 15th of the month for checking "Applicable Rent"
-                // This ensures we check the rent effective during the month.
-                // Using NOON (12:00) to avoid any timezone shifting to previous day.
-                const targetDate = new Date(parseInt(year), parseInt(month) - 1, 15, 12, 0, 0);
-                const targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay); // Keep for penalty calc if needed
+            try {
+                for (const [index, cb] of checkedBoxes.entries()) {
+                    const monthVal = cb.value; // "YYYY-MM"
+                    const [year, month] = monthVal.split('-');
 
-                // --- LEASE HISTORY LOOKUP (Renewal Blocks) ---
-                let rBase = parseFloat(currentApplicant.rentBase);
-                let rGst = parseFloat(currentApplicant.gstAmount);
-                let rTotal = parseFloat(currentApplicant.rentTotal);
+                    // Construct Target Date
+                    const targetDate = new Date(parseInt(year), parseInt(month) - 1, 15, 12, 0, 0);
+                    const targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay);
 
-                // Check History Blocks first
-                let historyFound = false;
+                    // --- LEASE HISTORY LOOKUP ---
+                    let rBase = parseFloat(currentApplicant.rentBase);
+                    let rGst = parseFloat(currentApplicant.gstAmount);
+                    let rTotal = parseFloat(currentApplicant.rentTotal);
 
-                if (currentApplicant.leaseHistory && currentApplicant.leaseHistory.length > 0) {
-                    const match = currentApplicant.leaseHistory.find(block => {
-                        const start = block.startDate ? new Date(block.startDate + 'T12:00:00') : new Date('1900-01-01');
-                        const end = block.endDate ? new Date(block.endDate + 'T12:00:00') : new Date('2999-12-31');
-                        return targetDate >= start && targetDate < end;
-                    });
+                    let historyFound = false;
 
-                    if (match) {
-                        rBase = parseFloat(match.rentBase);
-                        rGst = parseFloat(match.gstAmount);
-                        rTotal = parseFloat(match.rentTotal);
-                        console.log(`Using Lease History Block [${match.periodLabel}] for ${monthVal}: ${rTotal}`);
-                        historyFound = true;
+                    if (currentApplicant.leaseHistory && currentApplicant.leaseHistory.length > 0) {
+                        const match = currentApplicant.leaseHistory.find(block => {
+                            const start = block.startDate ? new Date(block.startDate + 'T12:00:00') : new Date('1900-01-01');
+                            const end = block.endDate ? new Date(block.endDate + 'T12:00:00') : new Date('2999-12-31');
+                            return targetDate >= start && targetDate < end;
+                        });
+
+                        if (match) {
+                            rBase = parseFloat(match.rentBase);
+                            rGst = parseFloat(match.gstAmount);
+                            rTotal = parseFloat(match.rentTotal);
+                            // console.log(`Using Lease History Block [${match.periodLabel}] for ${monthVal}: ${rTotal}`);
+                            historyFound = true;
+                        }
+                    } else if (currentApplicant.rentHistory && currentApplicant.rentHistory.length > 0) {
+                        const match = currentApplicant.rentHistory.find(h => {
+                            const start = h.startDate ? new Date(h.startDate + 'T12:00:00') : new Date('1900-01-01');
+                            const end = h.endDate ? new Date(h.endDate + 'T12:00:00') : new Date('2999-12-31');
+                            return targetDate >= start && targetDate < end;
+                        });
+
+                        if (match) {
+                            rBase = parseFloat(match.rentBase);
+                            rGst = parseFloat(match.gstAmount);
+                            rTotal = parseFloat(match.rentTotal);
+                            // console.log(`Using Legacy Rent History for ${monthVal}: ${rTotal}`);
+                            historyFound = true;
+                        }
                     }
-                }
-                // Fallback to old rentHistory if leaseHistory missing (Legacy Support)
-                else if (currentApplicant.rentHistory && currentApplicant.rentHistory.length > 0) {
-                    const match = currentApplicant.rentHistory.find(h => {
-                        const start = h.startDate ? new Date(h.startDate + 'T12:00:00') : new Date('1900-01-01');
-                        const end = h.endDate ? new Date(h.endDate + 'T12:00:00') : new Date('2999-12-31');
-                        return targetDate >= start && targetDate < end;
-                    });
 
-                    if (match) {
-                        rBase = parseFloat(match.rentBase);
-                        rGst = parseFloat(match.gstAmount);
-                        rTotal = parseFloat(match.rentTotal);
-                        console.log(`Using Legacy Rent History for ${monthVal}: ${rTotal}`);
-                        historyFound = true;
+                    if (!historyFound) {
+                        const currentRentStart = currentApplicant.rentStartDate ? new Date(currentApplicant.rentStartDate + 'T12:00:00') : null;
+                        if (currentRentStart && targetDate < currentRentStart) {
+                            console.warn(`WARNING: No History for ${monthVal}. Using current rent.`);
+                        }
                     }
-                }
 
-                if (!historyFound) {
-                    const currentRentStart = currentApplicant.rentStartDate ? new Date(currentApplicant.rentStartDate + 'T12:00:00') : null;
-                    if (currentRentStart && targetDate < currentRentStart) {
-                        // Warn user that history is missing for this old month
-                        console.warn(`WARNING: No History found for ${monthVal}. Using Current Rent (${rTotal}).`);
-                        // Ideally we should show this in UI, but alert might be too intrusive if looping.
-                        // Let's rely on the user checking the 'History Blocks' table we are about to build.
+                    // --- PENALTY CALC ---
+                    let p = 0;
+                    if (!isManual) {
+                        // Auto-Calculate if NOT manual
+                        const paymentDateObj = new Date(paymentDateVal); // Use parsed val
+                        if (paymentDateObj > targetDueDate) {
+                            const diffTime = Math.abs(paymentDateObj - targetDueDate);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            // Calc: (Base * Rate * Days * 12) / (36500)
+                            p = (rBase * rate * diffDays * 12) / 36500;
+                        }
                     }
-                }
 
-                let p = 0;
-                if (!isManual) {
-                    // Auto-Calculate if NOT manual
-                    if (paymentDate > targetDueDate) {
-                        const diffTime = Math.abs(paymentDate - targetDueDate);
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        p = diffDays * rate;
+                    // Manual Penalty Distribution (Add to last item)
+                    if (isManual && index === checkedBoxes.length - 1) {
+                        p = currentInputPenalty;
                     }
-                }
 
-                // If Manual, we put the ENTIRE manual penalty on the LAST month
-                // and 0 on others (since we initialized p=0 above)
-                if (isManual && index === checkedBoxes.length - 1) {
-                    p = currentInputPenalty;
-                }
+                    // --- ASYNC ID GENERATION ---
+                    // This waits for Cloud to confirm ID
+                    const newReceiptId = await Store.getNextReceiptNumberAsync();
 
-                const payment = {
-                    shopNo: currentApplicant.shopNo,
-                    rentAmount: rBase.toFixed(2),
-                    gstAmount: rGst.toFixed(2),
-                    totalRent: rTotal.toFixed(2),
-                    paymentForMonth: monthVal,
-                    paymentDate: paymentDateVal,
-                    penalty: p.toFixed(2),
-                    grandTotal: (rTotal + p).toFixed(2),
-                    timestamp: new Date().toISOString() + '-' + index, // Unique ID
-                    // Generate Standardized Receipt ID: SUDA-0001/2025-26
-                    receiptId: Store.getNextReceiptNumber(),
-                    // Payment Method Details
-                    paymentMethod: paymentMethod,
-                    receiptNo: paymentMethod === 'cash' ? document.getElementById('receipt-no').value.trim() : null,
-                    ddChequeNo: paymentMethod === 'dd-cheque' ? document.getElementById('dd-cheque-no').value.trim() : null,
-                    ddChequeDate: paymentMethod === 'dd-cheque' ? document.getElementById('dd-cheque-date').value : null,
-                    transactionNo: paymentMethod === 'online' ? document.getElementById('transaction-no').value.trim() : null
-                };
+                    const payment = {
+                        shopNo: currentApplicant.shopNo,
+                        rentAmount: rBase.toFixed(2),
+                        gstAmount: rGst.toFixed(2),
+                        totalRent: rTotal.toFixed(2),
+                        paymentForMonth: monthVal,
+                        paymentDate: paymentDateVal,
+                        penalty: p.toFixed(2),
+                        grandTotal: (rTotal + p).toFixed(2),
+                        timestamp: new Date().toISOString() + '-' + index, // Unique ID
 
-                Store.savePayment(payment);
-                successCount++;
-            });
+                        receiptId: newReceiptId, // Using the new Cloud ID
 
-            alert(`Successfully recorded payments for ${successCount} months!`);
+                        paymentMethod: paymentMethod,
+                        receiptNo: paymentMethod === 'cash' ? document.getElementById('receipt-no').value.trim() : null,
+                        ddChequeNo: paymentMethod === 'dd-cheque' ? document.getElementById('dd-cheque-number').value.trim() : null,
+                        ddChequeDate: paymentMethod === 'dd-cheque' ? document.getElementById('dd-cheque-date-input').value : null,
+                        transactionNo: paymentMethod === 'online' ? document.getElementById('online-transaction-no').value.trim() : null
+                    };
 
-            // Reset UI
-            select.value = '';
-            paymentMethodSelect.value = '';
-            document.getElementById('receipt-no').value = '';
-            document.getElementById('dd-cheque-no').value = '';
-            document.getElementById('dd-cheque-date').value = '';
-            document.getElementById('transaction-no').value = '';
-            document.getElementById('cash-fields').style.display = 'none';
-            document.getElementById('dd-cheque-fields').style.display = 'none';
-            document.getElementById('online-fields').style.display = 'none';
-            const savedShopNo = currentApplicant.shopNo;
+                    Store.savePayment(payment);
+                    successCount++;
+                } // End Loop
 
-            detailsArea.style.display = 'none';
-            currentApplicant = null;
-
-            // Refund/Update Logic
-            this.updateRecentList();
-            if (savedShopNo) {
-                this.renderHistory(savedShopNo); // Refresh History
+            } catch (err) {
+                console.error("Payment Save Error:", err);
+                alert("Error saving payment. Check internet connection.");
+            } finally {
+                btnCollect.textContent = originalText;
+                btnCollect.disabled = false;
             }
         });
     },
