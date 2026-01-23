@@ -2682,7 +2682,7 @@ const RentModule = {
                         receiptId: newReceiptId, // Using the new Cloud ID
 
                         paymentMethod: paymentMethod,
-                        receiptNo: paymentMethod === 'cash' ? document.getElementById('receipt-no').value.trim() : null,
+                        receiptNo: paymentMethod === 'cash' ? document.getElementById('cash-receipt-no').value.trim() : null,
                         ddChequeNo: paymentMethod === 'dd-cheque' ? document.getElementById('dd-cheque-number').value.trim() : null,
                         ddChequeDate: paymentMethod === 'dd-cheque' ? document.getElementById('dd-cheque-date-input').value : null,
                         transactionNo: paymentMethod === 'online' ? document.getElementById('online-transaction-no').value.trim() : null
