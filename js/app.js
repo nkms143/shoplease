@@ -2688,7 +2688,7 @@ const RentModule = {
                         transactionNo: paymentMethod === 'online' ? document.getElementById('transaction-no').value.trim() : null
                     };
 
-                    Store.savePayment(payment);
+                    await Store.savePayment(payment);
                     successCount++;
                 } // End Loop
 
@@ -2698,6 +2698,31 @@ const RentModule = {
             } finally {
                 btnCollect.textContent = originalText;
                 btnCollect.disabled = false;
+            }
+
+            if (successCount > 0) {
+                alert(`Successfully recorded payments for ${successCount} months!`);
+
+                // Reset UI
+                select.value = '';
+                paymentMethodSelect.value = '';
+                document.getElementById('receipt-no').value = '';
+                document.getElementById('dd-cheque-no').value = '';
+                document.getElementById('dd-cheque-date').value = '';
+                document.getElementById('transaction-no').value = '';
+                document.getElementById('cash-fields').style.display = 'none';
+                document.getElementById('dd-cheque-fields').style.display = 'none';
+                document.getElementById('online-fields').style.display = 'none';
+                const savedShopNo = currentApplicant.shopNo;
+
+                detailsArea.style.display = 'none';
+                currentApplicant = null;
+
+                // Refund/Update Logic
+                this.updateRecentList();
+                if (savedShopNo) {
+                    this.renderHistory(savedShopNo); // Refresh History
+                }
             }
         });
     },
