@@ -3870,7 +3870,7 @@ const WaiverModule = {
         });
     },
 
-    handleSave() {
+    async handleSave() {
         const shopNo = document.getElementById('waiver-shop').value;
         const monthVal = document.getElementById('waiver-month').value; // YYYY-MM
         const auth = document.getElementById('waiver-auth').value;
@@ -3880,6 +3880,12 @@ const WaiverModule = {
             alert("Please select Shop and Month");
             return;
         }
+
+        // Show loading state
+        const btn = document.querySelector('#waiver-form button[type="submit"]');
+        const origText = btn.textContent;
+        btn.textContent = 'Saving...';
+        btn.disabled = true;
 
         const record = {
             id: Date.now().toString(),
@@ -3891,10 +3897,18 @@ const WaiverModule = {
             date: new Date().toISOString()
         };
 
-        Store.saveWaiver(record);
-        alert("Waiver Recorded Successfully!");
-        document.getElementById('waiver-form').reset();
-        this.renderHistory();
+        try {
+            await Store.saveWaiver(record);
+            alert("Waiver Recorded Successfully!");
+            document.getElementById('waiver-form').reset();
+            this.renderHistory();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to save waiver.");
+        } finally {
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
     },
 
     renderHistory() {
