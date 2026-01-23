@@ -1177,8 +1177,6 @@ const GstRemittanceModule = {
             }
         });
 
-        // --- FILTER LOGIC ---
-
         // Populate Years (include 'All Years' default)
         const yearSelect = document.getElementById('filter-year');
         // Add an explicit 'All Years' option so an empty month doesn't get filtered by a preselected year
@@ -1188,15 +1186,49 @@ const GstRemittanceModule = {
         allOpt.selected = true; // default to no-year filter
         yearSelect.appendChild(allOpt);
 
+        // Dynamically extract years from payments and remittances
+        const yearSet = new Set();
         const currentYear = new Date().getFullYear();
-        for (let i = currentYear - 1; i <= currentYear + 5; i++) {
+
+        // Add current year and next 2 years for planning
+        yearSet.add(currentYear);
+        yearSet.add(currentYear + 1);
+        yearSet.add(currentYear + 2);
+
+        // Extract years from payments (based on paymentDate)
+        const payments = Store.getPayments();
+        payments.forEach(p => {
+            if (p.paymentDate) {
+                const year = new Date(p.paymentDate).getFullYear();
+                if (year) yearSet.add(year);
+            }
+        });
+
+        // Extract years from remittances (based on date field)
+        const remittances = Store.getRemittances();
+        remittances.forEach(r => {
+            if (r.date) {
+                const year = new Date(r.date).getFullYear();
+                if (year) yearSet.add(year);
+            }
+            // Also check if year is stored as a field
+            if (r.year) {
+                yearSet.add(parseInt(r.year));
+            }
+        });
+
+        // Convert to sorted array (descending)
+        const years = Array.from(yearSet).sort((a, b) => b - a);
+
+        // Populate dropdown with financial year format
+        years.forEach(y => {
             const opt = document.createElement('option');
-            opt.value = i; // financial year starting year
+            opt.value = y; // financial year starting year
             // show as 'YYYY-YY' to indicate financial year (e.g., 2024-25)
-            const short = String(i + 1).slice(2);
-            opt.textContent = `${i}-${short}`;
+            const short = String(y + 1).slice(2);
+            opt.textContent = `${y}-${short}`;
             yearSelect.appendChild(opt);
-        }
+        });
 
         // Initialize stats with no filters (show totals across all data)
         this.updateStats('', '');
