@@ -504,19 +504,42 @@ const Store = {
 
     async saveWaiver(waiver) {
         this.cache.waivers.push(waiver);
-        localStorage.setItem(this.WAIVERS_KEY, JSON.stringify(this.cache.waivers));
+        this.updateLocalWaivers();
 
         try {
-            await supabaseClient.from('waivers').insert([{
+            const { data, error } = await supabaseClient.from('waivers').insert([{
                 shop_no: waiver.shopNo,
                 month: waiver.month,
                 authorized_by: waiver.authorizedBy,
                 reason: waiver.reason,
                 created_at: waiver.date || new Date().toISOString()
-            }]);
+            }]).select();
+
+            if (data && data[0]) {
+                waiver.id = data[0].id; // Update local ID with DB ID
+                this.updateLocalWaivers();
+            }
         } catch (e) {
             console.error("Waiver Sync Failed:", e);
         }
+    },
+
+    async deleteWaiver(waiverId) {
+        // 1. Local Delete
+        // Ensure type safety (string comparison)
+        this.cache.waivers = this.cache.waivers.filter(w => String(w.id) !== String(waiverId));
+        this.updateLocalWaivers();
+
+        // 2. Cloud Delete
+        try {
+            await supabaseClient.from('waivers').delete().eq('id', waiverId);
+        } catch (e) {
+            console.error("Waiver Delete Failed:", e);
+        }
+    },
+
+    updateLocalWaivers() {
+        localStorage.setItem(this.WAIVERS_KEY, JSON.stringify(this.cache.waivers));
     },
 
     getHistory() {
