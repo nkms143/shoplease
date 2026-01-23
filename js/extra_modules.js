@@ -743,45 +743,7 @@ const GstRemittanceModule = {
         const payments = Store.getPayments();
         const remittances = Store.getRemittances();
 
-        // Numeric parser: strip non-numeric chars and parse
-        const parseNumber = (v) => {
-            if (v === null || v === undefined) return 0;
-            if (typeof v === 'number') return v;
-            const s = String(v).trim();
-            if (s === '' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') return 0;
-            const cleaned = s.replace(/[^0-9.\-]/g, '');
-            const n = parseFloat(cleaned);
-            return isNaN(n) ? 0 : n;
-        };
 
-        // Derive GST amount from a payment object using multiple fallbacks
-        const getPaymentGST = (p) => {
-            if (!p) return 0;
-            // Common keys
-            const candidates = ['gstAmount', 'gst', 'gstAmt', 'gst_amount'];
-            for (const k of candidates) {
-                if (p[k] !== undefined && p[k] !== null && String(p[k]).trim() !== '') {
-                    const v = parseNumber(p[k]);
-                    if (v !== 0) return v;
-                }
-            }
-
-            // If GST not explicitly stored, try deriving from rent fields
-            const rentBase = parseNumber(p.rentBase || p.rentAmount || p.rent || 0);
-            const rentTotal = parseNumber(p.rentTotal || p.totalRent || p.grandTotal || 0);
-            if (rentBase && rentTotal && rentTotal > rentBase) {
-                // prefer stored total - base difference
-                const derived = rentTotal - rentBase;
-                if (derived > 0) return derived;
-            }
-
-            // Fallback: assume 18% GST on base
-            if (rentBase) {
-                return parseFloat((rentBase * 0.18).toFixed(2));
-            }
-
-            return 0;
-        };
 
         // Helper to extract year/month from various payment date formats
         // Prefer the actual payment date (`paymentDate`) to assign GST to the month it was paid.
@@ -880,7 +842,7 @@ const GstRemittanceModule = {
         const totalCollected = payments.reduce((sum, p) => {
             if (matchesPayment(p)) {
                 matchedPaymentsCount++;
-                return sum + getPaymentGST(p);
+                return sum + Utils.getPaymentGST(p);
             }
             return sum;
         }, 0);
@@ -889,7 +851,7 @@ const GstRemittanceModule = {
         const totalRemitted = remittances.reduce((sum, r) => {
             if (matchesRemit(r)) {
                 matchedRemittancesCount++;
-                return sum + parseNumber(r.amount);
+                return sum + Utils.parseNumber(r.amount);
             }
             return sum;
         }, 0);
@@ -1010,38 +972,9 @@ const GstRemittanceModule = {
         const payments = Store.getPayments();
         const remittances = Store.getRemittances();
 
-        const parseNumber = (v) => {
-            if (v === null || v === undefined) return 0;
-            if (typeof v === 'number') return v;
-            const cleaned = String(v).replace(/[^0-9.\-]/g, '');
-            const n = parseFloat(cleaned);
-            return isNaN(n) ? 0 : n;
-        };
 
-        // Derive GST amount from a payment object using multiple fallbacks
-        const getPaymentGST = (p) => {
-            if (!p) return 0;
-            const candidates = ['gstAmount', 'gst', 'gstAmt', 'gst_amount'];
-            for (const k of candidates) {
-                if (p[k] !== undefined && p[k] !== null && String(p[k]).trim() !== '') {
-                    const v = parseNumber(p[k]);
-                    if (v !== 0) return v;
-                }
-            }
 
-            const rentBase = parseNumber(p.rentBase || p.rentAmount || p.rent || 0);
-            const rentTotal = parseNumber(p.rentTotal || p.totalRent || p.grandTotal || 0);
-            if (rentBase && rentTotal && rentTotal > rentBase) {
-                const derived = rentTotal - rentBase;
-                if (derived > 0) return derived;
-            }
 
-            if (rentBase) {
-                return parseFloat((rentBase * 0.18).toFixed(2));
-            }
-
-            return 0;
-        };
 
         // Initialize months map 1..12
         const months = {};
@@ -1090,7 +1023,7 @@ const GstRemittanceModule = {
             }
 
             const m = paidDate.getMonth() + 1;
-            months[m].collected += getPaymentGST(p);
+            months[m].collected += Utils.getPaymentGST(p);
         });
 
         remittances.forEach(r => {
@@ -1104,7 +1037,7 @@ const GstRemittanceModule = {
             }
 
             const m = d.getMonth() + 1;
-            months[m].remitted += parseNumber(r.amount || 0);
+            months[m].remitted += Utils.parseNumber(r.amount || 0);
         });
 
         return months;
@@ -1795,19 +1728,7 @@ const ReportModule = {
         }
     },
 
-    getFinancialYear(dateStr) {
-        const date = new Date(dateStr);
-        // FY starts Apr 1. 
-        // If Jan(0)-Mar(2), FY is (Year-1)-Year.
-        // If Apr(3)-Dec(11), FY is Year-(Year+1).
-        const year = date.getFullYear();
-        const month = date.getMonth(); // 0-based
-        if (month < 3) {
-            return `${year - 1}-${(year).toString().slice(-2)}`;
-        } else {
-            return `${year}-${(year + 1).toString().slice(-2)}`;
-        }
-    },
+
 
     generateDCB() {
         const shopNo = document.getElementById('rep-dcb-shop').value;
@@ -1991,18 +1912,14 @@ const ReportModule = {
 
         let currentCollection = 0, currentCollectionPenalty = 0, arrearCollection = 0;
 
-        const parseNum = v => {
-            if (v === null || v === undefined) return 0;
-            const n = parseFloat(v);
-            return isNaN(n) ? 0 : n;
-        };
+
 
         // Helper: Get Rent Calculation for specific month
         const getRentDetails = (dateObj) => {
             // Default to current app rent
-            let base = parseNum(app.rentBase || app.rentBase === 0 ? app.rentBase : null);
+            let base = Utils.parseNumber(app.rentBase || app.rentBase === 0 ? app.rentBase : null);
             if (base === 0) { // Try fallback if 0
-                const rt = parseNum(app.rentTotal || app.rentTotal === 0 ? app.rentTotal : null) || parseNum(app.rentTotal || app.rent || 0);
+                const rt = Utils.parseNumber(app.rentTotal || app.rentTotal === 0 ? app.rentTotal : null) || Utils.parseNumber(app.rentTotal || app.rent || 0);
                 if (rt) base = parseFloat((rt / 1.18).toFixed(2));
             }
 
@@ -2016,7 +1933,7 @@ const ReportModule = {
                 });
 
                 if (match && match.rentBase !== undefined && match.rentBase !== null && match.rentBase !== '') {
-                    base = parseNum(match.rentBase);
+                    base = Utils.parseNumber(match.rentBase);
                 }
             }
 
@@ -2096,6 +2013,25 @@ const ReportModule = {
 
                 if (isNaN(penaltyForMonth)) penaltyForMonth = 0;
 
+                // --- WAIVER CHECK ---
+                // If a waiver exists for this specific Shop + Month, we override the Theoretical Penalty.
+                // We assume a 'Full Waiver' implies penalty is 0. 
+                // Partial waiver support can be added if waiver record has 'amount'.
+                // Using YYYY-MM format matching.
+                const allWaivers = Store.getWaivers() || [];
+                const monthStr = `${y}-${String(m).padStart(2, '0')}`;
+
+                // Find matching waiver
+                const waiver = allWaivers.find(w => w.shopNo === app.shopNo && w.month === monthStr);
+                if (waiver) {
+                    // reduce demand by waiver
+                    // For now, let's effectively set it to 0 if waiver exists, 
+                    // or maybe we should store the waiver amount? 
+                    // The UI asks for "For Month", implies full waiver for that month's penalty.
+                    // Let's set to 0.
+                    penaltyForMonth = 0;
+                }
+
                 // Demand Accumulation (Only if NOT historically settled)
                 if (!isSettledBeforeReport) {
                     arrearDemandBase += monthlyBase;
@@ -2104,7 +2040,7 @@ const ReportModule = {
 
                     // Collection Accumulation
                     if (payment) {
-                        const paid = parseNum(payment.grandTotal || 0);
+                        const paid = Utils.parseNumber(payment.grandTotal || 0);
                         const monthDemand = monthlyBase + monthlyGst + penaltyForMonth;
                         arrearCollection += Math.min(paid, monthDemand);
                     }
@@ -2118,8 +2054,8 @@ const ReportModule = {
                 currentDemandGst += monthlyGst;
 
                 if (payment) {
-                    const paid = parseNum(payment.grandTotal || 0);
-                    const pPenalty = parseNum(payment.penalty || 0);
+                    const paid = Utils.parseNumber(payment.grandTotal || 0);
+                    const pPenalty = Utils.parseNumber(payment.penalty || 0);
 
                     // Logic Update: Track Current Year Penalty separately.
                     // Do NOT add to Demand. Just track collection.
@@ -3534,3 +3470,425 @@ const ReceiptModule = {
 
 window.ReceiptModule = ReceiptModule;
 window.GstMonthwiseReportModule = GstMonthwiseReportModule;
+
+// ==========================================
+// PAYMENT REPORT MODULE (Moved from app.js)
+// ==========================================
+const PaymentReportModule = {
+    render(container) {
+        container.innerHTML = `
+            <div class="glass-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h3>Monthly Payment Reports</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                         <button class="btn-primary" id="btn-export-report" style="background: #059669;">Export to Excel</button>
+                         <button class="btn-primary" id="btn-print-report" style="background: #64748b;">Print Report</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Month Paid For</th>
+                                <th>Date Paid</th>
+                                <th>Shop No</th>
+                                <th>Rent (Base)</th>
+                                <th>GST (18%)</th>
+                                <th>Penalty</th>
+                                <th>Total Paid</th>
+                                <th>Payment Method</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-list-body">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="report-summary" style="margin-top: 2rem; text-align: right; font-weight: 600;">
+                    <!-- Totals -->
+                </div>
+            </div>
+        `;
+
+        // Event Delegation for Delete Payment
+        const wrapper = container.querySelector('.glass-panel');
+        wrapper.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-delete-pay')) {
+                const btn = e.target.closest('.btn-delete-pay');
+                const ts = btn.dataset.ts; // timestamp as ID
+                if (confirm('Delete this payment record? This will reopen the month for payment.')) {
+                    Store.deletePayment(ts);
+                    this.renderReport();
+                }
+            }
+        });
+
+        // Print Report Handler
+        const printBtn = document.getElementById('btn-print-report');
+        if (printBtn) {
+            printBtn.addEventListener('click', () => {
+                this.printReport();
+            });
+        }
+
+        // Export Report Handler
+        const exportBtn = document.getElementById('btn-export-report');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportReport();
+            });
+        }
+
+        this.renderReport();
+    },
+
+    exportReport() {
+        const payments = Store.getPayments();
+
+        // Sort by date descending (same as display)
+        payments.sort((a, b) => new Date(b.paymentDate || '') - new Date(a.paymentDate || ''));
+
+        // Build CSV data
+        let csv = [];
+        csv.push([
+            'Month Paid For',
+            'Date Paid',
+            'Shop No',
+            'Rent (Base)',
+            'GST (18%)',
+            'Penalty',
+            'Total Paid',
+            'Payment Method',
+            'Payment Details'
+        ]);
+
+        let totalCollected = 0;
+        let totalBaseRent = 0;
+        let totalGST = 0;
+        let totalPenalty = 0;
+
+        payments.forEach(p => {
+            const rentAmount = Utils.getPaymentBaseRent(p);
+            const gstAmount = Utils.getPaymentGST(p);
+            const penalty = Utils.parseNumber(p.penalty);
+            const grandTotal = Utils.getPaymentTotal(p);
+
+            totalCollected += grandTotal;
+            totalBaseRent += rentAmount;
+            totalGST += gstAmount;
+            totalPenalty += penalty;
+
+            // Format payment method details
+            let paymentMethodText = '';
+            let paymentDetailsText = '';
+            if (p.paymentMethod === 'cash') {
+                paymentMethodText = 'Cash';
+                // For cash, try manual receiptNo first, then fall back to receiptId
+                paymentDetailsText = p.receiptNo || p.receiptId || '';
+            } else if (p.paymentMethod === 'dd-cheque') {
+                paymentMethodText = 'DD/Cheque';
+                paymentDetailsText = `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
+            } else if (p.paymentMethod === 'online') {
+                paymentMethodText = 'Online';
+                paymentDetailsText = p.transactionNo || '';
+            }
+
+            csv.push([
+                p.paymentForMonth || '',
+                p.paymentDate || '',
+                p.shopNo || '',
+                rentAmount.toFixed(2),
+                gstAmount.toFixed(2),
+                penalty > 0 ? penalty.toFixed(2) : '',
+                grandTotal.toFixed(2),
+                paymentMethodText,
+                paymentDetailsText
+            ]);
+        });
+
+        // Add summary rows
+        csv.push([]); // Blank row
+        csv.push(['TOTALS']);
+        csv.push(['Total Base Rent', '', '', totalBaseRent.toFixed(2)]);
+        csv.push(['Total GST Collected', '', '', totalGST.toFixed(2)]);
+        csv.push(['Total Penalties', '', '', totalPenalty.toFixed(2)]);
+        csv.push(['Grand Total', '', '', totalCollected.toFixed(2)]);
+
+        // Convert to CSV string
+        const csvContent = csv.map(row =>
+            row.map(cell => {
+                // Escape quotes and wrap in quotes if contains comma
+                const str = String(cell || '');
+                return '"' + str.replace(/"/g, '""') + '"';
+            }).join(',')
+        ).join('\n');
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Payment_Report_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    },
+
+    printReport() {
+        // Get all elements that shouldn't print
+        const hiddenElements = [];
+        const selectors = ['nav', '.sidebar', '.nav-btn', '.navbar', 'header', '.navigation'];
+
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                hiddenElements.push({
+                    element: el,
+                    display: el.style.display,
+                    visibility: el.style.visibility
+                });
+                el.style.display = 'none';
+                el.style.visibility = 'hidden';
+            });
+        });
+
+        // Hide delete buttons
+        document.querySelectorAll('.btn-delete-pay').forEach(btn => {
+            hiddenElements.push({
+                element: btn,
+                display: btn.style.display,
+                visibility: btn.style.visibility
+            });
+            btn.style.display = 'none';
+        });
+
+        // Force body to not have padding/margin that causes blank pages
+        const origBodyStyle = document.body.style.cssText;
+        document.body.style.margin = '0';
+        document.body.style.padding = '0';
+
+        // Trigger print after a very short delay
+        setTimeout(() => {
+            window.print();
+
+            // Restore elements immediately
+            setTimeout(() => {
+                hiddenElements.forEach(item => {
+                    item.element.style.display = item.display;
+                    item.element.style.visibility = item.visibility;
+                });
+                document.body.style.cssText = origBodyStyle;
+            }, 100);
+        }, 50);
+    },
+
+
+    renderReport() {
+        const payments = Store.getPayments();
+        const tbody = document.getElementById('report-list-body');
+        const summary = document.getElementById('report-summary');
+
+        // Sort by date descending
+        payments.sort((a, b) => new Date(b.paymentDate || '') - new Date(a.paymentDate || ''));
+
+        if (payments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color: var(--text-muted);">No payment records found.</td></tr>';
+            return;
+        }
+
+        // Helper to format payment method details
+        const formatPaymentMethod = (p) => {
+            if (!p.paymentMethod) return '-';
+            if (p.paymentMethod === 'cash') {
+                return `Cash<br><small style="color: #475569;">${p.receiptNo || p.receiptId || ''}</small>`;
+            }
+            if (p.paymentMethod === 'dd-cheque') {
+                return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
+            }
+            if (p.paymentMethod === 'online') {
+                return `Online<br><small style="color: #475569;">${p.transactionNo || ''}</small>`;
+            }
+            return '-';
+        };
+
+        let totalCollected = 0;
+        let totalBaseRent = 0;
+        let totalGST = 0;
+        let totalPenalty = 0;
+
+        tbody.innerHTML = payments.map(p => {
+            const rentAmount = Utils.getPaymentBaseRent(p);
+            const gstAmount = Utils.getPaymentGST(p);
+            const penalty = Utils.parseNumber(p.penalty);
+            const grandTotal = Utils.getPaymentTotal(p);
+
+            totalCollected += grandTotal;
+            totalBaseRent += rentAmount;
+            totalGST += gstAmount;
+            totalPenalty += penalty;
+
+            return `
+                <tr>
+                    <td><strong>${p.paymentForMonth || '-'}</strong></td>
+                    <td>${p.paymentDate || '-'}</td>
+                    <td><strong>${p.shopNo}</strong></td>
+                    <td>${Utils.formatCurrency(rentAmount)}</td>
+                    <td>${Utils.formatCurrency(gstAmount)}</td>
+                    <td style="color: ${penalty > 0 ? '#ef4444' : 'inherit'};">${penalty > 0 ? Utils.formatCurrency(penalty) : '-'}</td>
+                    <td style="font-weight: 500; color: #047857;">${Utils.formatCurrency(grandTotal)}</td>
+                    <td style="font-size: 0.9rem;">${formatPaymentMethod(p)}</td>
+                    <td>
+                        <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        summary.innerHTML = `
+            <div style="font-size: 1.1rem; line-height: 1.6;">
+                <div>Total Base Rent: <strong>${Utils.formatCurrency(totalBaseRent)}</strong></div>
+                <div>Total GST Collected: <strong>${Utils.formatCurrency(totalGST)}</strong></div>
+                <div>Total Penalties: <span style="color: #ef4444;">${Utils.formatCurrency(totalPenalty)}</span></div>
+                <hr style="margin: 0.5rem 0; opacity: 0.3;">
+                <div style="font-size: 1.3rem;">Grand Total: <span style="color: #047857;">${Utils.formatCurrency(totalCollected)}</span></div>
+            </div>
+        `;
+    }
+};
+
+window.PaymentReportModule = PaymentReportModule;
+
+// ==========================================
+// WAIVER MODULE
+// ==========================================
+const WaiverModule = {
+    render(container) {
+        container.innerHTML = `
+            <div class="glass-panel">
+                <h3>Penalty Waiver Management</h3>
+                <div style="margin-top: 1.5rem; display: flex; gap: 2rem;">
+                    <!-- LEFT: Form -->
+                    <div style="flex: 1; border-right: 1px solid #e2e8f0; padding-right: 2rem;">
+                         <h4 style="margin-bottom: 1rem; color: #475569;">Record New Waiver</h4>
+                         <form id="waiver-form">
+                            <div class="form-group">
+                                <label class="form-label">Shop No</label>
+                                <select id="waiver-shop" class="form-select" required>
+                                    <option value="">-- Select Shop --</option>
+                                    <!-- Populated JS -->
+                                </select>
+                            </div>
+                             <div class="form-group">
+                                <label class="form-label">For Month(s)</label>
+                                <input type="month" id="waiver-month" class="form-input" required>
+                                <small style="color:var(--text-muted)">The theoretical penalty for this month will be waived.</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Authorized By</label>
+                                <input type="text" id="waiver-auth" class="form-input" placeholder="e.g. VC Sir / Joint Commissioner" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Reason / Reference</label>
+                                <textarea id="waiver-reason" class="form-input" rows="3" placeholder="Reference note number..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width:100%; margin-top:1rem;">Approve Waiver</button>
+                         </form>
+                    </div>
+
+                    <!-- RIGHT: List -->
+                    <div style="flex: 1.5;">
+                        <h4 style="margin-bottom: 1rem; color: #475569;">Waiver History</h4>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Shop</th>
+                                    <th>Month</th>
+                                    <th>Auth. By</th>
+                                    <th>Reason</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="waiver-list-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.populateShops();
+        this.renderHistory();
+
+        document.getElementById('waiver-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleSave();
+        });
+    },
+
+    populateShops() {
+        const select = document.getElementById('waiver-shop');
+        const shops = Store.getShops(); // or Store.getApplicants to show names
+        const applicants = Store.getApplicants();
+
+        // Show only active applicants
+        applicants.forEach(app => {
+            const opt = document.createElement('option');
+            opt.value = app.shopNo;
+            opt.textContent = `${app.shopNo} - ${app.applicantName}`;
+            select.appendChild(opt);
+        });
+    },
+
+    handleSave() {
+        const shopNo = document.getElementById('waiver-shop').value;
+        const monthVal = document.getElementById('waiver-month').value; // YYYY-MM
+        const auth = document.getElementById('waiver-auth').value;
+        const reason = document.getElementById('waiver-reason').value;
+
+        if (!shopNo || !monthVal) {
+            alert("Please select Shop and Month");
+            return;
+        }
+
+        const record = {
+            id: Date.now().toString(),
+            shopNo,
+            month: monthVal, // "2024-05"
+            authorizedBy: auth,
+            reason: reason,
+            date: new Date().toISOString()
+        };
+
+        Store.saveWaiver(record);
+        alert("Waiver Recorded Successfully!");
+        document.getElementById('waiver-form').reset();
+        this.renderHistory();
+    },
+
+    renderHistory() {
+        const tbody = document.getElementById('waiver-list-body');
+        const waivers = Store.getWaivers();
+        // sort desc
+        waivers.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        if (waivers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8">No waivers recorded.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = waivers.map(w => `
+            <tr>
+                <td><strong>${w.shopNo}</strong></td>
+                <td>${w.month}</td>
+                <td>${w.authorizedBy}</td>
+                <td style="font-size:0.9rem;">${w.reason}</td>
+                <td style="font-size:0.8rem;color:#64748b">${new Date(w.date).toLocaleDateString()}</td>
+            </tr>
+        `).join('');
+    }
+};
+
+window.WaiverModule = WaiverModule;

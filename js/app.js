@@ -326,6 +326,7 @@ const Store = {
     SHOPS_KEY: 'suda_shop_inventory',
     SETTINGS_KEY: 'suda_shop_settings',
     REMITTANCE_KEY: 'suda_shop_remittances',
+    WAIVERS_KEY: 'suda_shop_waivers',
     HISTORY_KEY: 'suda_shop_history',
 
     // --- CACHE & INIT ---
@@ -335,6 +336,7 @@ const Store = {
         payments: [],
         settings: { penaltyRate: 16, penaltyDate: '2025-01-01', logoUrl: null }, // Default
         remittances: [],
+        waivers: [],
         history: []
     },
 
@@ -418,6 +420,9 @@ const Store = {
             const savedRemittances = localStorage.getItem(this.REMITTANCE_KEY);
             if (savedRemittances) this.cache.remittances = JSON.parse(savedRemittances);
 
+            const savedWaivers = localStorage.getItem(this.WAIVERS_KEY);
+            if (savedWaivers) this.cache.waivers = JSON.parse(savedWaivers);
+
             // console.log("Store: Data Loaded", this.cache);
         } catch (e) {
             console.error("Store Init Failed:", e);
@@ -434,6 +439,15 @@ const Store = {
         this.cache.remittances.push(remittance);
         localStorage.setItem(this.REMITTANCE_KEY, JSON.stringify(this.cache.remittances));
         // TODO: Create 'remittances' table in Supabase
+    },
+
+    getWaivers() {
+        return this.cache.waivers;
+    },
+
+    saveWaiver(waiver) {
+        this.cache.waivers.push(waiver);
+        localStorage.setItem(this.WAIVERS_KEY, JSON.stringify(this.cache.waivers));
     },
 
     getHistory() {
@@ -2654,8 +2668,8 @@ const RentModule = {
                         if (paymentDateObj > targetDueDate) {
                             const diffTime = Math.abs(paymentDateObj - targetDueDate);
                             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                            // Calc: (Base * Rate * Days * 12) / (36500)
-                            p = (rBase * rate * diffDays * 12) / 36500;
+                            // Calc: Flat Rate (Days * Rate)
+                            p = diffDays * rate;
                         }
                     }
 
@@ -2953,311 +2967,6 @@ const RentModule = {
 // REPORT MODULE
 // ==========================================
 // ==========================================
-// PAYMENT REPORT MODULE (Previously ReportModule)
-// ==========================================
-const PaymentReportModule = {
-    render(container) {
-        container.innerHTML = `
-            <div class="glass-panel">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                    <h3>Monthly Payment Reports</h3>
-                    <div style="display: flex; gap: 0.5rem;">
-                         <button class="btn-primary" id="btn-export-report" style="background: #059669;">Export to Excel</button>
-                         <button class="btn-primary" id="btn-print-report" style="background: #64748b;">Print Report</button>
-                    </div>
-                </div>
 
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Month Paid For</th>
-                                <th>Date Paid</th>
-                                <th>Shop No</th>
-                                <th>Rent (Base)</th>
-                                <th>GST (18%)</th>
-                                <th>Penalty</th>
-                                <th>Total Paid</th>
-                                <th>Payment Method</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="report-list-body">
-                            <!-- Rows -->
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div id="report-summary" style="margin-top: 2rem; text-align: right; font-weight: 600;">
-                    <!-- Totals -->
-                </div>
-            </div>
-        `;
-
-        // Event Delegation for Delete Payment
-        const wrapper = container.querySelector('.glass-panel');
-        wrapper.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-delete-pay')) {
-                const btn = e.target.closest('.btn-delete-pay');
-                const ts = btn.dataset.ts; // timestamp as ID
-                if (confirm('Delete this payment record? This will reopen the month for payment.')) {
-                    Store.deletePayment(ts);
-                    this.renderReport();
-                }
-            }
-        });
-
-        // Print Report Handler
-        const printBtn = document.getElementById('btn-print-report');
-        if (printBtn) {
-            printBtn.addEventListener('click', () => {
-                this.printReport();
-            });
-        }
-
-        // Export Report Handler
-        const exportBtn = document.getElementById('btn-export-report');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                this.exportReport();
-            });
-        }
-
-        this.renderReport();
-    },
-
-    exportReport() {
-        const payments = Store.getPayments();
-
-        // Sort by date descending (same as display)
-        payments.sort((a, b) => new Date(b.paymentDate || '') - new Date(a.paymentDate || ''));
-
-        // Helper to safely parse numeric fields
-        const parseNum = (v) => {
-            if (v === null || v === undefined) return 0;
-            if (typeof v === 'number') return v;
-            const s = String(v).replace(/[^0-9.\-]/g, '');
-            const n = parseFloat(s);
-            return isNaN(n) ? 0 : n;
-        };
-
-        // Build CSV data
-        let csv = [];
-        csv.push([
-            'Month Paid For',
-            'Date Paid',
-            'Shop No',
-            'Rent (Base)',
-            'GST (18%)',
-            'Penalty',
-            'Total Paid',
-            'Payment Method',
-            'Payment Details'
-        ]);
-
-        let totalCollected = 0;
-        let totalBaseRent = 0;
-        let totalGST = 0;
-        let totalPenalty = 0;
-
-        payments.forEach(p => {
-            const rentAmount = parseNum(p.rentAmount || p.rentBase || 0);
-            const gstAmount = parseNum(p.gstAmount || p.gst || 0);
-            const penalty = parseNum(p.penalty || 0);
-            const grandTotal = parseNum(p.grandTotal || p.totalRent || 0);
-
-            totalCollected += grandTotal;
-            totalBaseRent += rentAmount;
-            totalGST += gstAmount;
-            totalPenalty += penalty;
-
-            // Format payment method details
-            let paymentMethodText = '';
-            let paymentDetailsText = '';
-            if (p.paymentMethod === 'cash') {
-                paymentMethodText = 'Cash';
-                // For cash, try manual receiptNo first, then fall back to receiptId
-                paymentDetailsText = p.receiptNo || p.receiptId || '';
-            } else if (p.paymentMethod === 'dd-cheque') {
-                paymentMethodText = 'DD/Cheque';
-                paymentDetailsText = `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
-            } else if (p.paymentMethod === 'online') {
-                paymentMethodText = 'Online';
-                paymentDetailsText = p.transactionNo || '';
-            }
-
-            csv.push([
-                p.paymentForMonth || '',
-                p.paymentDate || '',
-                p.shopNo || '',
-                rentAmount.toFixed(2),
-                gstAmount.toFixed(2),
-                penalty > 0 ? penalty.toFixed(2) : '',
-                grandTotal.toFixed(2),
-                paymentMethodText,
-                paymentDetailsText
-            ]);
-        });
-
-        // Add summary rows
-        csv.push([]); // Blank row
-        csv.push(['TOTALS']);
-        csv.push(['Total Base Rent', '', '', totalBaseRent.toFixed(2)]);
-        csv.push(['Total GST Collected', '', '', totalGST.toFixed(2)]);
-        csv.push(['Total Penalties', '', '', totalPenalty.toFixed(2)]);
-        csv.push(['Grand Total', '', '', totalCollected.toFixed(2)]);
-
-        // Convert to CSV string
-        const csvContent = csv.map(row =>
-            row.map(cell => {
-                // Escape quotes and wrap in quotes if contains comma
-                const str = String(cell || '');
-                return '"' + str.replace(/"/g, '""') + '"';
-            }).join(',')
-        ).join('\n');
-
-        // Create blob and download
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `Payment_Report_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    },
-
-    printReport() {
-        // Get all elements that shouldn't print
-        const hiddenElements = [];
-        const selectors = ['nav', '.sidebar', '.nav-btn', '.navbar', 'header', '.navigation'];
-
-        selectors.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => {
-                hiddenElements.push({
-                    element: el,
-                    display: el.style.display,
-                    visibility: el.style.visibility
-                });
-                el.style.display = 'none';
-                el.style.visibility = 'hidden';
-            });
-        });
-
-        // Hide delete buttons
-        document.querySelectorAll('.btn-delete-pay').forEach(btn => {
-            hiddenElements.push({
-                element: btn,
-                display: btn.style.display,
-                visibility: btn.style.visibility
-            });
-            btn.style.display = 'none';
-        });
-
-        // Force body to not have padding/margin that causes blank pages
-        const origBodyStyle = document.body.style.cssText;
-        document.body.style.margin = '0';
-        document.body.style.padding = '0';
-
-        // Trigger print after a very short delay
-        setTimeout(() => {
-            window.print();
-
-            // Restore elements immediately
-            setTimeout(() => {
-                hiddenElements.forEach(item => {
-                    item.element.style.display = item.display;
-                    item.element.style.visibility = item.visibility;
-                });
-                document.body.style.cssText = origBodyStyle;
-            }, 100);
-        }, 50);
-    },
-
-
-    renderReport() {
-        const payments = Store.getPayments();
-        const tbody = document.getElementById('report-list-body');
-        const summary = document.getElementById('report-summary');
-
-        // Sort by date descending
-        payments.sort((a, b) => new Date(b.paymentDate || '') - new Date(a.paymentDate || ''));
-
-        if (payments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color: var(--text-muted);">No payment records found.</td></tr>';
-            return;
-        }
-
-        // Helper to safely parse numeric fields
-        const parseNum = (v) => {
-            if (v === null || v === undefined) return 0;
-            if (typeof v === 'number') return v;
-            const s = String(v).replace(/[^0-9.\-]/g, '');
-            const n = parseFloat(s);
-            return isNaN(n) ? 0 : n;
-        };
-
-        // Helper to format payment method details
-        const formatPaymentMethod = (p) => {
-            if (!p.paymentMethod) return '-';
-            if (p.paymentMethod === 'cash') {
-                // For cash, try manual receiptNo first, then fall back to receiptId
-                return `Cash<br><small style="color: #475569;">${p.receiptNo || p.receiptId || ''}</small>`;
-            }
-            if (p.paymentMethod === 'dd-cheque') {
-                return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
-            }
-            if (p.paymentMethod === 'online') {
-                return `Online<br><small style="color: #475569;">${p.transactionNo || ''}</small>`;
-            }
-            return '-';
-        };
-
-        let totalCollected = 0;
-        let totalBaseRent = 0;
-        let totalGST = 0;
-        let totalPenalty = 0;
-
-        tbody.innerHTML = payments.map(p => {
-            const rentAmount = parseNum(p.rentAmount || p.rentBase || 0);
-            const gstAmount = parseNum(p.gstAmount || p.gst || 0);
-            const penalty = parseNum(p.penalty || 0);
-            const grandTotal = parseNum(p.grandTotal || p.totalRent || 0);
-
-            totalCollected += grandTotal;
-            totalBaseRent += rentAmount;
-            totalGST += gstAmount;
-            totalPenalty += penalty;
-
-            return `
-                <tr>
-                    <td><strong>${p.paymentForMonth || '-'}</strong></td>
-                    <td>${p.paymentDate || '-'}</td>
-                    <td><strong>${p.shopNo}</strong></td>
-                    <td>₹${rentAmount.toFixed(2)}</td>
-                    <td>₹${gstAmount.toFixed(2)}</td>
-                    <td style="color: ${penalty > 0 ? '#ef4444' : 'inherit'};">${penalty > 0 ? '₹' + penalty.toFixed(2) : '-'}</td>
-                    <td style="font-weight: 500; color: #047857;">₹${grandTotal.toFixed(2)}</td>
-                    <td style="font-size: 0.9rem;">${formatPaymentMethod(p)}</td>
-                    <td>
-                        <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        summary.innerHTML = `
-            <div style="font-size: 1.1rem; line-height: 1.6;">
-                <div>Total Base Rent: <strong>₹${totalBaseRent.toFixed(2)}</strong></div>
-                <div>Total GST Collected: <strong>₹${totalGST.toFixed(2)}</strong></div>
-                <div>Total Penalties: <span style="color: #ef4444;">₹${totalPenalty.toFixed(2)}</span></div>
-                <hr style="margin: 0.5rem 0; opacity: 0.3;">
-                <div style="font-size: 1.3rem;">Grand Total: <span style="color: #047857;">₹${totalCollected.toFixed(2)}</span></div>
-            </div>
-        `;
-    }
-};
 
 window.RentModule = RentModule;
