@@ -1405,6 +1405,10 @@ function handleRoute(route) {
             pageTitle.textContent = 'Lease Agreement Status';
             LeaseStatusModule.render(contentArea);
             break;
+        case 'waiver-module':
+            pageTitle.textContent = 'Penalty Waivers';
+            WaiverModule.render(contentArea);
+            break;
 
         default:
             pageTitle.textContent = 'Dashboard';
