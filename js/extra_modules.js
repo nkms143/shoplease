@@ -39,12 +39,15 @@ const SettingsModule = {
                 <!-- BACKUP & RESTORE SECTION -->
                 <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e2e8f0;">
                     <h4 style="margin-bottom: 1rem; color: var(--primary-color);">Data Backup & Recovery</h4>
-                    <div style="display: grid; gap: 1rem; grid-template-columns: 1fr 1fr;">
-                        <button id="btn-backup" class="btn-primary" style="background: #0ea5e9; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <span>⬇</span> Download Backup
+                    <div style="display: grid; gap: 1rem; grid-template-columns: 1fr 1fr 1fr;">
+                        <button id="btn-backup" class="btn-primary" style="background: #0ea5e9; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; padding: 0.5rem;">
+                            <span>⬇</span> Local
                         </button>
-                        <button id="btn-restore" class="btn-primary" style="background: #f59e0b; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <span>⬆</span> Restore Data
+                        <button id="btn-cloud-backup" class="btn-primary" style="background: #8b5cf6; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; padding: 0.5rem;">
+                            <span>☁</span> Cloud
+                        </button>
+                        <button id="btn-restore" class="btn-primary" style="background: #f59e0b; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; padding: 0.5rem;">
+                            <span>⬆</span> Restore
                         </button>
                         <input type="file" id="restore-file-input" accept=".json" style="display: none;">
                     </div>
@@ -142,6 +145,25 @@ const SettingsModule = {
             } catch (err) {
                 alert('Backup Failed: ' + err.message);
                 console.error(err);
+            }
+        });
+
+        // Cloud Backup Button
+        document.getElementById('btn-cloud-backup').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-cloud-backup');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Saving...';
+            btn.disabled = true;
+
+            try {
+                await Store.createCloudBackup();
+                alert("Cloud Backup Created Successfully!");
+            } catch (e) {
+                console.error("Cloud Backup Failed", e);
+                alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         });
 

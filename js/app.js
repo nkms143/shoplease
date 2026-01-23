@@ -510,6 +510,10 @@ const Store = {
                 remittance_date: remittance.date, // The actual bank deposit date
                 created_at: remittance.created_at
             }]);
+
+            // Log Remittance
+            const desc = `Recorded GST Remittance of ₹${remittance.amount}`;
+            this.logAction('CREATE_REMITTANCE', 'remittances', 'new', desc, remittance);
         } catch (e) {
             console.error("Remittance Sync Failed:", e);
         }
@@ -533,6 +537,10 @@ const Store = {
                 created_at: waiver.date || new Date().toISOString()
             }]).select();
 
+            // Log Waiver
+            const desc = `Waived Penalty for Shop ${waiver.shopNo} (${waiver.month})`;
+            this.logAction('CREATE_WAIVER', 'waivers', waiver.shopNo, desc, waiver);
+
             if (data && data[0]) {
                 waiver.id = data[0].id; // Update local ID with DB ID
                 this.updateLocalWaivers();
@@ -551,6 +559,10 @@ const Store = {
         // 2. Cloud Delete
         try {
             await supabaseClient.from('waivers').delete().eq('id', waiverId);
+
+            // Log Delete
+            const desc = `Deleted Waiver ID ${waiverId}`;
+            this.logAction('DELETE_WAIVER', 'waivers', String(waiverId), desc, null);
         } catch (e) {
             console.error("Waiver Delete Failed:", e);
         }
@@ -575,11 +587,41 @@ const Store = {
         return this.cache.settings;
     },
 
+    // --- AUDIT LOGGING ---
+    async logAction(actionType, tableName, recordId, description, metadata = null) {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            const userEmail = user ? user.email : 'system/offline';
+
+            const logEntry = {
+                user_email: userEmail,
+                action_type: actionType,
+                table_name: tableName,
+                record_id: recordId,
+                description: description,
+                metadata: metadata,
+                created_at: new Date().toISOString()
+            };
+
+            // Fire and forget - don't block the UI for logging
+            supabaseClient.from('audit_logs').insert([logEntry]).then(({ error }) => {
+                if (error) console.error("Audit Log Error:", error);
+            });
+
+        } catch (e) {
+            console.warn("Failed to capture audit log:", e);
+        }
+    },
+
     async saveSettings(settings) {
         this.cache.settings = settings;
         localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
 
         try {
+            // Log the change
+            const desc = `Updated Global Settings (Penalty Rate: ${settings.penaltyRate || 'default'})`;
+            this.logAction('UPDATE_SETTINGS', 'settings', 'global_settings', desc, settings);
+
             const { error } = await supabaseClient
                 .from('settings')
                 .upsert({
@@ -593,6 +635,42 @@ const Store = {
             console.error("Settings Sync Failed:", e);
             alert("Settings saved locally but Cloud Sync failed.");
         }
+    },
+
+    // --- CLOUD BACKUP ---
+    async createCloudBackup() {
+        // 1. Gather Data
+        const backupData = {
+            timestamp: new Date().toISOString(),
+            version: '1.0',
+            shops: this.cache.shops,
+            applicants: this.cache.applicants,
+            payments: this.cache.payments,
+            waivers: this.cache.waivers,
+            remittances: this.cache.remittances,
+            settings: this.cache.settings
+        };
+
+        // 2. Prepare File
+        const fileName = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const file = new File([blob], fileName, { type: 'application/json' });
+
+        // 3. Upload to Supabase Storage
+        const { data, error } = await supabaseClient
+            .storage
+            .from('backups')
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) throw error;
+
+        // 4. Log Action
+        this.logAction('CREATE_BACKUP', 'storage', fileName, 'Created Full System Cloud Backup', null);
+
+        return data;
     },
 
     // --- STORAGE ---
@@ -706,6 +784,11 @@ const Store = {
 
             if (fetchError) throw fetchError;
 
+            // Log Action
+            const action = (existingRows && existingRows.length > 0) ? 'UPDATE_APPLICANT' : 'CREATE_APPLICANT';
+            const desc = `${action === 'UPDATE_APPLICANT' ? 'Updated' : 'Created'} Tenant for Shop ${applicant.shopNo}`;
+            this.logAction(action, 'tenants', applicant.shopNo, desc, dbApp);
+
             if (existingRows && existingRows.length > 0) {
                 // Update the existing record(s) - usually just one
                 const idToUpdate = existingRows[0].id;
@@ -774,6 +857,10 @@ const Store = {
         try {
             const { error } = await supabaseClient.from('payments').insert(dbPay);
             if (error) throw error;
+
+            // Log Payment
+            const desc = `Received Payment of ₹${dbPay.amount_total} for Shop ${dbPay.shop_no} (${dbPay.payment_for_month})`;
+            this.logAction('CREATE_PAYMENT', 'payments', dbPay.receipt_no || 'new', desc, dbPay);
         } catch (e) {
             console.error("Save Payment Failed:", e);
             alert("Payment saved locally but Cloud Sync failed.");
