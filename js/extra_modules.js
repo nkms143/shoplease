@@ -2017,9 +2017,9 @@ const ReportModule = {
                 // If a waiver exists for this specific Shop + Month, we override the Theoretical Penalty.
                 // We assume a 'Full Waiver' implies penalty is 0. 
                 // Partial waiver support can be added if waiver record has 'amount'.
-                // Using YYYY-MM format matching.
+                // Using YYYY-MM format matching. Use existing outer 'monthStr' (YYYY-MM).
                 const allWaivers = Store.getWaivers() || [];
-                const monthStr = `${y}-${String(m).padStart(2, '0')}`;
+                // const monthStr = ... (Already defined in loop scope at line 1966)
 
                 // Find matching waiver
                 const waiver = allWaivers.find(w => w.shopNo === app.shopNo && w.month === monthStr);
