@@ -440,7 +440,7 @@ const Store = {
             if (r.data && r.data.length > 0) {
                 this.cache.remittances = r.data.map(row => ({
                     id: row.id,
-                    date: row.created_at, // Mapping from DB timestamp
+                    date: row.remittance_date, // The actual bank remittance date
                     amount: row.amount,
                     month: row.month,
                     year: row.year,
@@ -497,6 +497,7 @@ const Store = {
                 reference_no: remittance.referenceNo,
                 notes: remittance.notes,
                 bank_name: remittance.bankName || '',
+                remittance_date: remittance.date, // The actual bank deposit date
                 created_at: remittance.created_at
             }]);
         } catch (e) {
