@@ -2023,7 +2023,8 @@ const ReportModule = {
                 // const monthStr = ... (Already defined in loop scope at line 1966)
 
                 // Find matching waiver
-                const waiver = allWaivers.find(w => w.shopNo === app.shopNo && w.month === monthStr);
+                // Find matching waiver (Compare strings robustly)
+                const waiver = allWaivers.find(w => String(w.shopNo) === String(app.shopNo) && w.month === monthStr);
                 if (waiver) {
                     // reduce demand by waiver
                     // For now, let's effectively set it to 0 if waiver exists, 
@@ -3788,6 +3789,9 @@ const WaiverModule = {
                              <div class="form-group">
                                 <label class="form-label">For Month(s)</label>
                                 <input type="month" id="waiver-month" class="form-input" required>
+                                <div id="waiver-calc-preview" style="margin-top:5px; font-weight:bold; color:#ef4444; font-size:0.9rem; display:none;">
+                                    Est. Penalty: <span id="waiver-est-amt">0</span>
+                                </div>
                                 <small style="color:var(--text-muted)">The theoretical penalty for this month will be waived.</small>
                             </div>
                             <div class="form-group">
@@ -3812,7 +3816,9 @@ const WaiverModule = {
                                     <th>Month</th>
                                     <th>Auth. By</th>
                                     <th>Reason</th>
+                                    <th>Approx. Amount</th>
                                     <th>Date</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="waiver-list-body"></tbody>
@@ -3824,6 +3830,25 @@ const WaiverModule = {
 
         this.populateShops();
         this.renderHistory();
+
+        // Listeners for calc
+        const updateCalc = () => {
+            const s = document.getElementById('waiver-shop').value;
+            const m = document.getElementById('waiver-month').value;
+            const p = document.getElementById('waiver-calc-preview');
+            const v = document.getElementById('waiver-est-amt');
+
+            if (s && m) {
+                const amt = this.calculatePenaltyForDisplay(s, m);
+                v.textContent = Utils.formatCurrency(amt);
+                p.style.display = 'block';
+            } else {
+                p.style.display = 'none';
+            }
+        };
+
+        document.getElementById('waiver-shop').addEventListener('change', updateCalc);
+        document.getElementById('waiver-month').addEventListener('change', updateCalc);
 
         document.getElementById('waiver-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -3862,6 +3887,7 @@ const WaiverModule = {
             month: monthVal, // "2024-05"
             authorizedBy: auth,
             reason: reason,
+            amount: this.calculatePenaltyForDisplay(shopNo, monthVal), // Store snapshot of waived amount
             date: new Date().toISOString()
         };
 
@@ -3888,9 +3914,51 @@ const WaiverModule = {
                 <td>${w.month}</td>
                 <td>${w.authorizedBy}</td>
                 <td style="font-size:0.9rem;">${w.reason}</td>
+                <td style="font-size:0.8rem;">${w.amount ? Utils.formatCurrency(w.amount) : '-'}</td>
                 <td style="font-size:0.8rem;color:#64748b">${new Date(w.date).toLocaleDateString()}</td>
+                <td>
+                    <button class="btn-delete-waiver" data-id="${w.id}" style="color:red;border:none;background:none;cursor:pointer;">🗑️</button>
+                </td>
             </tr>
         `).join('');
+
+        // Attach Delete Listeners
+        tbody.querySelectorAll('.btn-delete-waiver').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.dataset.id;
+                if (confirm('Are you sure you want to deletion this waiver calculation?')) {
+                    Store.deleteWaiver(id).then(() => this.renderHistory());
+                }
+            });
+        });
+    },
+
+    calculatePenaltyForDisplay(shopNo, monthStr) {
+        // Estimate the penalty for this month if it were unpaid
+        const app = Store.getApplicants().find(a => String(a.shopNo) === String(shopNo));
+        if (!app) return 0;
+
+        // This is an estimation. Real penalty depends on dates. 
+        // We assume approx 30 days of penalty ~ 1 month late? 
+        // Or better: Just show "Penalty Waived".
+        // User asked to "show the penalty amount upon selecting". 
+        // Let's try to calculate it using the standard Rate.
+        // Penalty = Days Late * Rate.
+        // Late from WHEN? Usually from Due Date until Today (Waiver Date).
+
+        const [y, m] = monthStr.split('-').map(Number);
+        const dueDay = parseInt(app.paymentDay) || 5;
+        const dueDate = new Date(y, m - 1, dueDay); // Due date of that month
+        const today = new Date();
+
+        if (today <= dueDate) return 0; // Not late yet? (Unlikely for waiver)
+
+        const diffTime = Math.abs(today - dueDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const rate = 15; // Standard Rate
+
+        // Return calculated
+        return diffDays * rate;
     }
 };
 
