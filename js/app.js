@@ -377,6 +377,7 @@ const Store = {
                 shopNo: row.shop_no,
                 // Map contact_no -> mobileNo (UI expects mobileNo)
                 mobileNo: row.contact_no,
+                email: row.email,
                 applicantName: row.applicant_name,
                 proprietorShopName: row.proprietor_name, // Map DB prop_name -> JS propShopName
                 applicantType: row.proprietor_name ? 'Proprietor' : 'Individual', // Infer Type
@@ -613,6 +614,30 @@ const Store = {
         }
     },
 
+    // --- NOTIFICATIONS ---
+    async sendEmail(to, subject, text, html = null) {
+        if (!to) return;
+        console.log(`Sending email to ${to}...`);
+
+        try {
+            const { data, error } = await supabaseClient.functions.invoke('send-email', {
+                body: {
+                    to: to,
+                    subject: subject,
+                    text: text,
+                    html: html || `<p>${text}</p>`
+                }
+            });
+
+            if (error) throw error;
+            console.log("Email Sent:", data);
+            this.logAction('SEND_EMAIL', 'system', 'na', `Sent email to ${to}: ${subject}`);
+        } catch (e) {
+            console.error("Email Sending Failed:", e);
+            // Don't alert user - notifications should fail silently
+        }
+    },
+
     async saveSettings(settings) {
         this.cache.settings = settings;
         localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
@@ -756,6 +781,7 @@ const Store = {
             applicant_name: applicant.applicantName,
             proprietor_name: applicant.proprietorShopName || applicant.proprietorName,
             contact_no: applicant.mobileNo || applicant.contactNo,
+            email: applicant.email || null,
             aadhar_no: applicant.aadharNo || applicant.aadhar,
             pan_no: applicant.panNo || applicant.pan,
             gst_no: applicant.gstNo || applicant.shopGst,
@@ -861,6 +887,21 @@ const Store = {
             // Log Payment
             const desc = `Received Payment of ₹${dbPay.amount_total} for Shop ${dbPay.shop_no} (${dbPay.payment_for_month})`;
             this.logAction('CREATE_PAYMENT', 'payments', dbPay.receipt_no || 'new', desc, dbPay);
+
+            // --- AUTOMATED EMAIL RECEIPT ---
+            try {
+                const tenant = this.cache.applicants.find(a => a.shopNo === dbPay.shop_no);
+                if (tenant && tenant.email) {
+                    const subject = `Payment Receipt: ${dbPay.shop_no} - ${dbPay.payment_for_month}`;
+                    const text = `Dear ${tenant.applicantName},\n\nWe have received your payment of ₹${dbPay.amount_total} for Shop ${dbPay.shop_no} for the month of ${dbPay.payment_for_month}.\n\nReceipt No: ${dbPay.receipt_no}\nDate: ${dbPay.payment_date}\n\nThank you,\nShop Lease Manager`;
+
+                    // Fire and forget email
+                    this.sendEmail(tenant.email, subject, text);
+                }
+            } catch (err) {
+                console.warn("Auto-email logic failed:", err);
+            }
+
         } catch (e) {
             console.error("Save Payment Failed:", e);
             alert("Payment saved locally but Cloud Sync failed.");
@@ -2073,6 +2114,10 @@ const ApplicantModule = {
                             <input type="text" name="mobileNo" class="form-input" pattern="\\d{10}" title="10 Digit Mobile Number" placeholder="9876543210" required>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" name="email" class="form-input" placeholder="tenant@example.com">
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Applicant Type</label>
                             <select name="applicantType" id="applicantType" class="form-select">
                                 <option value="Individual">Individual</option>
@@ -2367,7 +2412,9 @@ const ApplicantModule = {
         shopSel.style.background = '#f1f5f9';
 
         form.querySelector('[name="applicantName"]').value = app.applicantName;
+        form.querySelector('[name="applicantName"]').value = app.applicantName;
         form.querySelector('[name="mobileNo"]').value = app.contactNo || app.mobileNo;
+        if (form.elements['email']) form.elements['email'].value = app.email || '';
 
         const typeSel = form.querySelector('[name="applicantType"]');
         typeSel.value = app.applicantType || 'Individual';
