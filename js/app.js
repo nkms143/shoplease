@@ -350,16 +350,18 @@ const Store = {
             ]);
 
             // Try fetch extra tables safely
-            let w = { data: [] }, r = { data: [] };
+            let w = { data: [] }, r = { data: [] }, settingsDB = { data: [] };
             try {
                 const extra = await Promise.all([
                     supabaseClient.from('waivers').select('*'),
-                    supabaseClient.from('remittances').select('*')
+                    supabaseClient.from('remittances').select('*'),
+                    supabaseClient.from('settings').select('*').eq('key', 'global_settings')
                 ]);
                 w = extra[0];
                 r = extra[1];
+                settingsDB = extra[2];
             } catch (err) {
-                console.warn("Optional tables (waivers/remittances) fetch failed:", err);
+                console.warn("Optional tables (waivers/remittances/settings) fetch failed:", err);
             }
 
             // 1. Map Shops
@@ -451,9 +453,17 @@ const Store = {
                 }));
             }
 
-            // Load Settings from LocalStorage (keep as is)
-            const savedSettings = localStorage.getItem(this.SETTINGS_KEY);
-            if (savedSettings) this.cache.settings = JSON.parse(savedSettings);
+            // 6. Map Settings
+            if (settingsDB.data && settingsDB.data.length > 0) {
+                // Found in Cloud
+                this.cache.settings = settingsDB.data[0].value;
+                // Also update local cache for offline availability
+                localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(this.cache.settings));
+            } else {
+                // Fallback to LocalStorage (First run or offline)
+                const savedSettings = localStorage.getItem(this.SETTINGS_KEY);
+                if (savedSettings) this.cache.settings = JSON.parse(savedSettings);
+            }
 
             // Merge LocalStorage with DB for Waivers/Remittances (Offline Support)
             // If DB was empty/failed, we rely on LS. If DB had data, we prefer DB but might want to merge unsynced.
@@ -565,9 +575,24 @@ const Store = {
         return this.cache.settings;
     },
 
-    saveSettings(settings) {
+    async saveSettings(settings) {
         this.cache.settings = settings;
         localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
+
+        try {
+            const { error } = await supabaseClient
+                .from('settings')
+                .upsert({
+                    key: 'global_settings',
+                    value: settings,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+
+            if (error) throw error;
+        } catch (e) {
+            console.error("Settings Sync Failed:", e);
+            alert("Settings saved locally but Cloud Sync failed.");
+        }
     },
 
     // --- STORAGE ---
