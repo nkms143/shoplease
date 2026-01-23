@@ -446,7 +446,8 @@ const Store = {
                     year: row.year,
                     referenceNo: row.reference_no,
                     notes: row.notes,
-                    bankName: row.bank_name
+                    bankName: row.bank_name,
+                    created_at: row.created_at // Keep original created_at for 'Recorded At' display
                 }));
             }
 
@@ -480,6 +481,11 @@ const Store = {
     },
 
     async saveRemittance(remittance) {
+        // Ensure created_at exists in local object
+        if (!remittance.created_at) {
+            remittance.created_at = new Date().toISOString();
+        }
+
         this.cache.remittances.push(remittance);
         localStorage.setItem(this.REMITTANCE_KEY, JSON.stringify(this.cache.remittances));
 
@@ -491,7 +497,7 @@ const Store = {
                 reference_no: remittance.referenceNo,
                 notes: remittance.notes,
                 bank_name: remittance.bankName || '',
-                created_at: new Date().toISOString()
+                created_at: remittance.created_at
             }]);
         } catch (e) {
             console.error("Remittance Sync Failed:", e);
