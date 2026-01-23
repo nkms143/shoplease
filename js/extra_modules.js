@@ -959,10 +959,10 @@ const GstRemittanceModule = {
 
         tbody.innerHTML = remittances.map(r => `
             <tr>
-                <td>${r.date}</td>
-                <td>${r.notes || '-'}</td>
+                <td>${r.date ? new Date(r.date).toLocaleDateString('en-IN') : '-'}</td>
+                <td>${r.notes || r.reference_no || '-'}</td>
                 <td style="font-weight: bold; color: #10b981;">₹${parseFloat(r.amount).toFixed(2)}</td>
-                <td style="font-size: 0.8rem; color: #64748b;">${new Date(r.timestamp).toLocaleString()}</td>
+                <td style="font-size: 0.8rem; color: #64748b;">${(r.created_at || r.timestamp) ? new Date(r.created_at || r.timestamp).toLocaleString('en-IN') : '-'}</td>
             </tr>
         `).join('');
     },
