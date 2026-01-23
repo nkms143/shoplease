@@ -1911,6 +1911,7 @@ const ReportModule = {
         let arrearDemandBase = 0, arrearDemandGst = 0, arrearDemandPenalty = 0;
 
         let currentCollection = 0, currentCollectionPenalty = 0, arrearCollection = 0;
+        let hasWaiverApplied = false;
 
 
 
@@ -2017,9 +2018,9 @@ const ReportModule = {
                 // If a waiver exists for this specific Shop + Month, we override the Theoretical Penalty.
                 // We assume a 'Full Waiver' implies penalty is 0. 
                 // Partial waiver support can be added if waiver record has 'amount'.
-                // Using YYYY-MM format matching.
+                // Using YYYY-MM format matching. Use existing outer 'monthStr' (YYYY-MM).
                 const allWaivers = Store.getWaivers() || [];
-                const monthStr = `${y}-${String(m).padStart(2, '0')}`;
+                // const monthStr = ... (Already defined in loop scope at line 1966)
 
                 // Find matching waiver
                 const waiver = allWaivers.find(w => w.shopNo === app.shopNo && w.month === monthStr);
@@ -2030,6 +2031,7 @@ const ReportModule = {
                     // The UI asks for "For Month", implies full waiver for that month's penalty.
                     // Let's set to 0.
                     penaltyForMonth = 0;
+                    hasWaiverApplied = true;
                 }
 
                 // Demand Accumulation (Only if NOT historically settled)
@@ -2106,7 +2108,8 @@ const ReportModule = {
             totalCollection,
             currentBalance,
             arrearBalance,
-            totalBalance
+            totalBalance,
+            hasWaiverApplied // NEW RETURN
         };
     },
 
@@ -2234,7 +2237,7 @@ const ReportModule = {
                     <tr>
                         <td>${idx + 1}</td>
                         <td>${r.shop}</td>
-                        <td>${r.shopName}</td>
+                        <td>${r.shopName}${res.hasWaiverApplied ? ' <span style="font-size:9px;color:red;">(Waiver)</span>' : ''}</td>
                         <td style="text-align:right;">₹${res.currentDemandBase.toFixed(2)}</td>
                         <td style="text-align:right;">₹${res.currentDemandGst.toFixed(2)}</td>
                         <td style="text-align:right;">₹${res.arrearDemandBase.toFixed(2)}</td>

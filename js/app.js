@@ -349,6 +349,19 @@ const Store = {
                 supabaseClient.from('payments').select('*')
             ]);
 
+            // Try fetch extra tables safely
+            let w = { data: [] }, r = { data: [] };
+            try {
+                const extra = await Promise.all([
+                    supabaseClient.from('waivers').select('*'),
+                    supabaseClient.from('remittances').select('*')
+                ]);
+                w = extra[0];
+                r = extra[1];
+            } catch (err) {
+                console.warn("Optional tables (waivers/remittances) fetch failed:", err);
+            }
+
             // 1. Map Shops
             this.cache.shops = (s.data || []).map(row => ({
                 shopNo: row.shop_no,
@@ -411,17 +424,48 @@ const Store = {
                 timestamp: row.created_at
             }));
 
-            // Load Settings/Remittances from LocalStorage for now (or move to DB later)
-            // Ideally, settings should be in DB too, but let's keep it simple for this phase.
-            // We'll stick to LocalStorage for Settings/History to save DB rows.
+            // 4. Map Waivers (if available from DB, else use LocalStorage later)
+            if (w.data && w.data.length > 0) {
+                this.cache.waivers = w.data.map(row => ({
+                    id: row.id,
+                    shopNo: row.shop_no,
+                    month: row.month,
+                    authorizedBy: row.authorized_by,
+                    reason: row.reason,
+                    date: row.created_at
+                }));
+            }
+
+            // 5. Map Remittances
+            if (r.data && r.data.length > 0) {
+                this.cache.remittances = r.data.map(row => ({
+                    id: row.id,
+                    date: row.created_at, // Mapping from DB timestamp
+                    amount: row.amount,
+                    month: row.month,
+                    year: row.year,
+                    referenceNo: row.reference_no,
+                    notes: row.notes,
+                    bankName: row.bank_name
+                }));
+            }
+
+            // Load Settings from LocalStorage (keep as is)
             const savedSettings = localStorage.getItem(this.SETTINGS_KEY);
             if (savedSettings) this.cache.settings = JSON.parse(savedSettings);
 
-            const savedRemittances = localStorage.getItem(this.REMITTANCE_KEY);
-            if (savedRemittances) this.cache.remittances = JSON.parse(savedRemittances);
+            // Merge LocalStorage with DB for Waivers/Remittances (Offline Support)
+            // If DB was empty/failed, we rely on LS. If DB had data, we prefer DB but might want to merge unsynced.
+            // For simplicity, if DB loaded, we overwrite cache. If not, we load LS.
+            if ((!w.data || w.data.length === 0)) {
+                const savedWaivers = localStorage.getItem(this.WAIVERS_KEY);
+                if (savedWaivers) this.cache.waivers = JSON.parse(savedWaivers);
+            }
 
-            const savedWaivers = localStorage.getItem(this.WAIVERS_KEY);
-            if (savedWaivers) this.cache.waivers = JSON.parse(savedWaivers);
+            if ((!r.data || r.data.length === 0)) {
+                const savedRemittances = localStorage.getItem(this.REMITTANCE_KEY);
+                if (savedRemittances) this.cache.remittances = JSON.parse(savedRemittances);
+            }
 
             // console.log("Store: Data Loaded", this.cache);
         } catch (e) {
@@ -435,19 +479,44 @@ const Store = {
         return this.cache.remittances; // From Cache
     },
 
-    saveRemittance(remittance) {
+    async saveRemittance(remittance) {
         this.cache.remittances.push(remittance);
         localStorage.setItem(this.REMITTANCE_KEY, JSON.stringify(this.cache.remittances));
-        // TODO: Create 'remittances' table in Supabase
+
+        try {
+            await supabaseClient.from('remittances').insert([{
+                amount: remittance.amount,
+                month: remittance.month,
+                year: remittance.year,
+                reference_no: remittance.referenceNo,
+                notes: remittance.notes,
+                bank_name: remittance.bankName || '',
+                created_at: new Date().toISOString()
+            }]);
+        } catch (e) {
+            console.error("Remittance Sync Failed:", e);
+        }
     },
 
     getWaivers() {
         return this.cache.waivers;
     },
 
-    saveWaiver(waiver) {
+    async saveWaiver(waiver) {
         this.cache.waivers.push(waiver);
         localStorage.setItem(this.WAIVERS_KEY, JSON.stringify(this.cache.waivers));
+
+        try {
+            await supabaseClient.from('waivers').insert([{
+                shop_no: waiver.shopNo,
+                month: waiver.month,
+                authorized_by: waiver.authorizedBy,
+                reason: waiver.reason,
+                created_at: waiver.date || new Date().toISOString()
+            }]);
+        } catch (e) {
+            console.error("Waiver Sync Failed:", e);
+        }
     },
 
     getHistory() {
