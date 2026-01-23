@@ -1142,10 +1142,19 @@ const GstRemittanceModule = {
                 return;
             }
 
+            // Extract month and year from the date for database sync
+            const dateObj = new Date(date);
+            const month = dateObj.getMonth() + 1; // 1-12
+            const year = dateObj.getFullYear();
+
             const record = {
                 amount: amount,
                 date: date,
+                month: month.toString(),
+                year: year.toString(),
+                referenceNo: notes, // Map notes to referenceNo for DB compatibility
                 notes: notes,
+                bankName: '', // Optional field, can be added to form later
                 timestamp: new Date().toISOString()
             };
 

@@ -512,6 +512,7 @@ const Store = {
                 month: waiver.month,
                 authorized_by: waiver.authorizedBy,
                 reason: waiver.reason,
+                amount: waiver.amount || 0, // Include amount
                 created_at: waiver.date || new Date().toISOString()
             }]).select();
 
