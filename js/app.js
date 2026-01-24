@@ -639,6 +639,110 @@ const Store = {
     },
 
     /**
+     * Calculates total outstanding dues for a tenant
+     * Reused logic from Notice Module
+     */
+    calculateOutstandingDues(app) {
+        const settings = this.getSettings();
+        const penaltyRate = parseFloat(settings.penaltyRate) || 15;
+        const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
+        const today = new Date();
+
+        // 1. Identify Lease Periods
+        const periods = [];
+        const pushPeriod = (start, end, meta) => {
+            if (!start) return;
+            periods.push({
+                start: new Date(start),
+                end: end ? new Date(end) : today,
+                meta: meta
+            });
+        };
+
+        const history = app.leaseHistory || [];
+        if (Array.isArray(history) && history.length > 0) {
+            history.forEach(h => {
+                const s = h.leaseDate || h.rentStartDate || h.startDate;
+                const e = h.expiryDate || h.leaseEndDate || h.endDate;
+                pushPeriod(s, e, { source: 'history', entry: h });
+            });
+        }
+
+        const activeStart = app.rentStartDate || app.leaseDate || null;
+        pushPeriod(activeStart, null, { source: 'active' });
+
+        // 2. Identify Paid Months
+        const payments = this.getShopPayments(app.shopNo) || [];
+        const paidMonths = new Set(payments.map(p => String(p.paymentForMonth)));
+        const addedMonthKeys = new Set();
+
+        let totalBase = 0;
+        let totalGST = 0;
+        let totalPenalty = 0;
+
+        periods.forEach(period => {
+            const cur = new Date(period.start);
+            while (cur <= period.end) {
+                const y = cur.getFullYear();
+                const mNum = cur.getMonth() + 1;
+                const m = String(mNum).padStart(2, '0');
+                const monthStr = `${y}-${m}`;
+
+                if (addedMonthKeys.has(monthStr) || paidMonths.has(monthStr)) {
+                    cur.setMonth(cur.getMonth() + 1);
+                    continue;
+                }
+                addedMonthKeys.add(monthStr);
+
+                // Penalty Logic
+                const dueDay = parseInt(app.paymentDay) || 5;
+                // Using 28 to avoid February overflow issues roughly
+                const dueDate = new Date(y, cur.getMonth(), Math.min(dueDay, 28));
+                const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+                if (todayMidnight <= dueDate) {
+                    cur.setMonth(cur.getMonth() + 1);
+                    continue; // Not properly due yet
+                }
+
+                let p = 0;
+                if (today > dueDate) {
+                    let startCounting = dueDate;
+                    if (implementationDate && implementationDate > dueDate) {
+                        startCounting = implementationDate;
+                    }
+                    if (today > startCounting) {
+                        const diffTime = Math.abs(today - startCounting);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        p = diffDays * penaltyRate;
+                    }
+                }
+
+                // Rent Logic
+                let rentBase = parseFloat(app.rentBase || app.baseRent || app.rentAmount || 0) || 0;
+                let gstAmt = parseFloat(app.gstAmount || app.gst || 0) || 0;
+
+                if (period.meta && period.meta.entry) {
+                    const e = period.meta.entry;
+                    rentBase = parseFloat(e.rentBase || e.baseRent || e.rentAmount || rentBase) || rentBase;
+                    gstAmt = parseFloat(e.gstAmount || e.gst || gstAmt) || gstAmt;
+                }
+
+                totalBase += rentBase;
+                totalGST += gstAmt;
+                totalPenalty += p;
+
+                cur.setMonth(cur.getMonth() + 1);
+            }
+        });
+
+        return {
+            totalAmount: totalBase + totalGST + totalPenalty,
+            breakdown: { base: totalBase, gst: totalGST, penalty: totalPenalty }
+        };
+    },
+
+    /**
      * Checks for tenants who have NOT paid for the CURRENT month
      * and sends a warning if today is past their due date.
      */
@@ -662,15 +766,16 @@ const Store = {
             if (payments.length > 0) continue; // Already paid
 
             // 2. Check Due Date
-            // Default due day is 5th if not specified
             const dueDay = parseInt(tenant.paymentDay) || 5;
 
-            // If today is AFTER the due day (e.g. today is 6th, due was 5th)
             if (today.getDate() > dueDay) {
+                // Calculate Total Outstanding
+                const outstanding = this.calculateOutstandingDues(tenant);
+
                 // Send Warning
                 try {
                     const subject = `Urgent: Rent Overdue for Shop ${tenant.shopNo}`;
-                    const text = `Dear ${tenant.applicantName},\n\nThis is a reminder that your rent for ${currentMonthStr} was due on the ${dueDay}th.\n\nWe have not received your payment yet. Please pay immediately to avoid penalties.\n\nAmount Due: ₹${tenant.rentTotal}\n\nIgnore this if you have already paid today.\n\nSincerely,\nShop Lease Manager`;
+                    const text = `Dear ${tenant.applicantName},\n\nThis is a reminder that your rent for ${currentMonthStr} was due on the ${dueDay}th.\n\nWe have not received your payment yet. Please pay immediately.\n\nTotal Outstanding Due: ₹${outstanding.totalAmount.toFixed(2)}\n\nIgnore this if you have already paid today.\n\nSincerely,\nShop Lease Manager`;
 
                     await this.sendEmail(tenant.email, subject, text);
                     sentCount++;
