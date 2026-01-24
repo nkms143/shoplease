@@ -208,9 +208,14 @@ const NoticeModule = {
             <div class="glass-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Defaulters Notice Generation</h3>
-                    <button class="btn-primary" id="btn-scan-defaulters" style="background: #e11d48;">
-                        Scan for Defaulters
-                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-primary" id="btn-warn-late" style="background: #f59e0b;">
+                             ✉️ Send Late Warnings
+                        </button>
+                        <button class="btn-primary" id="btn-scan-defaulters" style="background: #e11d48;">
+                            Scan for Defaulters
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="table-container">
@@ -249,6 +254,22 @@ const NoticeModule = {
 
         document.getElementById('btn-scan-defaulters').addEventListener('click', () => {
             this.scanDefaulters();
+        });
+
+        document.getElementById('btn-warn-late').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-warn-late');
+            btn.innerHTML = 'Sending...';
+            btn.disabled = true;
+            try {
+                const count = await Store.processLatePaymentWarnings();
+                alert(`Warnings Sent Successfully to ${count} tenants.`);
+            } catch (e) {
+                console.error(e);
+                alert("Failed to send warnings.");
+            } finally {
+                btn.innerHTML = '✉️ Send Late Warnings';
+                btn.disabled = false;
+            }
         });
     },
 

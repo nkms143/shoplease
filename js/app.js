@@ -638,6 +638,51 @@ const Store = {
         }
     },
 
+    /**
+     * Checks for tenants who have NOT paid for the CURRENT month
+     * and sends a warning if today is past their due date.
+     */
+    async processLatePaymentWarnings() {
+        const today = new Date();
+        const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const tenants = this.getApplicants();
+        let sentCount = 0;
+
+        console.log(`Checking Late Payments for ${currentMonthStr}...`);
+
+        for (const tenant of tenants) {
+            if (!tenant.email) continue; // Skip if no email
+
+            // 1. Check if paid
+            const payments = this.cache.payments.filter(p =>
+                this.idsMatch(p.shopNo, tenant.shopNo) &&
+                p.paymentForMonth === currentMonthStr
+            );
+
+            if (payments.length > 0) continue; // Already paid
+
+            // 2. Check Due Date
+            // Default due day is 5th if not specified
+            const dueDay = parseInt(tenant.paymentDay) || 5;
+
+            // If today is AFTER the due day (e.g. today is 6th, due was 5th)
+            if (today.getDate() > dueDay) {
+                // Send Warning
+                try {
+                    const subject = `Urgent: Rent Overdue for Shop ${tenant.shopNo}`;
+                    const text = `Dear ${tenant.applicantName},\n\nThis is a reminder that your rent for ${currentMonthStr} was due on the ${dueDay}th.\n\nWe have not received your payment yet. Please pay immediately to avoid penalties.\n\nAmount Due: ₹${tenant.rentTotal}\n\nIgnore this if you have already paid today.\n\nSincerely,\nShop Lease Manager`;
+
+                    await this.sendEmail(tenant.email, subject, text);
+                    sentCount++;
+                } catch (e) {
+                    console.error(`Failed to warn ${tenant.shopNo}`, e);
+                }
+            }
+        }
+
+        return sentCount;
+    },
+
     async saveSettings(settings) {
         this.cache.settings = settings;
         localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
@@ -814,6 +859,17 @@ const Store = {
             const action = (existingRows && existingRows.length > 0) ? 'UPDATE_APPLICANT' : 'CREATE_APPLICANT';
             const desc = `${action === 'UPDATE_APPLICANT' ? 'Updated' : 'Created'} Tenant for Shop ${applicant.shopNo}`;
             this.logAction(action, 'tenants', applicant.shopNo, desc, dbApp);
+
+            // --- WELCOME EMAIL ---
+            if (action === 'CREATE_APPLICANT' && dbApp.email) {
+                try {
+                    const subject = `Welcome to SUDA Shop Lease - Shop ${dbApp.shop_no}`;
+                    const text = `Dear ${dbApp.applicant_name},\n\nWelcome! You have been successfully registered as the tenant in SUDA for Shop No: ${dbApp.shop_no}.\n\nLease Start Date: ${dbApp.lease_date}\nRent Amount: ₹${dbApp.rent_total}\nPayment Due Day: ${dbApp.payment_day}th of every month.\n\nWe look forward to a great partnership.\n\nSincerely,\nShop Lease Manager`;
+                    this.sendEmail(dbApp.email, subject, text);
+                } catch (err) {
+                    console.warn("Welcome email failed:", err);
+                }
+            }
 
             if (existingRows && existingRows.length > 0) {
                 // Update the existing record(s) - usually just one
