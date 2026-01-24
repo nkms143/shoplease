@@ -775,7 +775,7 @@ const Store = {
                 // Send Warning
                 try {
                     const subject = `Urgent: Rent Overdue for Shop ${tenant.shopNo}`;
-                    const text = `Dear ${tenant.applicantName},\n\nThis is a reminder that your rent for ${currentMonthStr} was due on the ${dueDay}th.\n\nWe have not received your payment yet. Please pay immediately.\n\nTotal Outstanding Due: ₹${outstanding.totalAmount.toFixed(2)}\n\nIgnore this if you have already paid today.\n\nSincerely,\nShop Lease Manager`;
+                    const text = `Dear ${tenant.applicantName},\n\nThis is a reminder that your rent for ${currentMonthStr} was due on the ${dueDay}th.\n\nWe have not received your payment yet. Please pay immediately.\n\nTotal Outstanding Due: ₹${outstanding.totalAmount.toFixed(2)}\n\nIgnore this if you have already paid today.\n\nSincerely,\nVice Chairman SUDA`;
 
                     await this.sendEmail(tenant.email, subject, text);
                     sentCount++;
