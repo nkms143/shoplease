@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`
       },
       body: JSON.stringify({
-        from: 'onboarding@resend.dev', // Use default testing domain
+        from: 'Siddipet Urban Development Authority <onboarding@resend.dev>', // Custom Display Name
         to: to, // Only works for YOUR email until you verify domain
         subject: subject,
         html: html,
