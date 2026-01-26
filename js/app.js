@@ -641,12 +641,14 @@ const Store = {
     /**
      * Calculates total outstanding dues for a tenant
      * Reused logic from Notice Module
+     * @param {Object} app - Applicant object
+     * @param {Date} referenceDate - Optional, defaults to now. Calculation stops at this date.
      */
-    calculateOutstandingDues(app) {
+    calculateOutstandingDues(app, referenceDate = new Date()) {
         const settings = this.getSettings();
         const penaltyRate = parseFloat(settings.penaltyRate) || 15;
         const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
-        const today = new Date();
+        const today = referenceDate || new Date();
 
         // 1. Identify Lease Periods
         const periods = [];

@@ -111,7 +111,14 @@ const InvoiceModule = {
         this.currentInvoices = activeTenants.map(app => {
             const rent = parseFloat(app.rentBase || 0);
             const gst = parseFloat(app.gstAmount || (rent * 0.18)); // Fallback calc
-            const total = rent + gst;
+
+            // Calculate Arrears (Up to END of Previous Month)
+            // If selecting May, we want arrears up to April 30.
+            const prevMonthEnd = new Date(year, month - 1, 0); // Day 0 of this month = Last day of prev month
+            const duesObj = Store.calculateOutstandingDues(app, prevMonthEnd);
+            const arrears = duesObj.totalAmount || 0;
+
+            const total = rent + gst + arrears; // Include Arrears in Total
 
             return {
                 shopNo: app.shopNo,
@@ -119,6 +126,7 @@ const InvoiceModule = {
                 email: app.email,
                 rent: rent,
                 gst: gst,
+                arrears: arrears,
                 total: total,
                 details: app,
                 status: 'Draft' // Draft, Sent, Paid? (Paid check can be complex, let's stick to Invoice Status)
@@ -164,7 +172,14 @@ const InvoiceModule = {
     generateHTML(invoice) {
         const monthName = new Date(2025, parseInt(document.getElementById('inv-month').value) - 1).toLocaleString('default', { month: 'long' });
         const year = document.getElementById('inv-year').value;
-        const dueDate = new Date(year, parseInt(document.getElementById('inv-month').value) - 1, 5).toDateString(); // 5th of month
+
+        // Dynamic Due Date Logic
+        const dueDay = invoice.details.paymentDay || 5;
+        const dueDate = new Date(year, parseInt(document.getElementById('inv-month').value) - 1, dueDay).toDateString();
+
+        // Dynamic Penalty Rate
+        const settings = Store.getSettings();
+        const penaltyRate = parseFloat(settings.penaltyRate || 16).toFixed(2);
 
         return `
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
@@ -198,6 +213,11 @@ const InvoiceModule = {
                             <td style="padding: 10px;">GST (18%)</td>
                             <td style="padding: 10px; text-align: right;">₹${invoice.gst.toFixed(2)}</td>
                         </tr>
+                        ${invoice.arrears > 0 ? `
+                        <tr style="border-bottom: 1px solid #e2e8f0; color: #b91c1c; background: #fef2f2;">
+                            <td style="padding: 10px;">Arrears / Previous Dues</td>
+                            <td style="padding: 10px; text-align: right;">₹${invoice.arrears.toFixed(2)}</td>
+                        </tr>` : ''}
                         <tr style="font-weight: bold; background: #f1f5f9;">
                             <td style="padding: 10px;">Total Payable</td>
                             <td style="padding: 10px; text-align: right;">₹${invoice.total.toFixed(2)}</td>
@@ -205,7 +225,7 @@ const InvoiceModule = {
                     </table>
 
                     <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 15px; border-radius: 6px; color: #9a3412; font-size: 0.9rem;">
-                        <strong>Note:</strong> Please pay by the 5th of the month to avoid penalty (15% PA).
+                        <strong>Note:</strong> Please pay by the ${dueDay}th of the month to avoid penalty (Rs. ${penaltyRate} per day after due date).
                     </div>
                     <div style="margin-top:20px; font-size: 0.8rem; text-align: center; color: #64748b;">
                         This is a computer-generated invoice. No signature required.
