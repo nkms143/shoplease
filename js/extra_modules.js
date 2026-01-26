@@ -750,6 +750,7 @@ const GstRemittanceModule = {
                                     <th>GST Collected</th>
                                     <th>Remitted</th>
                                     <th>Pending</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="gst-monthly-body"></tbody>
@@ -960,7 +961,13 @@ const GstRemittanceModule = {
                 if (stats.totalRemitted > stats.totalCollected) {
                     const diff = (stats.totalRemitted - stats.totalCollected).toFixed(2);
                     warnEl.style.display = 'inline';
+                    warnEl.style.display = 'inline';
                     warnEl.textContent = `Warning: Remitted exceeds collected by ₹${diff} for the selected period.`;
+                } else if (stats.totalCollected > stats.totalRemitted) {
+                    const diff = (stats.totalCollected - stats.totalRemitted).toFixed(2);
+                    warnEl.style.display = 'inline';
+                    warnEl.style.color = '#e11d48'; // Red for shortfall
+                    warnEl.textContent = `Shortfall: You need to remit ₹${diff} more.`;
                 } else {
                     warnEl.style.display = 'none';
                 }
@@ -1106,12 +1113,27 @@ const GstRemittanceModule = {
             // Skip months with no transactions
             if (data.collected === 0 && data.remitted === 0) return '';
             const pending = data.collected - data.remitted;
+
+            // Status Logic
+            let statusBadge = '';
+            const diff = data.collected - data.remitted;
+            const tolerance = 1.0; // ₹1 differrence allowed for rounding
+
+            if (Math.abs(diff) <= tolerance) {
+                statusBadge = `<span style="padding: 2px 8px; border-radius: 12px; background: #d1fae5; color: #059669; font-size: 0.75rem; font-weight: bold;">Matched</span>`;
+            } else if (diff > tolerance) {
+                statusBadge = `<span style="padding: 2px 8px; border-radius: 12px; background: #fee2e2; color: #ef4444; font-size: 0.75rem; font-weight: bold;">Shortfall</span>`;
+            } else {
+                statusBadge = `<span style="padding: 2px 8px; border-radius: 12px; background: #ffedd5; color: #c2410c; font-size: 0.75rem; font-weight: bold;">Excess</span>`;
+            }
+
             return `
                 <tr data-month="${m}" style="cursor: pointer;">
                     <td><strong>${monthNames[m - 1]}</strong></td>
                     <td>₹${data.collected.toFixed(2)}</td>
                     <td>₹${data.remitted.toFixed(2)}</td>
                     <td style="color: ${pending < 0 ? '#ef4444' : '#059669'};">₹${pending.toFixed(2)}</td>
+                    <td>${statusBadge}</td>
                 </tr>
             `;
         }).filter(r => r !== '');
@@ -1161,12 +1183,48 @@ const GstRemittanceModule = {
 
         const pending = data.collected - data.remitted;
         const mIdx = parseInt(month) - 1;
+
+        // Status Logic (Detail View)
+        let statusBadge = '';
+        const diff = data.collected - data.remitted;
+        const tolerance = 1.0;
+
+        if (Math.abs(diff) <= tolerance) {
+            statusBadge = `<span style="padding: 2px 8px; border-radius: 12px; background: #d1fae5; color: #059669; font-size: 0.75rem; font-weight: bold;">Matched</span>`;
+        } else if (diff > tolerance) {
+            statusBadge = `<span style="padding: 2px 8px; border-radius: 12px; background: #fee2e2; color: #ef4444; font-size: 0.75rem; font-weight: bold;">Shortfall</span>`;
+        } else {
+            statusBadge = `<span style="padding: 2px 8px; border-radius: 12px; background: #ffedd5; color: #c2410c; font-size: 0.75rem; font-weight: bold;">Excess</span>`;
+        }
+
+        // Auto-fill form date when a specific month is selected
+        const dateInput = document.getElementById('remit-date');
+        if (dateInput) {
+            // Set to 10th of next month (or 10th of selected month? usually remittance is done next month 10th)
+            // But simplify: Set to today if today is within reasonable range, OR set to end of that month.
+            // Let's set it to Last Date of the selected month as a default, or today.
+            // Better: If year/month selected, construct a date.
+            const selectedY = parseInt(year); // This is FY start.
+            // If month is 1,2,3 -> It is (year+1). If 4..12 -> It is (year)
+            const actualYear = parseInt(month) <= 3 ? selectedY + 1 : selectedY;
+
+            // Set date to 20th of that month (GST due date usually)
+            const suggestedDate = new Date(actualYear, parseInt(month) - 1, 20);
+
+            // Format YYYY-MM-DD
+            const yyyy = suggestedDate.getFullYear();
+            const mm = String(suggestedDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(suggestedDate.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+
         tbody.innerHTML = `
             <tr>
                 <td><strong>${monthNames[mIdx]}</strong></td>
                 <td>₹${data.collected.toFixed(2)}</td>
                 <td>₹${data.remitted.toFixed(2)}</td>
                 <td style="color: ${pending < 0 ? '#ef4444' : '#059669'};">₹${pending.toFixed(2)}</td>
+                <td>${statusBadge}</td>
             </tr>
         `;
     },

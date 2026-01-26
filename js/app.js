@@ -1754,6 +1754,10 @@ function handleRoute(route) {
             pageTitle.textContent = 'Penalty Waivers';
             WaiverModule.render(contentArea);
             break;
+        case 'invoices':
+            pageTitle.textContent = 'Monthly Invoices';
+            InvoiceModule.render(contentArea);
+            break;
 
         default:
             pageTitle.textContent = 'Dashboard';
