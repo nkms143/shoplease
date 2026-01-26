@@ -681,6 +681,7 @@ const Store = {
         let totalBase = 0;
         let totalGST = 0;
         let totalPenalty = 0;
+        const pendingMonths = [];
 
         periods.forEach(period => {
             const cur = new Date(period.start);
@@ -698,8 +699,9 @@ const Store = {
 
                 // Penalty Logic
                 const dueDay = parseInt(app.paymentDay) || 5;
-                // Using 28 to avoid February overflow issues roughly
                 const dueDate = new Date(y, cur.getMonth(), Math.min(dueDay, 28));
+
+                // Normalize today to start of day for accurate comparison
                 const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
                 if (todayMidnight <= dueDate) {
@@ -730,24 +732,31 @@ const Store = {
                     gstAmt = parseFloat(e.gstAmount || e.gst || gstAmt) || gstAmt;
                 }
 
+                const rentTotal = rentBase + gstAmt;
+
                 totalBase += rentBase;
                 totalGST += gstAmt;
                 totalPenalty += p;
 
-                // Track details for Notices
-                const rentTotal = rentBase + gstAmt;
-                // Add to details
-                // We need to define 'pendingMonths' array outside loop first
-                // But wait, the function didn't have it. Let me reconstruct the function.
+                pendingMonths.push({
+                    month: cur.toLocaleString('default', { month: 'short', year: 'numeric' }),
+                    rent: rentTotal,
+                    penalty: p,
+                    source: period.meta && period.meta.source === 'history' ? 'history' : 'active'
+                });
+
+                cur.setMonth(cur.getMonth() + 1);
             }
         });
 
-        // RE-WRITING FUNCTION FOR CLARITY IN NEXT STEP
-        // I will use multi_replace to rewrite the whole function properly including the 'pendingMonths' array initialization and population.
-
         return {
             totalAmount: totalBase + totalGST + totalPenalty,
-            breakdown: { base: totalBase, gst: totalGST, penalty: totalPenalty }
+            breakdown: { base: totalBase, gst: totalGST, penalty: totalPenalty },
+            details: pendingMonths,
+            monthsCount: pendingMonths.length,
+            baseRent: totalBase,
+            gst: totalGST,
+            penalty: totalPenalty
         };
     },
 
