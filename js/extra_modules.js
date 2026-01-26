@@ -1634,7 +1634,7 @@ const ReportModule = {
                 <h3>Reports</h3>
                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                     <button class="nav-btn-sub active" onclick="ReportModule.renderDCB()" style="background: #e0e7ff; color: var(--primary-color); border:none; padding: 8px 16px; border-radius: 6px; font-weight: 500;">DCB Report</button>
-                    <!-- Placeholders for other reports -->
+                    <button class="nav-btn-sub" onclick="ReportModule.renderStatement()" style="background: transparent; color: var(--text-color); border:none; padding: 8px 16px;">Shop Ledger</button>
                 </div>
 
                 <div id="report-content" style="margin-top: 1.5rem;">
@@ -1894,6 +1894,163 @@ const ReportModule = {
         };
 
         document.getElementById('dcb-results').style.display = 'block';
+    },
+
+    // --- NEW: TENANT STATEMENT / LEDGER ---
+    renderStatement(container) {
+        // Find main container if not passed
+        const target = container && container instanceof HTMLElement ? container : document.getElementById('content-area');
+
+        target.innerHTML = `
+             <div class="glass-panel">
+                <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                     <button class="nav-btn-sub" onclick="ReportModule.renderDCB()" style="background: transparent; color: var(--text-color); border:none; padding: 8px 16px;">DCB Report</button>
+                     <button class="nav-btn-sub active" onclick="ReportModule.renderStatement()" style="background: #e0e7ff; color: var(--primary-color); border:none; padding: 8px 16px; border-radius: 6px; font-weight: 500;">Shop Ledger</button>
+                </div>
+
+                <h4 style="margin-bottom: 1rem;">Shop-wise Outstanding Dues Statement</h4>
+                <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1; max-width: 300px;">
+                        <label class="form-label">Select Shop</label>
+                        <select id="rep-stmt-shop" class="form-select">
+                            <option value="">-- Select Shop --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="stmt-results" style="margin-top: 2rem; display: none;">
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-bottom: 1rem;">
+                        <button class="btn-primary" id="btn-stmt-print" style="background: #64748b; font-size: 0.8rem;">Print Statement</button>
+                    </div>
+                    <div class="glass-panel" style="background: #fff; color: #000; border: 1px solid #e2e8f0; padding: 2rem;" id="print-stmt-area">
+                        <div style="text-align: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #000;">
+                             <h3 style="margin: 0; text-transform: uppercase;">Siddipet Urban Development Authority</h3>
+                             <p style="margin: 5px 0;">Commercial Shop Lease - Outstanding Dues Statement</p>
+                             <p style="margin: 5px 0; font-size: 0.9rem;" id="stmt-date">As on: </p>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
+                            <div>
+                                <strong>Shop No:</strong> <span id="stmt-shop-no"></span><br>
+                                <strong>Tenant:</strong> <span id="stmt-name"></span>
+                            </div>
+                            <div style="text-align: right;">
+                                <strong>Contact:</strong> <span id="stmt-contact"></span>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #000;">
+                                        <th style="text-align: left; padding: 8px;">Sl No</th>
+                                        <th style="text-align: left; padding: 8px;">Due Month</th>
+                                        <th style="text-align: right; padding: 8px;">Rent + GST</th>
+                                        <th style="text-align: right; padding: 8px;">Penalty (Today)</th>
+                                        <th style="text-align: right; padding: 8px;">Total Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stmt-list-body"></tbody>
+                                <tfoot id="stmt-foot" style="border-top: 2px solid #000; font-weight: bold;"></tfoot>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 2rem; font-size: 0.9rem; color: #666;">
+                            * Penalty is calculated @ ₹16/day for delay.<br>
+                            * This is a computer generated statement.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Populate Shops
+        const select = document.getElementById('rep-stmt-shop');
+        const applicants = Store.getApplicants();
+        applicants.forEach(app => {
+            const opt = document.createElement('option');
+            opt.value = app.shopNo;
+            opt.textContent = `${app.shopNo} - ${app.applicantName}`;
+            select.appendChild(opt);
+        });
+
+        // Listen for selection
+        select.addEventListener('change', () => {
+            const shopNo = select.value;
+            if (shopNo) this.generateStatement(shopNo);
+            else document.getElementById('stmt-results').style.display = 'none';
+        });
+
+        document.getElementById('btn-stmt-print').addEventListener('click', () => {
+            const content = document.getElementById('print-stmt-area').innerHTML;
+            const w = window.open('', '_blank');
+            w.document.write(`
+                <html>
+                <head>
+                    <title>Statement - ${document.getElementById('stmt-shop-no').textContent}</title>
+                    <style>
+                        body { font-family: 'Times New Roman', serif; padding: 20px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { padding: 8px; border-bottom: 1px solid #ddd; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>${content}</body>
+                </html>
+            `);
+            w.document.close();
+            w.print();
+        });
+    },
+
+    generateStatement(shopNo) {
+        const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+        if (!app) return;
+
+        // Use the Single Source of Truth
+        const dues = Store.calculateOutstandingDues(app); // Defaults to today
+
+        // Header Info
+        document.getElementById('stmt-date').textContent = `As on: ${new Date().toLocaleDateString('en-IN')}`;
+        document.getElementById('stmt-shop-no').textContent = app.shopNo;
+        document.getElementById('stmt-name').textContent = app.applicantName;
+        document.getElementById('stmt-contact').textContent = app.mobileNo || '';
+
+        // Table Body
+        const tbody = document.getElementById('stmt-list-body');
+        const tfoot = document.getElementById('stmt-foot');
+        let html = '';
+        let sl = 1;
+
+        if (!dues.details || dues.details.length === 0) {
+            html = '<tr><td colspan="5" style="text-align:center; padding: 1rem;">No outstanding dues.</td></tr>';
+            tfoot.innerHTML = '';
+        } else {
+            dues.details.forEach(d => {
+                const total = d.rent + d.penalty;
+                html += `
+                    <tr>
+                        <td style="padding: 8px;">${sl++}</td>
+                        <td style="padding: 8px;">${d.month} <span style="font-size:0.8rem; color:#666;">(${d.source === 'history' ? 'Arrear' : 'Current'})</span></td>
+                        <td style="text-align: right; padding: 8px;">₹${d.rent.toFixed(2)}</td>
+                        <td style="text-align: right; padding: 8px; color: #ef4444;">₹${d.penalty.toFixed(2)}</td>
+                        <td style="text-align: right; padding: 8px; font-weight: 500;">₹${total.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="2" style="text-align: right; padding: 10px;">TOTAL OUTSTANDING</td>
+                    <td style="text-align: right; padding: 10px;">₹${(dues.baseRent + dues.gst).toFixed(2)}</td>
+                    <td style="text-align: right; padding: 10px;">₹${dues.penalty.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 10px; font-size: 1.1rem;">₹${dues.totalAmount.toFixed(2)}</td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+        document.getElementById('stmt-results').style.display = 'block';
     },
 
     calculateDCBForApplicant(app, fromDate, toDate, allPayments, rate, impDate) {

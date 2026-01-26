@@ -1746,7 +1746,7 @@ function handleRoute(route) {
             break;
         case 'dcb-report':
             pageTitle.textContent = 'DCB Reports';
-            ReportModule.renderDCB(contentArea); // Call renderDCB directly
+            ReportModule.render(contentArea); // Call main render to show tabs
             break;
         case 'gst-monthwise':
             pageTitle.textContent = 'GST Month-wise Report';
