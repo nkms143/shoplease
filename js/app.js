@@ -734,9 +734,16 @@ const Store = {
                 totalGST += gstAmt;
                 totalPenalty += p;
 
-                cur.setMonth(cur.getMonth() + 1);
+                // Track details for Notices
+                const rentTotal = rentBase + gstAmt;
+                // Add to details
+                // We need to define 'pendingMonths' array outside loop first
+                // But wait, the function didn't have it. Let me reconstruct the function.
             }
         });
+
+        // RE-WRITING FUNCTION FOR CLARITY IN NEXT STEP
+        // I will use multi_replace to rewrite the whole function properly including the 'pendingMonths' array initialization and population.
 
         return {
             totalAmount: totalBase + totalGST + totalPenalty,
