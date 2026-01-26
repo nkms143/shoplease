@@ -1646,13 +1646,24 @@ const ReportModule = {
     },
 
     renderDCB(container) {
-        // If container is passed (top-level route), use it.
-        // If not (e.g. internal call?), use internal logic. 
-        // But since we routed it top-level, we should handle it as a main render.
+        // Fix: Target the inner content area so we don't wipe out the tabs
+        const targetContainer = document.getElementById('report-content');
+        if (!targetContainer) {
+            // Ideally should not happen if render() called first.
+            // If somehow called directly, fallback to container or content-area but this loses tabs
+            console.error("Report content area not found!");
+            return;
+        }
 
-        // If called from button click (old way), container might be null/event.
-        // Let's rely on passed container OR finding content-area.
-        const targetContainer = container && container instanceof HTMLElement ? container : document.getElementById('content-area');
+        // Update active tab styling
+        const tabs = document.querySelectorAll('.nav-btn-sub');
+        tabs.forEach(t => {
+            if (t.textContent.includes('DCB')) {
+                t.style.background = '#e0e7ff'; t.style.color = 'var(--primary-color)'; t.classList.add('active');
+            } else {
+                t.style.background = 'transparent'; t.style.color = 'var(--text-color)'; t.classList.remove('active');
+            }
+        });
 
         targetContainer.innerHTML = `
             <div class="glass-panel">
@@ -1898,15 +1909,23 @@ const ReportModule = {
 
     // --- NEW: TENANT STATEMENT / LEDGER ---
     renderStatement(container) {
-        // Find main container if not passed
-        const target = container && container instanceof HTMLElement ? container : document.getElementById('content-area');
+        // Fix: Target the inner content area
+        const target = document.getElementById('report-content');
+        if (!target) return;
+
+        // Update active tab styling
+        const tabs = document.querySelectorAll('.nav-btn-sub');
+        tabs.forEach(t => {
+            if (t.textContent.includes('Ledger')) {
+                t.style.background = '#e0e7ff'; t.style.color = 'var(--primary-color)'; t.classList.add('active');
+            } else {
+                t.style.background = 'transparent'; t.style.color = 'var(--text-color)'; t.classList.remove('active');
+            }
+        });
 
         target.innerHTML = `
              <div class="glass-panel">
-                <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-                     <button class="nav-btn-sub" onclick="ReportModule.renderDCB()" style="background: transparent; color: var(--text-color); border:none; padding: 8px 16px;">DCB Report</button>
-                     <button class="nav-btn-sub active" onclick="ReportModule.renderStatement()" style="background: #e0e7ff; color: var(--primary-color); border:none; padding: 8px 16px; border-radius: 6px; font-weight: 500;">Shop Ledger</button>
-                </div>
+                <!-- Removed duplicate tab buttons here since they are in main render now -->
 
                 <h4 style="margin-bottom: 1rem;">Shop-wise Outstanding Dues Statement</h4>
                 <div style="display: flex; gap: 1rem; align-items: flex-end;">
