@@ -1232,6 +1232,10 @@ const GstRemittanceModule = {
                 return;
             }
 
+            // Define missing variables from DOM
+            const forMonth = document.getElementById('remit-for-month').value;
+            const forYear = document.getElementById('remit-for-year').value;
+
             // Extract month and year from the date for database sync (Legacy / Fallback)
             const dateObj = new Date(date);
             // const month = dateObj.getMonth() + 1; // 1-12 (Legacy)

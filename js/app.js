@@ -2158,7 +2158,7 @@ const DashboardModule = {
 const ShopModule = {
     render(container) {
         container.innerHTML = `
-    < div class="glass-panel" >
+    <div class="glass-panel">
                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Shop Inventory</h3>
                     <button class="btn-primary" id="btn-add-shop">
@@ -2201,7 +2201,7 @@ const ShopModule = {
                         </tbody>
                     </table>
                 </div>
-            </div >
+            </div>
     `;
 
         this.setupLogic();
@@ -2289,7 +2289,7 @@ const ShopModule = {
 const ApplicantModule = {
     render(container) {
         container.innerHTML = `
-    < div class="glass-panel" >
+    <div class="glass-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Applicant Details</h3>
                     <button class="btn-primary" id="btn-add-applicant">
@@ -2319,7 +2319,7 @@ const ApplicantModule = {
                         </tbody>
                     </table>
                 </div>
-            </div >
+            </div>
     `;
 
         document.getElementById('btn-add-applicant').addEventListener('click', () => {
@@ -2378,7 +2378,7 @@ const ApplicantModule = {
         document.getElementById('btn-add-applicant').style.display = 'none';
 
         container.innerHTML = `
-    < div class="glass-panel" style = "background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6);" >
+    <div class="glass-panel" style="background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6);">
                 <h4 style="margin-bottom: 1.5rem; color: var(--primary-color);">New Shop Lease Registration</h4>
                 <form id="applicant-form">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
@@ -2506,7 +2506,7 @@ const ApplicantModule = {
                         <button type="submit" class="btn-primary">Save Applicant</button>
                     </div>
                 </form>
-            </div >
+            </div>
     `;
 
         this.setupFormLogic();
@@ -2778,7 +2778,7 @@ const ApplicantModule = {
 const RentModule = {
     render(container) {
         container.innerHTML = `
-    < div class="glass-panel" >
+    <div class="glass-panel">
                 <h3>Rent Collection</h3>
                 
                 <div style="margin-top: 1.5rem; max-width: 600px;">
