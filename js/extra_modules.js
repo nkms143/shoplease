@@ -2967,6 +2967,17 @@ const ShopLedgerModule = {
 // GST MONTH-WISE REPORT MODULE
 // ==========================================
 const GstMonthwiseReportModule = {
+    formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        // Ensure valid date
+        if (isNaN(d.getTime())) return dateStr;
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`;
+    },
+
     render(container) {
         container.innerHTML = `
             <div class="glass-panel">
@@ -3173,7 +3184,7 @@ const GstMonthwiseReportModule = {
             return `
                 <tr style="border: 1px solid #cbd5e1;">
                     <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">${slNo++}</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">${p.paymentDate || '-'}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">${this.formatDate(p.paymentDate)}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-weight: bold;">${p.shopNo}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 8px;">${applicantName}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 8px;">${paymentMethod}</td>
@@ -3281,7 +3292,7 @@ const GstMonthwiseReportModule = {
 
             csv.push([
                 slNo++,
-                p.paymentDate || '',
+                this.formatDate(p.paymentDate),
                 p.shopNo,
                 applicantName,
                 paymentMethod,
@@ -3385,7 +3396,7 @@ const GstMonthwiseReportModule = {
             return `
                 <tr style="border: 1px solid #000; height: 25px;">
                     <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px;">${slNo++}</td>
-                    <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px;">${p.paymentDate || ''}</td>
+                    <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px;">${this.formatDate(p.paymentDate)}</td>
                     <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px; font-weight: bold;">${p.shopNo}</td>
                     <td style="border: 1px solid #000; padding: 5px; font-size: 11px;">${applicantName}</td>
                     <td style="border: 1px solid #000; padding: 5px; font-size: 11px;">${paymentMethod}</td>
