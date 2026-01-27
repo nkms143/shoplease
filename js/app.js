@@ -1763,8 +1763,6 @@ function handleRoute(route) {
     switch (route) {
         case 'dashboard':
             pageTitle.textContent = 'Dashboard';
-        case 'dashboard':
-            pageTitle.textContent = 'Dashboard';
             DashboardModule.render(contentArea);
             break;
         case 'shop-module':

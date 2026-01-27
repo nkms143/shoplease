@@ -168,48 +168,6 @@ const SettingsModule = {
     }
 };
 
-// Initial Render
-updatePreview();
-
-// Check file size limit (e.g. 500KB) to prevent localStorage quota issues
-logoInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 500 * 1024) { // 500KB limit
-        alert('File is too large! Please select an image under 500KB.');
-        e.target.value = '';
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        logoDataUrl = ev.target.result;
-        updatePreview();
-    };
-    reader.readAsDataURL(file);
-});
-
-clearBtn.addEventListener('click', () => {
-    if (confirm('Are you sure you want to remove the logo?')) {
-        logoDataUrl = null;
-        updatePreview();
-    }
-});
-
-document.getElementById('settings-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const rate = document.getElementById('setPenalty').value;
-    const date = document.getElementById('setPenaltyDate').value;
-
-    Store.saveSettings({
-        penaltyRate: rate,
-        penaltyDate: date,
-        logoUrl: logoDataUrl // Save the base64 string
-    });
-    alert('Settings Saved Successfully!');
-});
-
 // --- BACKUP LOGIC ---
 document.getElementById('btn-backup').addEventListener('click', () => {
     try {
