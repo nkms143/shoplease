@@ -2025,7 +2025,7 @@ const DashboardModule = {
         // Get settings for penalty calculation
         const settings = Store.getSettings();
         const penaltyRate = settings.penaltyRate || 15;
-        const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : new Date('2000-01-01');
+        const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : new Date('2018-01-01');
 
         // Define FY dates
         const fromDate = new Date(fyYear, 3, 1); // April 1st
