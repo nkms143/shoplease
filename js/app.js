@@ -1738,8 +1738,26 @@ function initRouter() {
         btn.addEventListener('click', () => {
             navLinks.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+
+            // Close Mobile Menu
             const menu = document.querySelector('.nav-menu');
             if (menu) menu.classList.remove('show');
+            const toggleBtn = document.getElementById('mobile-menu-btn');
+            if (toggleBtn) toggleBtn.classList.remove('open');
+
+            // Force Close Desktop Dropdown (Fix for "Frozen" state)
+            const dropdownContent = btn.closest('.nav-drop-content');
+            if (dropdownContent) {
+                dropdownContent.style.display = 'none'; // Force hide
+                // Restore after delay to allow mouse movement / reset
+                setTimeout(() => {
+                    dropdownContent.style.display = '';
+                }, 300);
+            }
+            if (document.activeElement) {
+                document.activeElement.blur(); // Remove focus
+            }
+
             const target = btn.dataset.target;
             if (target) handleRoute(target);
         });

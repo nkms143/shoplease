@@ -73,3 +73,8 @@
     - [x] Update UI with "For Month/Year" Selectors
     - [x] Refactor DB Persistence (Map Period to `month/year` columns)
     - [x] Fix `matchesRemit` and `aggregateByMonth` dependencies
+
+## Phase 7: Maintenance & Bug Fixes
+- [x] **UI Polish**
+    - [x] Fix Menu 'Freeze' (Dropdowns staying open) -> Implemented 'Force Close' logic on nav click.
+    - [x] Fix Malformed HTML Tags (`< div >`) in App/Shop Modules.
