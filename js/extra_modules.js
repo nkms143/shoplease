@@ -2620,7 +2620,7 @@ const ShopLedgerModule = {
             const applicant = applicants.find(a => a.shopNo === s.shopNo);
             const opt = document.createElement('option');
             opt.value = s.shopId || s.shopNo; // Use shopId if available, fallback to shopNo
-            opt.textContent = `Shop ${s.shopNo} - ${applicant ? applicant.name : 'Vacant'}`;
+            opt.textContent = `Shop ${s.shopNo} - ${applicant ? applicant.applicantName : 'Vacant'}`;
             sel.appendChild(opt);
         });
 
@@ -2654,8 +2654,8 @@ const ShopLedgerModule = {
 
         // Populate tenant info
         document.getElementById('stmt-shop-no').textContent = shop.shopNo || 'N/A';
-        document.getElementById('stmt-name').textContent = app.name || 'N/A';
-        document.getElementById('stmt-contact').textContent = app.contact || 'N/A';
+        document.getElementById('stmt-name').textContent = app.applicantName || 'N/A';
+        document.getElementById('stmt-contact').textContent = app.contactNo || app.mobileNo || 'N/A';
         document.getElementById('stmt-date').textContent = `As on: ${new Date().toLocaleDateString('en-GB')}`;
 
         // Calculate outstanding
