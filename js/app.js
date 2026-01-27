@@ -1848,7 +1848,7 @@ const DashboardModule = {
                 <div class="glass-panel" style="background: white; border-left: 4px solid #10b981;">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
-                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Collection Efficiency</h4>
+                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;" id="kpi-efficiency-title">Collection Efficiency</h4>
                             <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #1e293b;"><span id="kpi-efficiency">0</span>%</div>
                             <small id="kpi-efficiency-sub" style="color: #94a3b8; font-size: 0.8rem;">Target: 100%</small>
                         </div>
@@ -1950,6 +1950,7 @@ const DashboardModule = {
         const today = new Date();
         const curMonth = today.getMonth();
         const startYear = curMonth >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+        const fyYear = startYear; // FY year for calculations
         const fyStart = new Date(startYear, 3, 1);
         const fyEnd = new Date(startYear + 1, 2, 31);
 
@@ -2001,20 +2002,23 @@ const DashboardModule = {
             }
         });
 
-        // Current Month Collection Efficiency
-        const currentMonthStr = today.toISOString().slice(0, 7); // YYYY-MM
-        const collectedThisMonth = payments
-            .filter(p => (p.paymentForMonth === currentMonthStr) || (p.paymentDate && p.paymentDate.startsWith(currentMonthStr)))
-            .reduce((sum, p) => sum + (parseFloat(p.grandTotal) || 0), 0);
+        // Collection Efficiency (Financial Year)
+        // Calculate Total Demand and Total Collection for FY (aligned with DCB logic)
+        let totalFyDemand = 0;
+        let totalFyCollection = 0;
 
-        const efficiency = monthlyDemand > 0 ? ((collectedThisMonth / monthlyDemand) * 100) : 0;
-        // Cap at 100% just in case of arrears payment skewing
-        // Wait, 'collectedThisMonth' logic above sums payments MADE this month? 
-        // Or payments FOR this month?
-        // Efficiency = (Collected FOR Current Month / Demand FOR Current Month).
-        // My filter `p.paymentForMonth === currentMonthStr` does exactly that.
+        applicants.forEach(app => {
+            // Use Store.calculateDCB for same logic as DCB report
+            const dcb = Store.calculateDCB(app.id, fyYear);
+            totalFyDemand += dcb.totalDemand;
+            totalFyCollection += dcb.totalCollection;
+        });
+
+        const efficiency = totalFyDemand > 0 ? ((totalFyCollection / totalFyDemand) * 100) : 0;
+        document.getElementById('kpi-efficiency-title').textContent = `Collection Efficiency (F.Y - ${fyYear}-${String(fyYear + 1).slice(-2)})`;
         document.getElementById('kpi-efficiency').textContent = Math.min(100, efficiency).toFixed(0);
-        document.getElementById('kpi-efficiency-sub').textContent = `Collected: ₹${collectedThisMonth.toLocaleString('en-IN')} / ₹${monthlyDemand.toLocaleString('en-IN')}`;
+        document.getElementById('kpi-efficiency-sub').textContent = `Collected: ₹${totalFyCollection.toLocaleString('en-IN')} / ₹${totalFyDemand.toLocaleString('en-IN')}`;
+
 
         // Defaulters Count
         document.getElementById('kpi-defaulters').textContent = defaulters.length;
@@ -2079,6 +2083,53 @@ const DashboardModule = {
                     maintainAspectRatio: false
                 }
             });
+        }
+
+        // --- CHART 2: PAYMENT MODES (FY) ---
+        const ctxMode = document.getElementById('modeChart');
+        if (ctxMode && window.Chart) {
+            // Filter payments for current FY
+            const fyStart = `${fyYear}-04-01`;
+            const fyEnd = `${fyYear + 1}-03-31`;
+            const fyPayments = payments.filter(p => {
+                const pDate = p.paymentDate || p.timestamp;
+                return pDate && pDate >= fyStart && pDate <= fyEnd;
+            });
+
+            // Count payment modes
+            const modeCounts = {};
+            fyPayments.forEach(p => {
+                const mode = p.paymentMode || 'Unknown';
+                modeCounts[mode] = (modeCounts[mode] || 0) + 1;
+            });
+
+            const modeLabels = Object.keys(modeCounts);
+            const modeData = Object.values(modeCounts);
+
+            if (modeLabels.length > 0) {
+                new Chart(ctxMode, {
+                    type: 'doughnut',
+                    data: {
+                        labels: modeLabels,
+                        datasets: [{
+                            data: modeData,
+                            backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            } else {
+                // No data
+                ctxMode.parentElement.innerHTML = '<p style="color: #94a3b8; text-align: center;">No payment data for current FY</p>';
+            }
         }
 
         // 3. Recent Transactions List
