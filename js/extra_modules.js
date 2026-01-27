@@ -156,6 +156,57 @@ const SettingsModule = {
 
         SettingsModule.renderGstList();
 
+        // ----------------------------------------
+        // Bind Logo Upload Events
+        // ----------------------------------------
+        const logoInput = document.getElementById('logo-upload');
+        const clearLogoBtn = document.getElementById('btn-clear-logo');
+        const logoPreview = document.getElementById('logo-preview');
+
+        // Initialize Preview with current setting
+        const currentSettings = Store.getSettings() || {};
+        // Reset tempLogo on re-render
+        SettingsModule.tempLogo = undefined;
+
+        if (currentSettings.logoUrl) {
+            logoPreview.src = currentSettings.logoUrl;
+            logoPreview.style.display = 'block';
+            clearLogoBtn.style.display = 'block';
+        }
+
+        if (logoInput) {
+            logoInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (file.size > 500 * 1024) { // 500KB limit
+                    alert("File too large! Max 500KB.");
+                    e.target.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    SettingsModule.tempLogo = ev.target.result; // Base64 string
+                    logoPreview.src = ev.target.result;
+                    logoPreview.style.display = 'block';
+                    clearLogoBtn.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        if (clearLogoBtn) {
+            clearLogoBtn.addEventListener('click', () => {
+                SettingsModule.tempLogo = null; // Explicit null means "remove"
+                if (logoInput) logoInput.value = '';
+                logoPreview.src = '';
+                logoPreview.style.display = 'none';
+                clearLogoBtn.style.display = 'none';
+            });
+        }
+        // ----------------------------------------
+
         // Bind Backup/Restore Events
         document.getElementById('btn-backup').addEventListener('click', () => {
             try {
