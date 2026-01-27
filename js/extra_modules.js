@@ -5,36 +5,54 @@
 const SettingsModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel" style="max-width: 500px; margin: 0 auto;">
+            <div class="glass-panel" style="max-width: 600px; margin: 0 auto;">
                 <h3>Global Application Settings</h3>
-                <form id="settings-form" style="margin-top: 2rem;">
+                <div style="margin-top: 2rem;">
                     <div class="form-group">
-                        <label class="form-label">Penalty Amount (Per Day delayed)</label>
-                        <input type="number" name="penaltyRate" id="setPenalty" class="form-input" required>
+                        <label class="form-label">Delay Penalty Rate (₹ per day)</label>
+                        <input type="number" id="set-penalty-rate" class="form-input" placeholder="e.g. 15">
                     </div>
+
+                    <div class="glass-panel" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; margin: 1rem 0;">
+                        <h5 style="margin-bottom: 0.5rem; color: var(--primary-color);">GST Rate History</h5>
+                        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
+                            Define GST rates and their effective dates. The system will automatically use the rate applicable for any given month.
+                        </p>
+
+                        <table class="data-table" style="margin-bottom: 1rem;">
+                            <thead>
+                                <tr>
+                                    <th>Effective Date</th>
+                                    <th>GST Rate (%)</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="gst-history-list">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+
+                        <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                            <div style="flex: 1;">
+                                <label class="form-label" style="font-size: 0.8rem;">New Effective Date</label>
+                                <input type="date" id="new-gst-date" class="form-input">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label" style="font-size: 0.8rem;">New Rate (%)</label>
+                                <input type="number" id="new-gst-rate" class="form-input" placeholder="e.g. 12">
+                            </div>
+                            <button onclick="SettingsModule.addGstEntry()" class="btn-primary" style="padding: 0.7rem;">+</button>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">Penalty Implementation Date</label>
-                        <input type="date" name="penaltyDate" id="setPenaltyDate" class="form-input">
-                        <small style="color: var(--text-muted); display: block; margin-top: 4px;">Penalties will only be calculated for delay days falling on or after this date.</small>
+                        <input type="date" id="set-penalty-date" class="form-input">
+                        <small style="color:#666;">Penalties will only apply for delays AFTER this date.</small>
                     </div>
 
-                    <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem;">
-                        <label class="form-label">Office Logo (For Notices)</label>
-                        <div style="display: flex; gap: 1rem; align-items: flex-start; margin-top: 0.5rem;">
-                            <div style="flex: 1;">
-                                <input type="file" id="logoUpload" accept="image/*" class="form-input">
-                                <small style="color: var(--text-muted);">Recommended: High quality PNG/JPG. Approx 200x100px.</small>
-                            </div>
-                            <div id="logo-preview-container" style="width: 100px; height: 100px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; background: #f9fafb; overflow: hidden; position: relative;">
-                                <span style="color: #999; font-size: 0.8rem;">No Logo</span>
-                                <img id="logoPreview" style="display: none; max-width: 100%; max-height: 100%;">
-                            </div>
-                        </div>
-                        <button type="button" id="btn-clear-logo" style="margin-top: 0.5rem; font-size: 0.8rem; color: #ef4444; background: none; border: none; cursor: pointer; text-decoration: underline; display: none;">Remove Logo</button>
-                    </div>
-
-                    <button type="submit" class="btn-primary" style="margin-top: 2rem; width: 100%;">Save All Settings</button>
-                </form>
+                    <button onclick="SettingsModule.save()" class="btn-primary" style="width:100%; margin-top: 1rem;">Save Settings</button>
+                </div>
 
                 <!-- BACKUP & RESTORE SECTION -->
                 <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e2e8f0;">
@@ -59,145 +77,207 @@ const SettingsModule = {
             </div>
         `;
 
-        const settings = Store.getSettings();
-        document.getElementById('setPenalty').value = settings.penaltyRate || 15;
-        if (settings.penaltyDate) {
-            document.getElementById('setPenaltyDate').value = settings.penaltyDate;
+        const s = Store.getSettings();
+        // Load Penalty Settings
+        if (s) {
+            document.getElementById('set-penalty-rate').value = s.penaltyRate || 15;
+            document.getElementById('set-penalty-date').value = s.penaltyDate || '2025-01-01';
         }
 
-        // --- Logic for Logo Upload ---
-        let logoDataUrl = settings.logoUrl || null;
-        const logoInput = document.getElementById('logoUpload');
-        const previewImg = document.getElementById('logoPreview');
-        const clearBtn = document.getElementById('btn-clear-logo');
-        const previewContainer = document.getElementById('logo-preview-container');
+        // Initialize/Load GST History
+        SettingsModule.gstHistory = s && s.gstHistory ? s.gstHistory : [];
 
-        const updatePreview = () => {
-            if (logoDataUrl) {
-                previewImg.src = logoDataUrl;
-                previewImg.style.display = 'block';
-                previewContainer.querySelector('span').style.display = 'none';
-                clearBtn.style.display = 'inline-block';
-            } else {
-                previewImg.src = '';
-                previewImg.style.display = 'none';
-                previewContainer.querySelector('span').style.display = 'inline';
-                clearBtn.style.display = 'none';
-                logoInput.value = ''; // Reset input
+        // Migration: If old settings exist but no history, create initial history
+        if ((!s || !s.gstHistory || s.gstHistory.length === 0) && s) {
+            if (s.gstBaseRate) {
+                SettingsModule.gstHistory.push({ date: '2000-01-01', rate: s.gstBaseRate });
             }
+            if (s.gstNewRate && s.gstEffectiveDate) {
+                SettingsModule.gstHistory.push({ date: s.gstEffectiveDate, rate: s.gstNewRate });
+            }
+            // Fallback if absolutely nothing
+            if (SettingsModule.gstHistory.length === 0) {
+                SettingsModule.gstHistory.push({ date: '2000-01-01', rate: 18 });
+            }
+        }
+
+        SettingsModule.renderGstList();
+
+        // Bind Backup/Restore Events (Hypothetical, assuming Store has these methods or we add them later)
+        // For now, just ensuring ID existence doesn't crash
+    },
+
+    gstHistory: [],
+
+    renderGstList() {
+        const tbody = document.getElementById('gst-history-list');
+        if (!tbody) return;
+        // Sort by Date Descending (Newest first)
+        this.gstHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        tbody.innerHTML = this.gstHistory.map((item, index) => `
+            <tr>
+                <td>${item.date}</td>
+                <td>${item.rate}%</td>
+                <td><button onclick="SettingsModule.removeGstEntry(${index})" style="color:red; background:none; border:none; cursor:pointer;">×</button></td>
+            </tr>
+        `).join('');
+    },
+
+    addGstEntry() {
+        const d = document.getElementById('new-gst-date').value;
+        const r = document.getElementById('new-gst-rate').value;
+        if (!d || !r) { alert("Enter date and rate"); return; }
+
+        this.gstHistory.push({ date: d, rate: parseFloat(r) });
+        this.renderGstList();
+
+        // Clear inputs
+        document.getElementById('new-gst-date').value = '';
+        document.getElementById('new-gst-rate').value = '';
+    },
+
+    removeGstEntry(index) {
+        this.gstHistory.splice(index, 1);
+        this.renderGstList();
+    },
+
+    save() {
+        const rate = document.getElementById('set-penalty-rate').value;
+        const date = document.getElementById('set-penalty-date').value;
+
+        if (!rate || !date) {
+            alert("Please fill required penalty fields");
+            return;
+        }
+
+        if (this.gstHistory.length === 0) {
+            alert("Please add at least one GST Rate entry (e.g. from 2000-01-01)");
+            return;
+        }
+
+        const newSettings = {
+            penaltyRate: parseFloat(rate),
+            penaltyDate: date,
+            gstHistory: this.gstHistory
         };
 
-        // Initial Render
-        updatePreview();
-
-        // Check file size limit (e.g. 500KB) to prevent localStorage quota issues
-        logoInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (file.size > 500 * 1024) { // 500KB limit
-                alert('File is too large! Please select an image under 500KB.');
-                e.target.value = '';
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                logoDataUrl = ev.target.result;
-                updatePreview();
-            };
-            reader.readAsDataURL(file);
+        Store.saveSettings(newSettings).then(() => {
+            alert("Settings Saved!");
         });
-
-        clearBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to remove the logo?')) {
-                logoDataUrl = null;
-                updatePreview();
-            }
-        });
-
-        document.getElementById('settings-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const rate = document.getElementById('setPenalty').value;
-            const date = document.getElementById('setPenaltyDate').value;
-
-            Store.saveSettings({
-                penaltyRate: rate,
-                penaltyDate: date,
-                logoUrl: logoDataUrl // Save the base64 string
-            });
-            alert('Settings Saved Successfully!');
-        });
-
-        // --- BACKUP LOGIC ---
-        document.getElementById('btn-backup').addEventListener('click', () => {
-            try {
-                const data = Store.getAllData();
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `suda-shop-backup-${new Date().toISOString().slice(0, 10)}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            } catch (err) {
-                alert('Backup Failed: ' + err.message);
-                console.error(err);
-            }
-        });
-
-        // Cloud Backup Button
-        document.getElementById('btn-cloud-backup').addEventListener('click', async () => {
-            const btn = document.getElementById('btn-cloud-backup');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>⏳</span> Saving...';
-            btn.disabled = true;
-
-            try {
-                await Store.createCloudBackup();
-                alert("Cloud Backup Created Successfully!");
-            } catch (e) {
-                console.error("Cloud Backup Failed", e);
-                alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        });
-
-        // --- RESTORE LOGIC ---
-        const restoreBtn = document.getElementById('btn-restore');
-        const fileInput = document.getElementById('restore-file-input');
-
-        restoreBtn.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (!confirm('⚠️ CRITICAL WARNING ⚠️\n\nRestoring from backup will COMPLETELY ERASE and OVERWRITE all current:\n- Shops\n- Applicants (Tenants)\n- Payments\n- History\n\nThis action cannot be undone.\n\nAre you absolutely sure you want to proceed?')) {
-                e.target.value = ''; // Reset
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const data = JSON.parse(ev.target.result);
-                    Store.restoreData(data);
-                    alert('✅ Data restored successfully! The application will now reload.');
-                    location.reload();
-                } catch (err) {
-                    alert('❌ Restore Failed: ' + err.message);
-                    console.error(err);
-                }
-            };
-            reader.readAsText(file);
-        });
-    },
+    }
 };
+
+// Initial Render
+updatePreview();
+
+// Check file size limit (e.g. 500KB) to prevent localStorage quota issues
+logoInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 500 * 1024) { // 500KB limit
+        alert('File is too large! Please select an image under 500KB.');
+        e.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        logoDataUrl = ev.target.result;
+        updatePreview();
+    };
+    reader.readAsDataURL(file);
+});
+
+clearBtn.addEventListener('click', () => {
+    if (confirm('Are you sure you want to remove the logo?')) {
+        logoDataUrl = null;
+        updatePreview();
+    }
+});
+
+document.getElementById('settings-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const rate = document.getElementById('setPenalty').value;
+    const date = document.getElementById('setPenaltyDate').value;
+
+    Store.saveSettings({
+        penaltyRate: rate,
+        penaltyDate: date,
+        logoUrl: logoDataUrl // Save the base64 string
+    });
+    alert('Settings Saved Successfully!');
+});
+
+// --- BACKUP LOGIC ---
+document.getElementById('btn-backup').addEventListener('click', () => {
+    try {
+        const data = Store.getAllData();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `suda-shop-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert('Backup Failed: ' + err.message);
+        console.error(err);
+    }
+});
+
+// Cloud Backup Button
+document.getElementById('btn-cloud-backup').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-cloud-backup');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span>⏳</span> Saving...';
+    btn.disabled = true;
+
+    try {
+        await Store.createCloudBackup();
+        alert("Cloud Backup Created Successfully!");
+    } catch (e) {
+        console.error("Cloud Backup Failed", e);
+        alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+});
+
+// --- RESTORE LOGIC ---
+const restoreBtn = document.getElementById('btn-restore');
+const fileInput = document.getElementById('restore-file-input');
+
+restoreBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!confirm('⚠️ CRITICAL WARNING ⚠️\n\nRestoring from backup will COMPLETELY ERASE and OVERWRITE all current:\n- Shops\n- Applicants (Tenants)\n- Payments\n- History\n\nThis action cannot be undone.\n\nAre you absolutely sure you want to proceed?')) {
+        e.target.value = ''; // Reset
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        try {
+            const data = JSON.parse(ev.target.result);
+            Store.restoreData(data);
+            alert('✅ Data restored successfully! The application will now reload.');
+            location.reload();
+        } catch (err) {
+            alert('❌ Restore Failed: ' + err.message);
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+});
+
 
 // ==========================================
 // NOTICE MODULE

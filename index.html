@@ -47,77 +47,88 @@
 
 
 
-    <!-- App Container (Initially Hidden via CSS class) -->
+    <!-- App Container (Top Navigation Layout) -->
     <div id="app-container" class="app-container" style="display: none;">
 
-        <aside class="sidebar">
-            <div class="logo-area">
+        <header class="navbar">
+            <div class="nav-brand">
                 <h1>SUDA</h1>
-                <p>Shop Lease Model</p>
+                <p>Shop Lease Manager</p>
             </div>
-            <nav class="main-nav">
-                <button class="nav-btn active" data-target="dashboard">
-                    <span class="icon">🏠</span> Dashboard
-                </button>
-                <button class="nav-btn" data-target="shop-module">
-                    <span class="icon">🏪</span> Shop Management
-                </button>
-                <button class="nav-btn" data-target="applicant-module">
-                    <span class="icon">👤</span> Applicant Details
-                </button>
-                <button class="nav-btn" data-target="rent">
-                    <span class="icon">💰</span> Rent Collection
-                </button>
-                <button class="nav-btn" data-target="report">
-                    <span class="icon">📊</span> Shop Transactions List
-                </button>
-                <button class="nav-btn" data-target="dcb-report">
-                    <span class="icon">📉</span> DCB Reports
-                </button>
-                <button class="nav-btn" data-target="gst-monthwise">
-                    <span class="icon">📋</span> GST Month-wise Report
-                </button>
-                <button class="nav-btn" data-target="notices">
-                    <span class="icon">📜</span> Notices
-                </button>
-                <button class="nav-btn" data-target="gst-remittance">
-                    <span class="icon">🏦</span> GST Remittance
-                </button>
-                <button class="nav-btn" data-target="waiver-module">
-                    <span class="icon">🏷️</span> Penalty Waivers
-                </button>
-                <button class="nav-btn" data-target="lease-agreement">
-                    <span class="icon">📝</span> Lease Agreement Status
-                </button>
-                <button class="nav-btn" data-target="invoices">
-                    <span class="icon">📨</span> Invoices (Auto)
-                </button>
-                <button class="nav-btn" data-target="settings">
-                    <span class="icon">⚙️</span> Settings
-                </button>
+
+            <!-- Hamburger for Mobile -->
+            <button id="mobile-menu-btn" class="mobile-menu-btn">
+                <span>☰</span>
+            </button>
+
+            <nav class="nav-menu" id="main-nav-menu">
+                <button class="nav-link active" data-target="dashboard">Dashboard</button>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Master Data ▾</button>
+                    <div class="nav-drop-content">
+                        <button class="nav-link" data-target="shop-module">Shop Management</button>
+                        <button class="nav-link" data-target="applicant-module">Tenants</button>
+                        <button class="nav-link" data-target="lease-agreement">Agreements</button>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Transactions ▾</button>
+                    <div class="nav-drop-content">
+                        <button class="nav-link" data-target="rent">Rent Collection</button>
+                        <button class="nav-link" data-target="invoices">Invoices</button>
+                        <button class="nav-link" data-target="waiver-module">Waivers</button>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Reports ▾</button>
+                    <div class="nav-drop-content">
+                        <button class="nav-link" data-target="report">Transactions List</button>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">DCB & Ledger ▾</button>
+                    <div class="nav-drop-content">
+                        <button class="nav-link" data-target="dcb-report">DCB Reports</button>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">GST ▾</button>
+                    <div class="nav-drop-content">
+                        <button class="nav-link" data-target="gst-monthwise">GST Month-wise</button>
+                        <button class="nav-link" data-target="gst-remittance">GST Remittance</button>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Communication ▾</button>
+                    <div class="nav-drop-content">
+                        <button class="nav-link" data-target="notices">Notices</button>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Admin ▾</button>
+                    <div class="nav-drop-content">
+                        <button class="nav-link" data-target="settings">Settings</button>
+                    </div>
+                </div>
             </nav>
-        </aside>
+
+            <div class="user-profile">
+                <div class="avatar">A</div>
+                <button id="btn-logout" onclick="window.logout()"
+                    style="background:none; border:none; color: white;">Logout</button>
+            </div>
+        </header>
 
         <main class="main-content">
-            <header class="top-bar">
-                <button id="mobile-menu-btn" class="mobile-menu-btn">
-                    <span>☰</span>
-                </button>
-                <h2 id="page-title">Dashboard</h2>
-                <div class="user-profile">
-                    <span>Admin User</span>
-                    <button id="btn-logout" onclick="window.logout()"
-                        style="background:none; border:none; cursor:pointer; font-size:0.8rem; color:var(--text-muted); text-decoration:underline; margin-right:10px;">Logout</button>
-                    <div class="avatar">A</div>
-                </div>
-            </header>
-
             <div id="content-area" class="content-area">
                 <!-- Dynamic Content Loaded Here -->
-                <div class="glass-panel welcome-panel">
-                    <h3>Welcome to Shop Lease Manager</h3>
-                    <p>Select a module from the sidebar to begin.</p>
-                </div>
             </div>
         </main>
     </div>

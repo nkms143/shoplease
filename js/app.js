@@ -647,6 +647,19 @@ const Store = {
     calculateOutstandingDues(app, referenceDate = new Date()) {
         const settings = this.getSettings();
         const penaltyRate = parseFloat(settings.penaltyRate) || 15;
+
+        // GST Settings (Legacy Support)
+        const globalGstBase = (parseFloat(settings.gstBaseRate) || 18) / 100;
+        const globalGstNew = (parseFloat(settings.gstNewRate) || 18) / 100;
+        const globalGstEffective = settings.gstEffectiveDate ? new Date(settings.gstEffectiveDate) : null;
+
+        // GST History (New Support)
+        // Ensure sorted descending by date (Newest first)
+        let gstHistory = settings.gstHistory || [];
+        if (gstHistory.length > 0) {
+            gstHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
         const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
         const today = referenceDate || new Date();
 
@@ -724,12 +737,43 @@ const Store = {
 
                 // Rent Logic
                 let rentBase = parseFloat(app.rentBase || app.baseRent || app.rentAmount || 0) || 0;
-                let gstAmt = parseFloat(app.gstAmount || app.gst || 0) || 0;
+                let gstAmt = 0;
+
+                // --- GST AMENDMENT LOGIC (MULTI-HISTORY) ---
+                // Find applicable rate for THIS specific month (curDate)
+                const curDate = new Date(cur.getFullYear(), cur.getMonth(), 1); // Start of the current month being processed
+                let applicableRate = 0.18; // Default Fallback
+
+                if (gstHistory && gstHistory.length > 0) {
+                    // Check history entries (Sorted Descending in initialization)
+                    for (const h of gstHistory) {
+                        // If curr month is ON or AFTER the effective date
+                        const effDate = new Date(h.date);
+                        if (curDate >= effDate) {
+                            applicableRate = (parseFloat(h.rate) || 0) / 100;
+                            break; // Found the most recent applicable rate
+                        }
+                    }
+                } else if (globalGstBase) {
+                    // Fallback to legacy settings if history missing
+                    applicableRate = globalGstBase;
+                    if (globalGstEffective && curDate >= globalGstEffective) applicableRate = globalGstNew;
+                }
 
                 if (period.meta && period.meta.entry) {
                     const e = period.meta.entry;
                     rentBase = parseFloat(e.rentBase || e.baseRent || e.rentAmount || rentBase) || rentBase;
-                    gstAmt = parseFloat(e.gstAmount || e.gst || gstAmt) || gstAmt;
+
+                    // Use historical GST if explicitly saved (frozen history)
+                    if (e.gstAmount !== undefined && e.gstAmount !== null) {
+                        gstAmt = parseFloat(e.gstAmount);
+                    } else {
+                        // No saved GST? Calculate using the rate applicable for THAT period
+                        gstAmt = rentBase * applicableRate;
+                    }
+                } else {
+                    // Active Period: Use the rate applicable for this month
+                    gstAmt = rentBase * applicableRate;
                 }
 
                 const rentTotal = rentBase + gstAmt;
@@ -1683,39 +1727,34 @@ function initRouter() {
     }
 
     if (mobileBtn) {
-        mobileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleMenu();
-        });
+        mobileBtn.addEventListener('click', toggleMenu);
     }
 
-    // Close when clicking overlay
-    overlay.addEventListener('click', closeMenu);
-
-    navBtns.forEach(btn => {
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Update UI
-            navBtns.forEach(b => b.classList.remove('active'));
+            navLinks.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-
-            // Close Menu on Mobile Selection
-            closeMenu();
-
-            // Route
+            const menu = document.querySelector('.nav-menu');
+            if (menu) menu.classList.remove('show');
             const target = btn.dataset.target;
-            handleRoute(target);
+            if (target) handleRoute(target);
         });
     });
 
-    // Default route: Check if already on a route or default to dashboard
-    handleRoute('dashboard');
+    const mobBtn = document.getElementById('mobile-menu-btn');
+    const navMenu = document.getElementById('main-nav-menu');
+    if (mobBtn && navMenu) {
+        mobBtn.addEventListener('click', () => {
+            navMenu.classList.toggle('active-mobile');
+        });
+    }
 }
 
 function handleRoute(route) {
     const contentArea = document.getElementById('content-area');
     const pageTitle = document.getElementById('page-title');
 
-    // Fade effect
     contentArea.style.opacity = '0';
     setTimeout(() => {
         contentArea.style.opacity = '1';
@@ -1784,170 +1823,247 @@ function handleRoute(route) {
 }
 
 // ==========================================
-// DASHBOARD MODULE [NEW]
+// DASHBOARD MODULE [NEW - ANALYTICS]
 // ==========================================
 const DashboardModule = {
     render(container) {
         container.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-                <!-- KPI Cards -->
-                <div class="glass-panel" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white;">
-                    <h4 style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Total Revenue</h4>
-                    <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-revenue">0</span></div>
-                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-top: 0.5rem; display:none;">+12% from last month</div>
-                </div>
+            <div style="margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 0.5rem;">Analytics Overview</h3>
+                <p style="color: var(--text-muted);">Real-time financial pulse and tenant performance.</p>
+            </div>
 
-                <div class="glass-panel" style="background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); color: white;">
-                    <h4 style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Total Shops</h4>
-                    <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;"><span id="kpi-shops">0</span></div>
-                     <div style="font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-top: 0.5rem;">
-                        <span id="kpi-occupied">0</span> Occupied / <span id="kpi-available">0</span> Available
+            <!-- KEY METRICS GRID -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- 1. Gross Revenue (FY) -->
+                <div class="glass-panel" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white;">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <h4 style="color: rgba(255,255,255,0.8); font-size: 0.85rem; text-transform: uppercase;">Total Revenue (FY)</h4>
+                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-revenue">0</span></div>
+                        </div>
+                        <span style="font-size: 1.5rem;">💰</span>
                     </div>
                 </div>
 
-                <div class="glass-panel" style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); color: white;">
-                    <h4 style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Pending Dues</h4>
-                    <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-dues">0</span></div>
-                   <div style="font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-top: 0.5rem;">Estimated Arrears</div>
+                <!-- 2. Collection Efficiency -->
+                <div class="glass-panel" style="background: white; border-left: 4px solid #10b981;">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Collection Efficiency</h4>
+                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #1e293b;"><span id="kpi-efficiency">0</span>%</div>
+                            <small id="kpi-efficiency-sub" style="color: #94a3b8; font-size: 0.8rem;">Target: 100%</small>
+                        </div>
+                        <div style="height: 40px; width: 40px; border-radius: 50%; border: 3px solid #10b981; display:flex; align-items:center; justify-content:center; color:#10b981; font-weight:bold;">%</div>
+                    </div>
+                </div>
+
+                <!-- 3. Critical Defaulters -->
+                <div class="glass-panel" style="background: white; border-left: 4px solid #ef4444;">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Critical Defaulters</h4>
+                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #ef4444;"><span id="kpi-defaulters">0</span></div>
+                            <small style="color: #94a3b8; font-size: 0.8rem;">> 2 Months Pending</small>
+                        </div>
+                        <span style="font-size: 1.5rem;">⚠️</span>
+                    </div>
+                </div>
+
+                <!-- 4. Occupancy -->
+                <div class="glass-panel" style="background: white; border-left: 4px solid #3b82f6;">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Occupancy</h4>
+                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #1e293b;"><span id="kpi-occupied">0</span>/<span id="kpi-total">0</span></div>
+                            <small style="color: #94a3b8; font-size: 0.8rem;">Shops Occupied</small>
+                        </div>
+                        <span style="font-size: 1.5rem;">🏪</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Charts Section -->
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- CHARTS SECTION -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;" class="charts-container">
                 <div class="glass-panel">
-                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Revenue Trend (Last 6 Months)</h4>
+                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Monthly Revenue Trend</h4>
                     <div style="height: 300px; position: relative;">
                         <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
                 <div class="glass-panel">
-                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Shop Occupancy</h4>
+                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Payment Modes (FY)</h4>
                     <div style="height: 250px; position: relative; display: flex; align-items: center; justify-content: center;">
-                        <canvas id="occupancyChart"></canvas>
+                        <canvas id="modeChart"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Recent Activity -->
-            <div class="glass-panel">
-                <h4 style="margin-bottom: 1rem; color: var(--text-color);">Recent Payments</h4>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Shop No</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dash-recent-list"></tbody>
-                    </table>
+            <!-- BOTTOM SECTION: TOP DEFAULTERS & EXPIRING LEASES -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <!-- Top Defaulters -->
+                <div class="glass-panel">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                        <h4 style="color: var(--text-color);">Top Defaulters</h4>
+                        <button class="btn-primary" onclick="ReportModule.renderDCB && ReportModule.renderDCB()" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Shop</th>
+                                    <th>Name</th>
+                                    <th style="text-align:right;">Pending Due</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-defaulters-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Expiring Leases -->
+                 <div class="glass-panel">
+                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Leases Expiring Soon (< 30 Days)</h4>
+                    <div class="table-container">
+                         <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Shop</th>
+                                    <th>Expiry Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-expiry-list"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         `;
 
-        this.loadData();
+        this.loadAnalytics();
     },
 
-    loadData() {
+    loadAnalytics() {
         const shops = Store.getShops();
         const payments = Store.getPayments();
         const applicants = Store.getApplicants();
 
-        // --- KPI: Shops ---
-        const totalShops = shops.length;
-        const occupied = shops.filter(s => s.status === 'Occupied').length;
-        const available = totalShops - occupied;
-
-        document.getElementById('kpi-shops').textContent = totalShops;
-        document.getElementById('kpi-occupied').textContent = occupied;
-        document.getElementById('kpi-available').textContent = available;
-
-        // --- KPI: Revenue (Current FY Only) ---
-        // Determine Current FY
+        // 1. Current FY Logic
         const today = new Date();
-        const curMonth = today.getMonth(); // 0-11
+        const curMonth = today.getMonth();
         const startYear = curMonth >= 3 ? today.getFullYear() : today.getFullYear() - 1;
-        const fyStart = new Date(startYear, 3, 1); // April 1st
-        const fyEnd = new Date(startYear + 1, 2, 31); // March 31st next year
+        const fyStart = new Date(startYear, 3, 1);
+        const fyEnd = new Date(startYear + 1, 2, 31);
 
+        // --- KPI 1: Revenue ---
         let totalRev = 0;
+        const modeCounts = { 'Cash': 0, 'Online': 0, 'DD/Cheque': 0 };
+
         payments.forEach(p => {
-            // Use paymentDate if available, else timestamp
-            const pDateStr = p.paymentDate || p.timestamp;
-            if (pDateStr) {
-                const pDate = new Date(pDateStr);
-                if (pDate >= fyStart && pDate <= fyEnd) {
-                    totalRev += (parseFloat(p.grandTotal || p.totalRent || 0) || 0);
+            const pDate = new Date(p.paymentDate || p.timestamp);
+            if (pDate >= fyStart && pDate <= fyEnd) {
+                const amt = parseFloat(p.grandTotal || 0);
+                totalRev += amt;
+
+                // Mode calc
+                let m = p.paymentMethod || 'Cash';
+                if (m.toLowerCase().includes('online')) m = 'Online';
+                else if (m.toLowerCase().includes('dd') || m.includes('check') || m.includes('cheque')) m = 'DD/Cheque';
+                else m = 'Cash';
+                modeCounts[m] += amt;
+            }
+        });
+        document.getElementById('kpi-revenue').textContent = totalRev.toLocaleString('en-IN'); // Format
+
+        // --- KPI 4: Occupancy ---
+        const total = shops.length;
+        const occ = shops.filter(s => s.status === 'Occupied').length;
+        document.getElementById('kpi-total').textContent = total;
+        document.getElementById('kpi-occupied').textContent = occ;
+
+        // --- KPI 2 & 3: Efficiency & Defaulters ---
+        // We need 'Expected Monthly Collection' vs 'Actual'.
+        // Simple heuristic: Sum of Rent+GST for all Active Tenants = Monthly Demand.
+        let monthlyDemand = 0;
+        let defaulters = [];
+        let totalDues = 0;
+
+        applicants.forEach(app => {
+            // Determine monthly rent
+            const rent = parseFloat(app.rentTotal || 0);
+            monthlyDemand += rent;
+
+            // Check details for defaulters using Unified Logic
+            const dues = Store.calculateOutstandingDues(app); // Uses dynamic GST info now
+            if (dues.totalAmount > 100) { // Tolerance
+                // Check month count
+                if (dues.monthsCount > 2) {
+                    defaulters.push({ ...app, dues: dues.totalAmount, months: dues.monthsCount });
                 }
             }
         });
-        document.getElementById('kpi-revenue').textContent = totalRev.toLocaleString('en-IN');
-        // Update label to reflect scope
-        const kpiLabel = document.querySelector('#kpi-revenue').parentNode.previousElementSibling;
-        if (kpiLabel) kpiLabel.textContent = `Revenue (FY ${startYear}-${String(startYear + 1).slice(-2)})`;
+
+        // Current Month Collection Efficiency
+        const currentMonthStr = today.toISOString().slice(0, 7); // YYYY-MM
+        const collectedThisMonth = payments
+            .filter(p => (p.paymentForMonth === currentMonthStr) || (p.paymentDate && p.paymentDate.startsWith(currentMonthStr)))
+            .reduce((sum, p) => sum + (parseFloat(p.grandTotal) || 0), 0);
+
+        const efficiency = monthlyDemand > 0 ? ((collectedThisMonth / monthlyDemand) * 100) : 0;
+        // Cap at 100% just in case of arrears payment skewing
+        // Wait, 'collectedThisMonth' logic above sums payments MADE this month? 
+        // Or payments FOR this month?
+        // Efficiency = (Collected FOR Current Month / Demand FOR Current Month).
+        // My filter `p.paymentForMonth === currentMonthStr` does exactly that.
+        document.getElementById('kpi-efficiency').textContent = Math.min(100, efficiency).toFixed(0);
+        document.getElementById('kpi-efficiency-sub').textContent = `Collected: ₹${collectedThisMonth.toLocaleString('en-IN')} / ₹${monthlyDemand.toLocaleString('en-IN')}`;
+
+        // Defaulters Count
+        document.getElementById('kpi-defaulters').textContent = defaulters.length;
+
+        // --- TOP DEFAULTERS TABLE ---
+        defaulters.sort((a, b) => b.dues - a.dues); // Descending
+        const top5 = defaulters.slice(0, 5);
+        document.getElementById('dash-defaulters-list').innerHTML = top5.map(d => `
+            <tr>
+                <td><strong>${d.shopNo}</strong></td>
+                <td>${d.applicantName}</td>
+                <td style="text-align:right; color:#ef4444; font-weight:bold;">₹${d.dues.toLocaleString('en-IN')}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="3" style="text-align:center; color:green;">No critical defaulters.</td></tr>';
 
 
-        // --- KPI: Dues Estimate ---
-        const duesEl = document.getElementById('kpi-dues');
-
-        // Calculate Total Pending Dues (Matching DCB Report Logic)
-        if (typeof ReportModule !== 'undefined' && ReportModule.calculateDCBForApplicant) {
-            const settings = Store.getSettings();
-            const penaltyRate = parseFloat(settings.penaltyRate) || 15;
-            const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
-
-            let totalPending = 0;
-            try {
-                applicants.forEach(app => {
-                    // Use ReportModule logic to ensure Dashboard matches DCB Report "Total Balance"
-                    const res = ReportModule.calculateDCBForApplicant(app, fyStart, fyEnd, payments, penaltyRate, impDate);
-                    totalPending += (res.totalBalance || 0);
-                });
-                duesEl.textContent = totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            } catch (e) {
-                console.error("Dashboard dues calc error:", e);
-                duesEl.textContent = "View Reports";
-            }
-        } else {
-            console.warn("ReportModule not loaded, falling back to simple view");
-            duesEl.textContent = "View Reports";
-        }
-
-        duesEl.style.fontSize = "2rem";
-        duesEl.style.textDecoration = "none";
-        duesEl.style.cursor = "pointer";
-        duesEl.title = "Click to view full DCB Report";
-
-        duesEl.parentElement.onclick = () => {
-            // Navigate to DCB Report
-            const btn = document.querySelector('.nav-btn[data-target="dcb-report"]');
-            if (btn) btn.click();
-        };
-
-        // --- CHART: Revenue Trend ---
+        // --- EXPIRING SOON ---
+        const expiring = applicants.filter(app => {
+            if (!app.expiryDate) return false;
+            const exp = new Date(app.expiryDate);
+            const diff = (exp - today) / (1000 * 60 * 60 * 24);
+            return diff > 0 && diff < 30;
+        });
+        document.getElementById('dash-expiry-list').innerHTML = expiring.map(d => `
+            <tr>
+                <td>${d.shopNo}</td>
+                <td>${d.expiryDate}</td>
+                <td><button class="btn-primary" style="padding:2px 8px; font-size:0.7rem;">Renew</button></td>
+            </tr>
+        `).join('') || '<tr><td colspan="3" style="text-align:center; color:#94a3b8;">No leases expiring soon.</td></tr>';
 
 
-        // --- CHART: Revenue Trend ---
+        // --- CHART 1: REVENUE TREND (Last 6 Months) ---
         const ctxRev = document.getElementById('revenueChart');
         if (ctxRev && window.Chart) {
-            // Get last 6 months labels
             const labels = [];
             const data = [];
-            const today = new Date();
-
             for (let i = 5; i >= 0; i--) {
                 const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-                labels.push(label);
+                const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                labels.push(d.toLocaleString('default', { month: 'short' }));
 
-                // Sum payments for this month
-                const monthlyTotal = payments
-                    .filter(p => (p.paymentForMonth === monthStr) || (p.paymentDate && p.paymentDate.startsWith(monthStr)))
-                    .reduce((sum, p) => sum + (parseFloat(p.grandTotal || 0) || 0), 0);
-                data.push(monthlyTotal);
+                // Sum payments made in this month (Cash Flow)
+                const monthTotal = payments
+                    .filter(p => p.paymentDate && p.paymentDate.startsWith(mStr))
+                    .reduce((sum, p) => sum + (parseFloat(p.grandTotal || 0)), 0);
+                data.push(monthTotal);
             }
 
             new Chart(ctxRev, {
@@ -1955,63 +2071,26 @@ const DashboardModule = {
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Revenue (₹)',
+                        label: 'Cash Flow (₹)',
                         data: data,
                         backgroundColor: '#6366f1',
-                        borderRadius: 4,
-                        barThickness: 20
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { borderDash: [2, 4], color: '#e2e8f0' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
+                    maintainAspectRatio: false
                 }
             });
         }
 
-        // --- CHART: Occupancy ---
-        const ctxOcc = document.getElementById('occupancyChart');
-        if (ctxOcc && window.Chart) {
-            new Chart(ctxOcc, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Occupied', 'Available'],
-                    datasets: [{
-                        data: [occupied, available],
-                        backgroundColor: ['#10b981', '#cbd5e1'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    },
-                    cutout: '70%'
-                }
-            });
-        }
-
-        // --- LIST: Recent Payments ---
-        // Sort by paymentDate desc (primary)
-        const sortedPayments = [...payments].sort((a, b) => {
+        // 3. Recent Transactions List
+        // (Recovered Logic)
+        const allPayments = Store.getPayments();
+        const sortedPayments = allPayments.sort((a, b) => {
             const dateA = new Date(a.paymentDate || a.timestamp || 0);
             const dateB = new Date(b.paymentDate || b.timestamp || 0);
             return dateB - dateA;
-        }).slice(0, 5); // Take top 5
+        }).slice(0, 5);
 
         const listBody = document.getElementById('dash-recent-list');
         if (sortedPayments.length === 0) {
@@ -2031,13 +2110,13 @@ const DashboardModule = {
                     }
                 }
                 return `
-                <tr>
-                    <td>${dateDisplay}</td>
-                    <td><strong>${p.shopNo}</strong></td>
-                    <td>₹${(parseFloat(p.grandTotal || 0)).toFixed(2)}</td>
-                    <td><span style="font-size:0.75rem; background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px;">Paid</span></td>
-                </tr>
-            `}).join('');
+            <tr>
+                <td>${dateDisplay}</td>
+                <td><strong>${p.shopNo}</strong></td>
+                <td>₹${(parseFloat(p.grandTotal || 0)).toFixed(2)}</td>
+                <td><span style="font-size:0.75rem; background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px;">Paid</span></td>
+            </tr>
+        `}).join('');
         }
     }
 };
@@ -3416,3 +3495,8 @@ const RentModule = {
 
 
 window.RentModule = RentModule;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    AuthModule.checkSession();
+});
