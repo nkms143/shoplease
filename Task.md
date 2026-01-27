@@ -78,3 +78,4 @@
 - [x] **UI Polish**
     - [x] Fix Menu 'Freeze' (Dropdowns staying open) -> Implemented 'Force Close' logic on nav click.
     - [x] Fix Malformed HTML Tags (`< div >`) in App/Shop Modules.
+    - [ ] Debug DCB Penalty Discrepancy (Shop 01 Arrear Penalty increased).

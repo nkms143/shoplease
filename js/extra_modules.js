@@ -2328,7 +2328,7 @@ const ReportModule = {
                 if (payment) {
                     const pDateStr = payment.paymentDate || payment.timestamp;
                     if (pDateStr) {
-                        const pDate = new Date(pDateStr);
+                        const pDate = parseLocal(pDateStr);
                         if (!isNaN(pDate.getTime()) && pDate < reportStart) {
                             isSettledBeforeReport = true;
                         }
