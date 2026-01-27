@@ -337,7 +337,7 @@ const Store = {
         shops: [],
         applicants: [],
         payments: [],
-        settings: { penaltyRate: 16, penaltyDate: '2025-01-01', logoUrl: null }, // Default
+        settings: { penaltyRate: 16, penaltyDate: '2023-01-01', logoUrl: null }, // Default
         remittances: [],
         waivers: [],
         history: []
@@ -2014,12 +2014,32 @@ const DashboardModule = {
         let totalFyDemand = 0;
         let totalFyCollection = 0;
 
+        // Get settings for penalty calculation
+        const settings = Store.getSettings();
+        const penaltyRate = settings.penaltyRate || 15;
+        const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : new Date('2000-01-01');
+
+        // Define FY dates
+        const fromDate = new Date(fyYear, 3, 1); // April 1st
+        const toDate = new Date(fyYear + 1, 2, 31); // March 31st
+
+        console.log('Collection Efficiency Debug:', {
+            fyYear,
+            fromDate: fromDate.toISOString(),
+            toDate: toDate.toISOString(),
+            totalApplicants: applicants.length,
+            totalPayments: payments.length
+        });
+
         applicants.forEach(app => {
-            // Use Store.calculateDCB for same logic as DCB report
-            const dcb = Store.calculateDCB(app.id, fyYear);
+            // Use ReportModule.calculateDCBForApplicant for same logic as DCB report
+            const dcb = ReportModule.calculateDCBForApplicant(app, fromDate, toDate, payments, penaltyRate, implementationDate);
+            console.log(`Applicant ${app.name}:`, { totalDemand: dcb.totalDemand, totalCollection: dcb.totalCollection });
             totalFyDemand += dcb.totalDemand;
             totalFyCollection += dcb.totalCollection;
         });
+
+        console.log('Collection Efficiency Totals:', { totalFyDemand, totalFyCollection });
 
         const efficiency = totalFyDemand > 0 ? ((totalFyCollection / totalFyDemand) * 100) : 0;
         document.getElementById('kpi-efficiency-title').textContent = `Collection Efficiency (F.Y - ${fyYear}-${String(fyYear + 1).slice(-2)})`;

@@ -215,7 +215,7 @@ const SettingsModule = {
         }
 
         if (this.gstHistory.length === 0) {
-            alert("Please add at least one GST Rate entry (e.g. from 2000-01-01)");
+            alert("Please add at least one GST Rate entry (e.g. from 2018-01-01)");
             return;
         }
 
