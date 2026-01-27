@@ -103,8 +103,71 @@ const SettingsModule = {
 
         SettingsModule.renderGstList();
 
-        // Bind Backup/Restore Events (Hypothetical, assuming Store has these methods or we add them later)
-        // For now, just ensuring ID existence doesn't crash
+        // Bind Backup/Restore Events
+        document.getElementById('btn-backup').addEventListener('click', () => {
+            try {
+                const data = Store.getAllData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `suda-shop-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Backup Failed: ' + err.message);
+                console.error(err);
+            }
+        });
+
+        document.getElementById('btn-cloud-backup').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-cloud-backup');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Saving...';
+            btn.disabled = true;
+
+            try {
+                await Store.createCloudBackup();
+                alert("Cloud Backup Created Successfully!");
+            } catch (e) {
+                console.error("Cloud Backup Failed", e);
+                alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        const restoreBtn = document.getElementById('btn-restore');
+        const fileInput = document.getElementById('restore-file-input');
+
+        restoreBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!confirm('⚠️ CRITICAL WARNING ⚠️\n\nRestoring from backup will COMPLETELY ERASE and OVERWRITE all current:\n- Shops\n- Applicants (Tenants)\n- Payments\n- History\n\nThis action cannot be undone.\n\nAre you absolutely sure you want to proceed?')) {
+                e.target.value = ''; // Reset
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    Store.restoreData(data);
+                    alert('✅ Data restored successfully! The application will now reload.');
+                    location.reload();
+                } catch (err) {
+                    alert('❌ Restore Failed: ' + err.message);
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        });
     },
 
     gstHistory: [],
@@ -167,75 +230,6 @@ const SettingsModule = {
         });
     }
 };
-
-// --- BACKUP LOGIC ---
-document.getElementById('btn-backup').addEventListener('click', () => {
-    try {
-        const data = Store.getAllData();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `suda-shop-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (err) {
-        alert('Backup Failed: ' + err.message);
-        console.error(err);
-    }
-});
-
-// Cloud Backup Button
-document.getElementById('btn-cloud-backup').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-cloud-backup');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span>⏳</span> Saving...';
-    btn.disabled = true;
-
-    try {
-        await Store.createCloudBackup();
-        alert("Cloud Backup Created Successfully!");
-    } catch (e) {
-        console.error("Cloud Backup Failed", e);
-        alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-});
-
-// --- RESTORE LOGIC ---
-const restoreBtn = document.getElementById('btn-restore');
-const fileInput = document.getElementById('restore-file-input');
-
-restoreBtn.addEventListener('click', () => fileInput.click());
-
-fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (!confirm('⚠️ CRITICAL WARNING ⚠️\n\nRestoring from backup will COMPLETELY ERASE and OVERWRITE all current:\n- Shops\n- Applicants (Tenants)\n- Payments\n- History\n\nThis action cannot be undone.\n\nAre you absolutely sure you want to proceed?')) {
-        e.target.value = ''; // Reset
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        try {
-            const data = JSON.parse(ev.target.result);
-            Store.restoreData(data);
-            alert('✅ Data restored successfully! The application will now reload.');
-            location.reload();
-        } catch (err) {
-            alert('❌ Restore Failed: ' + err.message);
-            console.error(err);
-        }
-    };
-    reader.readAsText(file);
-});
-
 
 // ==========================================
 // NOTICE MODULE
