@@ -727,13 +727,22 @@ const Store = {
 
                 let p = 0;
                 if (today > dueDate) {
-                    let startCounting = dueDate;
-                    if (implementationDate && implementationDate > dueDate) {
-                        startCounting = implementationDate;
+                    // Normalize startCounting
+                    let startCounting = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+
+                    if (implementationDate) {
+                        // normalize implementationDate to midnight
+                        const impMidnight = new Date(implementationDate.getFullYear(), implementationDate.getMonth(), implementationDate.getDate());
+                        if (impMidnight > startCounting) {
+                            startCounting = impMidnight;
+                        }
                     }
-                    if (today > startCounting) {
-                        const diffTime = Math.abs(today - startCounting);
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    // Check diff
+                    const diffTime = todayMidnight - startCounting;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (todayMidnight > startCounting && diffDays > 0) {
                         p = diffDays * penaltyRate;
                     }
                 }
