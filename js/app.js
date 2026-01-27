@@ -2023,23 +2023,12 @@ const DashboardModule = {
         const fromDate = new Date(fyYear, 3, 1); // April 1st
         const toDate = new Date(fyYear + 1, 2, 31); // March 31st
 
-        console.log('Collection Efficiency Debug:', {
-            fyYear,
-            fromDate: fromDate.toISOString(),
-            toDate: toDate.toISOString(),
-            totalApplicants: applicants.length,
-            totalPayments: payments.length
-        });
-
         applicants.forEach(app => {
             // Use ReportModule.calculateDCBForApplicant for same logic as DCB report
             const dcb = ReportModule.calculateDCBForApplicant(app, fromDate, toDate, payments, penaltyRate, implementationDate);
-            console.log(`Applicant ${app.name}:`, { totalDemand: dcb.totalDemand, totalCollection: dcb.totalCollection });
             totalFyDemand += dcb.totalDemand;
             totalFyCollection += dcb.totalCollection;
         });
-
-        console.log('Collection Efficiency Totals:', { totalFyDemand, totalFyCollection });
 
         const efficiency = totalFyDemand > 0 ? ((totalFyCollection / totalFyDemand) * 100) : 0;
         document.getElementById('kpi-efficiency-title').textContent = `Collection Efficiency (F.Y - ${fyYear}-${String(fyYear + 1).slice(-2)})`;

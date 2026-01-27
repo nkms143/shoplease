@@ -2663,15 +2663,15 @@ const ShopLedgerModule = {
         const tbody = document.getElementById('stmt-tbody');
 
         let html = '';
-        if (dues.months && dues.months.length > 0) {
-            dues.months.forEach((m, idx) => {
+        if (dues.details && dues.details.length > 0) {
+            dues.details.forEach((m, idx) => {
                 html += `
                 <tr>
                     <td class="data-cell" style="padding: 8px;">${idx + 1}</td>
-                    <td class="data-cell" style="padding: 8px;">${m.monthDisplay}</td>
-                    <td class="data-cell" style="text-align: right; padding: 8px;">₹${(m.baseRent + m.gst).toFixed(2)}</td>
+                    <td class="data-cell" style="padding: 8px;">${m.month}</td>
+                    <td class="data-cell" style="text-align: right; padding: 8px;">₹${m.rent.toFixed(2)}</td>
                     <td class="data-cell" style="text-align: right; padding: 8px;">₹${m.penalty.toFixed(2)}</td>
-                    <td class="data-cell" style="text-align: right; padding: 8px; font-weight: bold;">₹${(m.baseRent + m.gst + m.penalty).toFixed(2)}</td>
+                    <td class="data-cell" style="text-align: right; padding: 8px; font-weight: bold;">₹${(m.rent + m.penalty).toFixed(2)}</td>
                 </tr>
             `;
             });
@@ -2683,6 +2683,8 @@ const ShopLedgerModule = {
                     <td style="text-align: right; padding: 10px; font-size: 1.1rem;">₹${dues.totalAmount.toFixed(2)}</td>
                 </tr>
             `;
+        } else {
+            html = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No outstanding dues</td></tr>';
         }
 
         tbody.innerHTML = html;
