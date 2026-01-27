@@ -1755,9 +1755,7 @@ function initRouter() {
 }
 
 // GLOBAL ROUTER (Exposed for HTML OnClick)
-window.handleRoute = function (route) {
-    handleRoute(route);
-}
+// window.handleRoute is automatically set by the function declaration below in non-module scripts
 
 function handleRoute(route) {
     const contentArea = document.getElementById('content-area');
