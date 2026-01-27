@@ -20,6 +20,20 @@ const SettingsModule = {
                     </div>
 
                     <div class="glass-panel" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; margin: 1rem 0;">
+                        <h5 style="margin-bottom: 0.5rem; color: var(--primary-color);">Organization Logo</h5>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="flex-shrink: 0;">
+                                <img id="logo-preview" src="" alt="No Logo" style="height: 60px; max-width: 150px; border: 1px dashed #cbd5e1; display: none;">
+                            </div>
+                            <div style="flex-grow: 1;">
+                                <input type="file" id="logo-upload" accept="image/*" class="form-input">
+                                <small style="color:#666; display:block;">Select an image to appear on notices (Max 500KB).</small>
+                            </div>
+                            <button id="btn-clear-logo" class="btn-primary" style="background: #ef4444; padding: 0.5rem 0.8rem; font-size: 0.8rem; display: none;">Remove</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; margin: 1rem 0;">
                         <h5 style="margin-bottom: 0.5rem; color: var(--primary-color);">GST Rate History</h5>
                         <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
                             Define GST rates and their effective dates. The system will automatically use the rate applicable for any given month.
@@ -86,6 +100,45 @@ const SettingsModule = {
 
         // Initialize/Load GST History
         SettingsModule.gstHistory = s && s.gstHistory ? s.gstHistory : [];
+
+        // Load Logo
+        if (s && s.logoUrl) {
+            const preview = document.getElementById('logo-preview');
+            const clearBtn = document.getElementById('btn-clear-logo');
+            preview.src = s.logoUrl;
+            preview.style.display = 'block';
+            clearBtn.style.display = 'block';
+        }
+
+        // Logo Upload Handler
+        document.getElementById('logo-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 500 * 1024) {
+                alert("File too large! Please select an image under 500KB.");
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const base64 = ev.target.result;
+                document.getElementById('logo-preview').src = base64;
+                document.getElementById('logo-preview').style.display = 'block';
+                document.getElementById('btn-clear-logo').style.display = 'block';
+                SettingsModule.tempLogo = base64; // Stored temporarily until Save
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('btn-clear-logo').addEventListener('click', () => {
+            document.getElementById('logo-preview').src = '';
+            document.getElementById('logo-preview').style.display = 'none';
+            document.getElementById('logo-upload').value = '';
+            document.getElementById('btn-clear-logo').style.display = 'none';
+            SettingsModule.tempLogo = null; // Explicit null to indicate removal
+        });
 
         // Migration: If old settings exist but no history, create initial history
         if ((!s || !s.gstHistory || s.gstHistory.length === 0) && s) {
@@ -224,6 +277,19 @@ const SettingsModule = {
             penaltyDate: date,
             gstHistory: this.gstHistory
         };
+
+        // Handle Logo Update
+        // Logic: 
+        // 1. If tempLogo is string -> User uploaded new logo -> Save it
+        // 2. If tempLogo is null -> User clicked Clear -> Remove it
+        // 3. If tempLogo is undefined -> User did nothing -> Keep old logo
+
+        const oldSettings = Store.getSettings() || {};
+        if (this.tempLogo !== undefined) {
+            newSettings.logoUrl = this.tempLogo; // Can be string or null
+        } else {
+            newSettings.logoUrl = oldSettings.logoUrl; // Preserve existing
+        }
 
         Store.saveSettings(newSettings).then(() => {
             alert("Settings Saved!");
@@ -385,10 +451,13 @@ const NoticeModule = {
                     <title>Print Notice</title>
                     <style>
                         @media print {
-                            @page { size: A4 portrait; margin: 15mm 20mm; }
-                            body { margin: 0; padding: 0; font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.4; color: black; }
+                            @page { size: A4 portrait; margin: 10mm; }
+                            html, body { height: auto !important; overflow: visible !important; }
+                            body { margin: 0; padding: 0; font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; color: black; box-sizing: border-box; width: 100%; }
+                            .notice-content { width: 100%; max-width: 100%; box-sizing: border-box; }
+                            img { max-width: 100% !important; }
                         }
-                        body { font-family: 'Times New Roman', serif; font-size: 12pt; }
+                        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; }
                         .notice-content { width: 100%; }
                     </style>
                 </head>
@@ -437,15 +506,16 @@ const NoticeModule = {
             if (settings.logoUrl) {
                 logoHtml = `
                     <div style="text-align: right; margin-bottom: 0;">
-                        <img src="${settings.logoUrl}" style="height: 90px; max-width: 250px; object-fit: contain;">
+                        <img src="${settings.logoUrl}" style="height: 90px; max-width: 250px; object-fit: contain; display: inline-block;">
                     </div>
                 `;
             } else {
+                // FALLBACK LOGO IF NONE UPLOADED
                 logoHtml = `
                     <div style="text-align: right; margin-bottom: 0;">
-                         <div style="display:inline-block; text-align:center;">
+                         <div style="display:inline-block; text-align:center; border: 2px solid #047857; padding: 5px 10px;">
                             <span style="font-weight:900; font-size: 20pt; color: #047857; display:block; line-height:1;">SUDA</span>
-                            <span style="font-size: 6pt; letter-spacing: 1px;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</span>
+                            <span style="font-size: 6pt; letter-spacing: 1px; font-weight: bold;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</span>
                          </div>
                     </div>
                 `;
@@ -457,26 +527,26 @@ const NoticeModule = {
                 ${logoHtml}
 
                 <!-- Main Header -->
-                <div style="text-align: center; margin-bottom: 1rem;">
+                <div style="text-align: center; margin-bottom: 0.5rem;">
                     <h2 style="margin: 0; font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Office of the Siddipet Urban Development Authority</h2>
                     <h2 style="margin: 2px 0 0 0; font-size: 12pt; font-weight: bold; text-transform: uppercase;">Siddipet District</h2>
                 </div>
 
                 <!-- Date -->
-                <div style="text-align: right; margin-bottom: 1rem; font-weight: bold;">
+                <div style="text-align: right; margin-bottom: 0.5rem; font-weight: bold;">
                     Dt: ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}
                 </div>
 
                 <!-- Notice Title -->
-                <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div style="text-align: center; margin-bottom: 1rem;">
                     <span style="font-size: 14pt; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 2px;">N O T I C E</span>
                 </div>
 
-                <!-- Subject Section -->
-                <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                    <div style="font-weight: bold; white-space: nowrap; margin-right: 1rem; text-decoration: underline;">Sub:-</div>
-                    <div style="text-align: justify; flex: 1;">
-                        SUDA Siddipet – Letting out of SUDA Shop No. <strong>${app.shopNo}</strong>, in favor of <strong>${app.applicantName}</strong> 
+                <!-- Subject Section with Hanging Indent -->
+                <div style="display: flex; align-items: flex-start; margin-bottom: 0.5rem; margin-left: 2.5rem; font-size: 12pt; line-height: 1.5;">
+                    <div style="font-weight: bold; white-space: nowrap; width: 3.5rem; text-decoration: underline; flex-shrink: 0;">Sub:-</div>
+                    <div style="text-align: justify; line-height: 1.5;">
+                         SUDA Siddipet – Letting out of SUDA Shop No. <strong>${app.shopNo}</strong>, in favor of <strong>${app.applicantName}</strong> 
                         being the highest bidder for <u>Rs. ${app.rentTotal}</u> per month plus GST@18% w.e.f 
                         ${new Date(app.rentStartDate || app.leaseDate).toLocaleString('default', { month: 'long', year: 'numeric' })} – 
                         Monthly rent for the months from <strong>${dues.details.length > 0 ? dues.details[0].month : '...'}</strong> to 
@@ -489,19 +559,19 @@ const NoticeModule = {
                 </div>
 
                 <!-- Separator -->
-                <div style="text-align: center; margin: 1rem 0; letter-spacing: 3px;">
+                <div style="text-align: center; margin: 0.5rem 0; letter-spacing: 3px;">
                     &lt;&lt;&lt;&gt;&gt;&gt;
                 </div>
 
                 <!-- Body Paragraph 1 -->
-                <p style="text-align: justify; text-indent: 2.5rem; margin-bottom: 1rem; margin-top: 0;">
+                <p style="text-align: justify; text-indent: 2.5rem; margin-bottom: 2rem; margin-top: 0; font-size: 12pt; line-height: 1.5;">
                     It is fact that you had allotted SUDA shop no. <strong>${app.shopNo}</strong> for Rs. ${app.rentTotal} (Including GST) 
                     being the highest bidder. But whereas, you have not been paid the monthly rent for the months from 
                     <strong>${monthsText}</strong> inspite of repeated oral request of this office.
                 </p>
 
                 <!-- Body Paragraph 2 -->
-                <p style="text-align: justify; text-indent: 2.5rem; margin-bottom: 2rem;">
+                <p style="text-align: justify; text-indent: 2.5rem; margin-bottom: 2rem; font-size: 12pt; line-height: 1.5;">
                     In this connection, you are specifically instructed to pay the pending monthly rents within 7 days from the 
                     date of receipt of this notice. Further, you are remarkably remember that, it is an eviction notice on the part 
                     of your responsibility in payment of monthly rent every month upto 5th of every month. But you have been failed 
@@ -517,7 +587,7 @@ const NoticeModule = {
 
                 <!-- Signature & Address Container -->
                 <!-- SIGNATURE FIRST (Right Aligned) -->
-                <div style="text-align: right; margin-bottom: 3rem; margin-top: 1rem; padding-right: 1rem;">
+                <div style="text-align: right; margin-bottom: 2rem; margin-top: 1rem; padding-right: 1rem;">
                     <div style="display: inline-block; text-align: center; min-width: 200px;">
                         <div style="font-weight: bold;">Vice Chairman</div>
                         <div style="margin-top: 5px;">SUDA, Siddipet</div>

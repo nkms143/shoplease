@@ -1,78 +1,8 @@
-// Demo script for NoticeModule - Generates HTML Preview
-// Usage: node tools/test_notice_demo.js --shop 04
 
-const fs = require('fs');
-const path = require('path');
-
-// Simple CLI args parser
-const rawArgs = process.argv.slice(2);
-const argv = {};
-for (let i = 0; i < rawArgs.length; i++) {
-    const a = rawArgs[i];
-    if (a.startsWith('--')) {
-        const key = a.slice(2);
-        const val = rawArgs[i + 1] && !rawArgs[i + 1].startsWith('-') ? rawArgs[++i] : true;
-        argv[key] = val;
-    }
-}
-
-const shopArg = String(argv.shop || '04');
-const today = new Date();
-
-// Mock Data
-const app = {
-    shopNo: shopArg,
-    applicantName: 'Test Renter (Offline Test)',
-    proprietorShopName: 'Test Shop Enterprises',
-    address: '1-2-3, Market Road, Siddipet',
-    rentTotal: '1180.00',
-    rentStartDate: '2024-01-01',
-    paymentDay: '5'
-};
-
-const dues = {
-    monthsCount: 5,
-    baseRent: 5000,
-    gst: 900,
-    penalty: 750,
-    totalAmount: 6650,
-    details: [
-        { month: 'Aug 2024', rent: 1180, penalty: 150, source: 'active' },
-        { month: 'Sep 2024', rent: 1180, penalty: 150, source: 'active' },
-        { month: 'Oct 2024', rent: 1180, penalty: 150, source: 'active' },
-        { month: 'Nov 2024', rent: 1180, penalty: 150, source: 'active' },
-        { month: 'Dec 2024', rent: 1180, penalty: 150, source: 'active' }
-    ]
-};
-
-const settings = {
-    penaltyRate: 15,
-    penaltyDate: '2024-01-01',
-    // SUDA Logo Base64 Placeholder (Green Text Fallback style for demo)
-    logoUrl: null
-};
-
-// HTML Construction (Mirrors js/extra_modules.js)
-const monthsText = dues.details.map(d => d.source === 'history' ? `${d.month} (prev)` : d.month).join(', ');
-
-let logoHtml = '';
-// Using a placeholder base64 blank image or text for the offline test if no URL
-logoHtml = `
-    <div style="text-align: right; margin-bottom: 0;">
-         <div style="display:inline-block; text-align:center; border: 2px solid #047857; padding: 5px 10px;">
-            <span style="font-weight:900; font-size: 20pt; color: #047857; display:block; line-height:1;">SUDA</span>
-            <span style="font-size: 6pt; letter-spacing: 1px; font-weight: bold;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</span>
-            <div style="font-size: 8pt; color: #666; margin-top:5px; border-top: 1px solid #ccc;">(Offline Preview Mode)</div>
-         </div>
-    </div>
-`;
-
-
-const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Notice Preview - Shop ${app.shopNo}</title>
+    <title>Notice Preview - Shop 04</title>
     <style>
         /* Exact Print CSS from App */
         @media print {
@@ -123,7 +53,15 @@ const htmlContent = `
 
     <div class="page">
         <!-- Logo Header -->
-        ${logoHtml}
+        
+    <div style="text-align: right; margin-bottom: 0;">
+         <div style="display:inline-block; text-align:center; border: 2px solid #047857; padding: 5px 10px;">
+            <span style="font-weight:900; font-size: 20pt; color: #047857; display:block; line-height:1;">SUDA</span>
+            <span style="font-size: 6pt; letter-spacing: 1px; font-weight: bold;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</span>
+            <div style="font-size: 8pt; color: #666; margin-top:5px; border-top: 1px solid #ccc;">(Offline Preview Mode)</div>
+         </div>
+    </div>
+
 
         <!-- Main Header -->
         <div style="text-align: center; margin-bottom: 0.5rem;">
@@ -133,7 +71,7 @@ const htmlContent = `
 
         <!-- Date -->
         <div style="text-align: right; margin-bottom: 0.5rem; font-weight: bold;">
-            Dt: ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}
+            Dt: 27-01-2026
         </div>
 
         <!-- Notice Title -->
@@ -145,14 +83,14 @@ const htmlContent = `
         <div style="display: flex; align-items: flex-start; margin-bottom: 0.5rem; margin-left: 2.5rem; font-size: 12pt; line-height: 1.5;">
             <div style="font-weight: bold; white-space: nowrap; width: 3.5rem; text-decoration: underline; flex-shrink: 0;">Sub:-</div>
             <div style="text-align: justify; line-height: 1.5;">
-                SUDA Siddipet – Letting out of SUDA Shop No. <strong>${app.shopNo}</strong>, in favor of <strong>${app.applicantName}</strong> 
-                being the highest bidder for <u>Rs. ${app.rentTotal}</u> per month plus GST@18% w.e.f 
-                ${new Date(app.rentStartDate).toLocaleString('default', { month: 'long', year: 'numeric' })} – 
-                Monthly rent for the months from <strong>${dues.details[0].month}</strong> to 
-                <strong>${dues.details[dues.details.length - 1].month}</strong> for 
-                <u>Rs. ${dues.totalAmount.toFixed(2)}</u> pending to be pay attracts 
-                <u>Rs. ${(settings.penaltyRate).toFixed(2)}</u> penalty per day 
-                for delay payment to an amount of <u>Rs. ${dues.totalAmount.toFixed(2)}</u> (including Penalty) and 
+                SUDA Siddipet – Letting out of SUDA Shop No. <strong>04</strong>, in favor of <strong>Test Renter (Offline Test)</strong> 
+                being the highest bidder for <u>Rs. 1180.00</u> per month plus GST@18% w.e.f 
+                January 2024 – 
+                Monthly rent for the months from <strong>Aug 2024</strong> to 
+                <strong>Dec 2024</strong> for 
+                <u>Rs. 6650.00</u> pending to be pay attracts 
+                <u>Rs. 15.00</u> penalty per day 
+                for delay payment to an amount of <u>Rs. 6650.00</u> (including Penalty) and 
                 take action to evict from the Shop – notice issued.
             </div>
         </div>
@@ -164,9 +102,9 @@ const htmlContent = `
 
         <!-- Body Paragraph 1 -->
         <p style="text-align: justify; text-indent: 2.5rem; margin-bottom: 2rem; margin-top: 0; font-size: 12pt; line-height: 1.5;">
-            It is fact that you had allotted SUDA shop no. <strong>${app.shopNo}</strong> for Rs. ${app.rentTotal} (Including GST) 
+            It is fact that you had allotted SUDA shop no. <strong>04</strong> for Rs. 1180.00 (Including GST) 
             being the highest bidder. But whereas, you have not been paid the monthly rent for the months from 
-            <strong>${monthsText}</strong> inspite of repeated oral request of this office.
+            <strong>Aug 2024, Sep 2024, Oct 2024, Nov 2024, Dec 2024</strong> inspite of repeated oral request of this office.
         </p>
 
         <!-- Body Paragraph 2 -->
@@ -174,14 +112,14 @@ const htmlContent = `
             In this connection, you are specifically instructed to pay the pending monthly rents within 7 days from the 
             date of receipt of this notice. Further, you are remarkably remember that, it is an eviction notice on the part 
             of your responsibility in payment of monthly rent every month upto 5th of every month. But you have been failed 
-            to pay the monthly rent pertains to the <strong>${dues.monthsCount}</strong> months for the months from 
-            <strong>${dues.details[0].month}</strong> to 
-            <strong>${dues.details[dues.details.length - 1].month}</strong> continuously. 
+            to pay the monthly rent pertains to the <strong>5</strong> months for the months from 
+            <strong>Aug 2024</strong> to 
+            <strong>Dec 2024</strong> continuously. 
             The non-payment of monthly rent will result for eviction from the occupation of shops. Further you are instructed 
-            to pay the <u>${dues.monthsCount}</u> months monthly rent by adding Rs. ${(settings.penaltyRate).toFixed(2)} 
+            to pay the <u>5</u> months monthly rent by adding Rs. 15.00 
             penalty per day totalling to an amount of 
-            <strong>Rs. ${dues.totalAmount.toFixed(2)}</strong> (Rent ${((dues.baseRent + dues.gst).toFixed(2))} and 
-            Penalty Amount for ${dues.monthsCount} Months Rs. ${dues.penalty.toFixed(2)}).
+            <strong>Rs. 6650.00</strong> (Rent 5900.00 and 
+            Penalty Amount for 5 Months Rs. 750.00).
         </p>
 
         <!-- Signature & Address Container -->
@@ -197,21 +135,13 @@ const htmlContent = `
         <div style="text-align: left; font-size: 11pt;">
             <div style="font-weight: bold; margin-bottom: 5px;">To,</div>
             <div style="margin-left: 0;">
-                <strong>${app.applicantName}</strong><br>
-                ${app.proprietorShopName ? `Prop: ${app.proprietorShopName}<br>` : ''}
-                Shop No: ${app.shopNo}<br>
-                ${app.address}<br>
+                <strong>Test Renter (Offline Test)</strong><br>
+                Prop: Test Shop Enterprises<br>
+                Shop No: 04<br>
+                1-2-3, Market Road, Siddipet<br>
                 Siddipet District.
             </div>
         </div>
     </div>
 </body>
 </html>
-`;
-
-const outputPath = path.join(__dirname, 'notice_preview.html');
-fs.writeFileSync(outputPath, htmlContent);
-console.log('Preview file generated at:', outputPath);
-console.log('Open this file in your browser to verify print margins.');
-
-
