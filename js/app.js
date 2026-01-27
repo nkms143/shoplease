@@ -3496,13 +3496,20 @@ const RentModule = {
             // --- PENALTY CALC (Accumulate Auto) ---
             if (!manualOverride && paymentDate) {
                 const targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay);
-                if (paymentDate > targetDueDate) {
-                    const diffTime = Math.abs(paymentDate - targetDueDate);
+
+                // Fix: Normalize paymentDate to Local Midnight to avoid UTC shifts
+                const pMid = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
+
+                if (pMid > targetDueDate) {
+                    const diffTime = pMid - targetDueDate;
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    const p = diffDays * rate;
-                    totalPenalty += p;
-                    totalLateDays += diffDays;
-                    lateInfo.push(`${cb.value}: ${diffDays} days`);
+
+                    if (diffDays > 0) {
+                        const p = diffDays * rate;
+                        totalPenalty += p;
+                        totalLateDays += diffDays;
+                        lateInfo.push(`${cb.value}: ${diffDays} days`);
+                    }
                 }
             }
         });
