@@ -2614,11 +2614,13 @@ const ShopLedgerModule = {
 
         // Populate shop dropdown
         const shops = Store.getShops();
+        const applicants = Store.getApplicants();
         const sel = document.getElementById('rep-stmt-shop');
         shops.forEach(s => {
+            const applicant = applicants.find(a => a.shopNo === s.shopNo);
             const opt = document.createElement('option');
-            opt.value = s.id;
-            opt.textContent = `Shop ${s.shopNumber} - ${s.shopName || 'N/A'}`;
+            opt.value = s.shopId || s.shopNo; // Use shopId if available, fallback to shopNo
+            opt.textContent = `Shop ${s.shopNo} - ${applicant ? applicant.name : 'Vacant'}`;
             sel.appendChild(opt);
         });
 
@@ -2639,18 +2641,19 @@ const ShopLedgerModule = {
         }
     },
 
-    generateStatement(shopId) {
-        const shop = Store.getShops().find(s => s.id === shopId);
+    generateStatement(shopIdOrNo) {
+        const shops = Store.getShops();
+        const shop = shops.find(s => s.shopId === shopIdOrNo || s.shopNo === shopIdOrNo);
         if (!shop) return;
 
-        const app = Store.getApplicants().find(a => a.shopId === shopId);
+        const app = Store.getApplicants().find(a => a.shopNo === shop.shopNo);
         if (!app) {
             alert('No tenant found for this shop');
             return;
         }
 
         // Populate tenant info
-        document.getElementById('stmt-shop-no').textContent = shop.shopNumber || 'N/A';
+        document.getElementById('stmt-shop-no').textContent = shop.shopNo || 'N/A';
         document.getElementById('stmt-name').textContent = app.name || 'N/A';
         document.getElementById('stmt-contact').textContent = app.contact || 'N/A';
         document.getElementById('stmt-date').textContent = `As on: ${new Date().toLocaleDateString('en-GB')}`;

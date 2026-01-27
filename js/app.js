@@ -2160,8 +2160,7 @@ const DashboardModule = {
         }
 
         // 3. Recent Transactions List
-        // (Recovered Logic)
-        const allPayments = Store.getPayments();
+        const allPayments = payments.filter(p => fyStart <= new Date(p.paymentDate) && new Date(p.paymentDate) <= fyEnd);
         const sortedPayments = allPayments.sort((a, b) => {
             const dateA = new Date(a.paymentDate || a.timestamp || 0);
             const dateB = new Date(b.paymentDate || b.timestamp || 0);
@@ -2169,30 +2168,25 @@ const DashboardModule = {
         }).slice(0, 5);
 
         const listBody = document.getElementById('dash-recent-list');
-        if (sortedPayments.length === 0) {
-            listBody.innerHTML = '<tr><td colspan="4" style="text-align:center">No payments recorded yet.</td></tr>';
-        } else {
-            listBody.innerHTML = sortedPayments.map(p => {
-                let dStr = p.paymentDate || p.timestamp;
-                let dateDisplay = '-';
-                if (dStr) {
-                    const d = new Date(dStr);
-                    if (!isNaN(d.getTime())) {
-                        // FORCE DD-MM-YYYY format
-                        const day = String(d.getDate()).padStart(2, '0');
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const year = d.getFullYear();
-                        dateDisplay = `${day}-${month}-${year}`;
+        if (listBody) { // Only populate if element exists
+            if (sortedPayments.length === 0) {
+                listBody.innerHTML = '<tr><td colspan="4" style="text-align:center">No payments recorded yet.</td></tr>';
+            } else {
+                listBody.innerHTML = sortedPayments.map(p => {
+                    let dStr = p.paymentDate || p.timestamp;
+                    let dateDisplay = '-';
+                    if (dStr) {
+                        const d = new Date(dStr);
+                        if (!isNaN(d.getTime())) {
+                            dateDisplay = d.toLocaleDateString('en-GB');
+                        }
                     }
-                }
-                return `
-            <tr>
-                <td>${dateDisplay}</td>
-                <td><strong>${p.shopNo}</strong></td>
-                <td>₹${(parseFloat(p.grandTotal || 0)).toFixed(2)}</td>
-                <td><span style="font-size:0.75rem; background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px;">Paid</span></td>
-            </tr>
-        `}).join('');
+                    const shop = shops.find(s => s.id === p.shopId);
+                    const shopNo = shop ? shop.shopNumber : 'N/A';
+                    const amt = parseFloat(p.grandTotal || 0).toFixed(2);
+                    return `<tr><td>${dateDisplay}</td><td>Shop ${shopNo}</td><td>₹${amt}</td><td>${p.paymentMode || 'Cash'}</td></tr>`;
+                }).join('');
+            }
         }
     }
 };
@@ -2203,7 +2197,7 @@ const DashboardModule = {
 const ShopModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel">
+    < div class="glass-panel" >
                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Shop Inventory</h3>
                     <button class="btn-primary" id="btn-add-shop">
@@ -2246,8 +2240,8 @@ const ShopModule = {
                         </tbody>
                     </table>
                 </div>
-            </div>
-        `;
+            </div >
+    `;
 
         this.setupLogic();
         this.renderList();
@@ -2314,7 +2308,7 @@ const ShopModule = {
         }
 
         tbody.innerHTML = shops.map(s => `
-            <tr>
+    < tr >
                 <td><strong>${s.shopNo}</strong></td>
                 <td>${s.dimensions || '-'}</td>
                 <td><span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; background: ${s.status === 'Occupied' ? '#fecaca' : '#d1fae5'}; color: ${s.status === 'Occupied' ? '#dc2626' : '#059669'};">${s.status}</span></td>
@@ -2323,8 +2317,8 @@ const ShopModule = {
                         🗑️
                     </button>
                 </td>
-            </tr>
-        `).join('');
+            </tr >
+    `).join('');
     }
 };
 
@@ -2334,7 +2328,7 @@ const ShopModule = {
 const ApplicantModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel">
+    < div class="glass-panel" >
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Applicant Details</h3>
                     <button class="btn-primary" id="btn-add-applicant">
@@ -2364,8 +2358,8 @@ const ApplicantModule = {
                         </tbody>
                     </table>
                 </div>
-            </div>
-        `;
+            </div >
+    `;
 
         document.getElementById('btn-add-applicant').addEventListener('click', () => {
             this.showForm(); // Must render form first
@@ -2423,7 +2417,7 @@ const ApplicantModule = {
         document.getElementById('btn-add-applicant').style.display = 'none';
 
         container.innerHTML = `
-            <div class="glass-panel" style="background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6);">
+    < div class="glass-panel" style = "background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6);" >
                 <h4 style="margin-bottom: 1.5rem; color: var(--primary-color);">New Shop Lease Registration</h4>
                 <form id="applicant-form">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
@@ -2551,8 +2545,8 @@ const ApplicantModule = {
                         <button type="submit" class="btn-primary">Save Applicant</button>
                     </div>
                 </form>
-            </div>
-        `;
+            </div >
+    `;
 
         this.setupFormLogic();
         this.setupListEvents();
@@ -2569,7 +2563,7 @@ const ApplicantModule = {
 
             if (deleteBtn) {
                 const shopNo = deleteBtn.dataset.shop;
-                if (confirm(`Are you sure you want to PERMANENTLY delete the applicant for Shop ${shopNo}?\n\nThis will:\n1. Remove tenant data.\n2. Mark shop as Available.\n3. Delete associated payments.`)) {
+                if (confirm(`Are you sure you want to PERMANENTLY delete the applicant for Shop ${shopNo} ?\n\nThis will: \n1.Remove tenant data.\n2.Mark shop as Available.\n3.Delete associated payments.`)) {
                     Store.deleteApplicant(shopNo);
                     this.renderList();
                     // Refill Shop Select (since a shop became available)
@@ -2677,7 +2671,7 @@ const ApplicantModule = {
                 if (file) {
                     const fileExt = file.name.split('.').pop();
                     const shopClean = data.shopNo.replace(/[^a-zA-Z0-9]/g, '');
-                    const filePath = `${shopClean}_${Date.now()}.${fileExt}`;
+                    const filePath = `${shopClean}_${Date.now()}.${fileExt} `;
 
                     // Upload via Store helper
                     // Note: uploadFile returns the public URL
@@ -2784,7 +2778,7 @@ const ApplicantModule = {
         const linkDiv = document.getElementById('current-agreement-link');
         if (linkDiv) {
             if (app.agreementUrl) {
-                linkDiv.innerHTML = `<a href="${app.agreementUrl}" target="_blank" style="color: #2563eb; text-decoration: underline;">📄 View Current Agreement</a>`;
+                linkDiv.innerHTML = `< a href = "${app.agreementUrl}" target = "_blank" style = "color: #2563eb; text-decoration: underline;" >📄 View Current Agreement</a > `;
             } else {
                 linkDiv.innerHTML = '';
             }
@@ -2801,7 +2795,7 @@ const ApplicantModule = {
         }
 
         tbody.innerHTML = applicants.map(app => `
-            <tr>
+    < tr >
                 <td><strong>${app.shopNo}</strong></td>
                 <td>${app.applicantName}</td>
                 <td><span style="font-size: 0.85rem; padding: 2px 8px; background: #e0e7ff; border-radius: 4px; color: #4338ca;">${app.applicantType}</span></td>
@@ -2812,8 +2806,8 @@ const ApplicantModule = {
                     <button class="btn-edit-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:8px;" title="Edit">✏️</button>
                     <button class="btn-delete-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; color:#dc2626;" title="Delete">🗑️</button>
                  </td>
-            </tr>
-        `).join('');
+            </tr >
+    `).join('');
     }
 };
 
@@ -2823,7 +2817,7 @@ const ApplicantModule = {
 const RentModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel">
+    < div class="glass-panel" >
                 <h3>Rent Collection</h3>
                 
                 <div style="margin-top: 1.5rem; max-width: 600px;">
@@ -2934,10 +2928,10 @@ const RentModule = {
                     </div>
                 </div>
             </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
-            <!-- PAYMENT HISTORY SECTION -->
+            < !--PAYMENT HISTORY SECTION-- >
             <div id="payment-history-area" style="display: none; margin-top: 2rem; max-width: 800px;">
                 <div class="glass-panel">
                     <h4 style="margin-bottom: 1rem;">Payment History</h4>
@@ -2959,7 +2953,7 @@ const RentModule = {
                     to { opacity: 1; transform: translateY(0); }
                 }
             </style>
-        `;
+`;
 
         this.populateShopSelect();
         this.setupLogic();
@@ -2981,7 +2975,7 @@ const RentModule = {
         }
 
         let html = `
-            <table class="data-table" style="font-size: 0.9rem;">
+    < table class="data-table" style = "font-size: 0.9rem;" >
                 <thead>
                     <tr>
                         <th>Time</th>
@@ -3016,7 +3010,7 @@ const RentModule = {
             `;
         });
 
-        html += '</tbody></table>';
+        html += '</tbody></table > ';
         container.innerHTML = html;
 
         // Helper exposed globally now as a static method
