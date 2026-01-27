@@ -1220,6 +1220,32 @@ const GstRemittanceModule = {
 
     setupForm() {
         const form = document.getElementById('remittance-form');
+
+        // RESTORED: Populate Year Dropdown (Current -2 to +1)
+        const remitYearSel = document.getElementById('remit-for-year');
+        if (remitYearSel) {
+            const cy = new Date().getFullYear();
+            remitYearSel.innerHTML = `
+                <option value="${cy - 2}">${cy - 2}</option>
+                <option value="${cy - 1}">${cy - 1}</option>
+                <option value="${cy}" selected>${cy}</option>
+                <option value="${cy + 1}">${cy + 1}</option>
+            `;
+
+            // Default to Previous Month (Convenience)
+            const remitMonthSel = document.getElementById('remit-for-month');
+            if (remitMonthSel) {
+                const today = new Date();
+                const pm = today.getMonth(); // 0(Jan)..11(Dec)
+
+                if (pm === 0) { // If Jan, Prev is Dec of last year
+                    remitMonthSel.value = "12";
+                    remitYearSel.value = (today.getFullYear() - 1).toString();
+                } else {
+                    remitMonthSel.value = pm.toString(); // e.g. Feb(1) -> 1(Jan)
+                }
+            }
+        }
         form.addEventListener('submit', (e) => {
             e.preventDefault();
 
