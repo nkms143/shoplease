@@ -1754,6 +1754,11 @@ function initRouter() {
     }
 }
 
+// GLOBAL ROUTER (Exposed for HTML OnClick)
+window.handleRoute = function (route) {
+    handleRoute(route);
+}
+
 function handleRoute(route) {
     const contentArea = document.getElementById('content-area');
     const pageTitle = document.getElementById('page-title');
@@ -1900,7 +1905,7 @@ const DashboardModule = {
                 <div class="glass-panel">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
                         <h4 style="color: var(--text-color);">Last 5 Payments</h4>
-                        <button class="btn-primary" onclick="app.router.navigate('transactions-list')" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
+                        <button class="btn-primary" onclick="handleRoute('report')" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
                     </div>
                     <div class="table-container" style="max-height: 250px; overflow-y: auto;">
                         <table class="data-table">
@@ -1923,7 +1928,7 @@ const DashboardModule = {
                 <div class="glass-panel">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
                         <h4 style="color: var(--text-color);">Top Defaulters</h4>
-                        <button class="btn-primary" onclick="ReportModule.renderDCB && ReportModule.renderDCB()" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
+                        <button class="btn-primary" onclick="handleRoute('dcb-report')" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
                     </div>
                     <div class="table-container">
                         <table class="data-table">
@@ -2129,7 +2134,7 @@ const DashboardModule = {
                         }
                     }
                     const shop = shops.find(s => s.id === p.shopId);
-                    const shopNo = shop ? shop.shopNumber : (p.shopNo || 'N/A');
+                    const shopNo = shop ? shop.shopNo : (p.shopNo || 'N/A'); // Corrected property: shopNo
                     const amt = parseFloat(p.grandTotal || 0).toFixed(2);
 
                     return `
