@@ -2892,7 +2892,6 @@ const RentModule = {
                 </div >
             </div >
 
-            < !--PAYMENT HISTORY SECTION-- >
             <div id="payment-history-area" style="display: none; margin-top: 2rem; max-width: 800px;">
                 <div class="glass-panel">
                     <h4 style="margin-bottom: 1rem;">Payment History</h4>
