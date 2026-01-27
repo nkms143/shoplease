@@ -2113,6 +2113,7 @@ const DashboardModule = {
         // Sort ALL payments by date descending (Global, not just FY)
         // Create a copy to avoid mutating the original store array if it's a direct reference
         const allPayments = [...payments];
+
         const sortedPayments = allPayments.sort((a, b) => {
             const dateA = new Date(a.paymentDate || a.timestamp || 0);
             const dateB = new Date(b.paymentDate || b.timestamp || 0);
@@ -2134,7 +2135,8 @@ const DashboardModule = {
                         }
                     }
                     const shop = shops.find(s => s.id === p.shopId);
-                    const shopNo = shop ? shop.shopNo : (p.shopNo || 'N/A'); // Corrected property: shopNo
+                    // PRIORITIZE p.shopNo from record, fallback to lookup
+                    const shopNo = p.shopNo || (shop ? shop.shopNo : 'N/A');
                     const amt = parseFloat(p.grandTotal || 0).toFixed(2);
 
                     return `
