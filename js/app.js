@@ -2110,8 +2110,10 @@ const DashboardModule = {
         }
 
         // --- 3. RECENT TRANSACTIONS LIST (Last 5) ---
-        // Sort all payments by date descending
-        const sortedPayments = payments.sort((a, b) => {
+        // Sort ALL payments by date descending (Global, not just FY)
+        // Create a copy to avoid mutating the original store array if it's a direct reference
+        const allPayments = [...payments];
+        const sortedPayments = allPayments.sort((a, b) => {
             const dateA = new Date(a.paymentDate || a.timestamp || 0);
             const dateB = new Date(b.paymentDate || b.timestamp || 0);
             return dateB - dateA;
@@ -2137,7 +2139,7 @@ const DashboardModule = {
 
                     return `
                         <tr>
-                            <td style="font-weight: 500;">${shopNo}</td>
+                            <td style="font-weight: 500;">Shop No. ${shopNo}</td>
                             <td style="text-align:right; color: #166534; font-weight: 600;">₹${amt}</td>
                             <td style="text-align:right; font-size: 0.9rem; color: #64748b;">${dateDisplay}</td>
                         </tr>
