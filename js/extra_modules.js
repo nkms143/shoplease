@@ -718,132 +718,49 @@ const GstRemittanceModule = {
         const payments = Store.getPayments();
         const remittances = Store.getRemittances();
         // ...
-
-        // (existing getPaymentYearMonth...)
-
-        // (matchesPayment logic...)
-
-        // (matchesRemit logic is handled by previous replacement block)
-
-        // ... remainder of file ...
-    },
-
-    // ...
-
-    setupForm() {
-        const form = document.getElementById('remittance-form');
-
-        // Populate Year Dropdown (Current -2 to +1)
-        const remitYearSel = document.getElementById('remit-for-year');
-        if (remitYearSel) {
-            const cy = new Date().getFullYear();
-            remitYearSel.innerHTML = `
-                <option value="${cy - 2}">${cy - 2}</option>
-                <option value="${cy - 1}">${cy - 1}</option>
-                <option value="${cy}" selected>${cy}</option>
-                <option value="${cy + 1}">${cy + 1}</option>
-            `;
-        }
-
-        // Set Default Month (Previous Month)
-        const remitMonthSel = document.getElementById('remit-for-month');
-        if (remitMonthSel && remitYearSel) {
-            const today = new Date();
-            let pm = today.getMonth(); // 0-11 (If today is Jan (0), pm is 0... wait. Jan is 0. Previous is Dec.)
-            let py = today.getFullYear();
-
-            if (pm === 0) {
-                // If today is Jan, previous is Dec of last year
-                pm = 12;
-                py = py - 1;
+        // Helper to extract Year/Month from payment
+        const getPaymentYearMonth = (p) => {
+            // Prefer paymentForMonth (e.g. "2024-04")
+            if (p.paymentForMonth) {
+                const part = String(p.paymentForMonth).split('-');
+                if (part.length >= 2) return { y: parseInt(part[0]), m: parseInt(part[1]) };
             }
-            // If today is Feb (1), previous is Jan (0+1 = 1) -> No.
-            // getMonth() returns 0..11.
-            // Value 1..12.
-            // If today is Jan(0), we want Dec(12), year-1.
-            // If today is Feb(1), we want Jan(1).
-
-            if (today.getMonth() === 0) {
-                remitMonthSel.value = "12";
-                remitYearSel.value = (today.getFullYear() - 1).toString();
-            } else {
-                remitMonthSel.value = today.getMonth().toString(); // e.g. Feb(1) -> 1 (Jan)
+            // Fallback to paymentDate
+            if (p.paymentDate) {
+                const d = new Date(p.paymentDate);
+                if (!isNaN(d.getTime())) return { y: d.getFullYear(), m: d.getMonth() + 1 };
             }
-        }
+            return null;
+        };
 
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
+        // Helper: Check if payment matches filter
+        const matchesPayment = (p) => {
+            if (!month && !year) return true;
+            const pm = getPaymentYearMonth(p);
+            if (!pm) return false;
 
-            const amount = parseFloat(document.getElementById('remit-amount').value);
-            const date = document.getElementById('remit-date').value;
-            const notes = document.getElementById('remit-notes').value;
-            // New Fields
-            const forMonth = document.getElementById('remit-for-month').value;
-            const forYear = document.getElementById('remit-for-year').value;
+            if (year) {
+                const fy = parseInt(year);
+                // Apr-Dec belongs to fy
+                // Jan-Mar belongs to fy+1
+                // Logic: Financial Year 2024 spans Apr 2024 to Mar 2025.
+                const pY = pm.y;
+                const pM = pm.m;
 
-            if (amount <= 0) {
-                alert('Please enter a valid amount.');
-                return;
-            }
-
-            // Extract month and year from the date for database sync (Legacy / Fallback)
-            const dateObj = new Date(date);
-            const month = dateObj.getMonth() + 1; // 1-12
-            const year = dateObj.getFullYear();
-
-            const record = {
-                amount: amount,
-                date: date,
-
-                // Explicit Period
-                forMonth: forMonth,
-                forYear: forYear,
-
-                // Legacy fields (still populated for backup/compatibility)
-                month: month.toString(),
-                year: year.toString(),
-
-                referenceNo: notes,
-                notes: notes,
-                bankName: '',
-                timestamp: new Date().toISOString()
-            };
-
-            Store.saveRemittance(record);
-            alert('Remittance recorded successfully!');
-
-            // DON'T Reset everything, keep the date/period handy? 
-            // Or reset and re-default?
-            form.reset();
-
-            // Re-apply defaults after reset
-            if (remitMonthSel && remitYearSel) {
-                const now = new Date();
-                if (now.getMonth() === 0) {
-                    remitMonthSel.value = "12";
-                    remitYearSel.value = (now.getFullYear() - 1).toString();
+                // If Month is Apr(4) or later, it belongs to FY==Year if pY==Year
+                // If Month is Jan(1)-Mar(3), it belongs to FY==Year if pY==Year+1
+                if (pM >= 4) {
+                    if (pY !== fy) return false;
                 } else {
-                    remitMonthSel.value = now.getMonth().toString();
-                    remitYearSel.value = now.getFullYear().toString();
+                    if (pY !== fy + 1) return false;
                 }
-                // Reset date to today
-                const dateInput = document.getElementById('remit-date');
-                if (dateInput) dateInput.value = now.toISOString().split('T')[0];
             }
 
-            // Refresh stats and current filter view
-            const filterMonth = document.getElementById('filter-month').value;
-            const filterYear = document.getElementById('filter-year').value;
-            this.updateStats(filterMonth, filterYear);
-            this.renderHistory(filterMonth, filterYear);
-            if (filterMonth && filterYear) {
-                this.renderMonthDetail(filterMonth, filterYear);
-            } else if (filterYear) {
-                this.renderMonthlySummary(filterYear);
-            } else {
-                this.renderMonthlySummary('');
+            if (month) {
+                if (pm.m !== parseInt(month)) return false;
             }
-        });
+            return true;
+        };
 
         // Helper to check remittance match by remittance.date OR forMonth/forYear (Priority)
         // Remittance matching using financial year when `year` provided

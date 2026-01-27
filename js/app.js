@@ -2269,7 +2269,7 @@ const ShopModule = {
         }
 
         tbody.innerHTML = shops.map(s => `
-    < tr >
+            <tr>
                 <td><strong>${s.shopNo}</strong></td>
                 <td>${s.dimensions || '-'}</td>
                 <td><span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; background: ${s.status === 'Occupied' ? '#fecaca' : '#d1fae5'}; color: ${s.status === 'Occupied' ? '#dc2626' : '#059669'};">${s.status}</span></td>
@@ -2278,7 +2278,7 @@ const ShopModule = {
                         🗑️
                     </button>
                 </td>
-            </tr >
+            </tr>
     `).join('');
     }
 };
@@ -2756,7 +2756,7 @@ const ApplicantModule = {
         }
 
         tbody.innerHTML = applicants.map(app => `
-    < tr >
+            <tr>
                 <td><strong>${app.shopNo}</strong></td>
                 <td>${app.applicantName}</td>
                 <td><span style="font-size: 0.85rem; padding: 2px 8px; background: #e0e7ff; border-radius: 4px; color: #4338ca;">${app.applicantType}</span></td>
@@ -2767,7 +2767,7 @@ const ApplicantModule = {
                     <button class="btn-edit-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; margin-right:8px;" title="Edit">✏️</button>
                     <button class="btn-delete-app" data-shop="${app.shopNo}" style="background:none; border:none; cursor:pointer; color:#dc2626;" title="Delete">🗑️</button>
                  </td>
-            </tr >
+            </tr>
     `).join('');
     }
 };
