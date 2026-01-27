@@ -66,3 +66,10 @@
     - [x] Add Upload Field to New Applicant Form
     - [x] Add Upload Field to Renewal Modal
     - [x] Implement File Upload Logic in Frontend (`Store.uploadFile`)
+
+## Phase 6: GST Remittance Logic (Completed)
+- [x] **Logic Refinement**
+    - [x] Modify `GstRemittanceModule` for Period-Based Matching
+    - [x] Update UI with "For Month/Year" Selectors
+    - [x] Refactor DB Persistence (Map Period to `month/year` columns)
+    - [x] Fix `matchesRemit` and `aggregateByMonth` dependencies

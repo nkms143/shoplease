@@ -850,7 +850,26 @@ const GstRemittanceModule = {
         const matchesRemit = (r) => {
             if (!month && !year) return true;
 
-            // 1. PRIORITY: Check explicit "For Period" fields if they exist
+            // 1. PRIORITY: Check standard `month` and `year` fields (Now mapped to Period)
+            if (r.year && r.month) {
+                if (year) {
+                    const rY = parseInt(r.year);
+                    const rM = parseInt(r.month);
+                    const fY = parseInt(year);
+                    // Construct a date in the middle of that month/year
+                    const periodDate = new Date(rY, rM - 1, 15);
+                    const fyStart = new Date(fY, 3, 1, 0, 0, 0);
+                    const fyEnd = new Date(fY + 1, 2, 31, 23, 59, 59);
+                    if (periodDate < fyStart || periodDate > fyEnd) return false;
+                    if (month && rM !== parseInt(month)) return false;
+                    return true;
+                } else {
+                    if (month && r.month != month) return false;
+                    return true;
+                }
+            }
+
+            // 2. BACKUP: Check explicit "For Period" fields if they exist
             if (r.forYear && r.forMonth) {
                 if (year) {
                     // If filter is Financial Year (e.g. 2024 -> Apr 2024 to Mar 2025)
@@ -1035,7 +1054,10 @@ const GstRemittanceModule = {
         tbody.innerHTML = remittances.map(r => {
             // Format Period
             let periodDisplay = '-';
-            if (r.forMonth && r.forYear) {
+            // Use standard month/year first
+            if (r.month && r.year) {
+                periodDisplay = `${monthShort[parseInt(r.month) - 1] || ''} ${String(r.year).slice(-2)}`;
+            } else if (r.forMonth && r.forYear) {
                 periodDisplay = `${monthShort[parseInt(r.forMonth) - 1] || ''} ${String(r.forYear).slice(-2)}`;
             }
 
@@ -1113,12 +1135,15 @@ const GstRemittanceModule = {
             // Logic: Determine the effective "Period Date" for this remittance
             let periodDate = null;
 
-            // 1. PRIORITY: Explicit Period
-            if (r.forYear && r.forMonth) {
-                // Construct a date in the middle of that month/year
+            // 1. PRIORITY: Standard `month` and `year` (Mapped to Period)
+            if (r.year && r.month) {
+                periodDate = new Date(parseInt(r.year), parseInt(r.month) - 1, 15);
+            }
+            // 2. BACKUP: Explicit Period (Legacy interim)
+            else if (r.forYear && r.forMonth) {
                 periodDate = new Date(parseInt(r.forYear), parseInt(r.forMonth) - 1, 15);
             }
-            // 2. FALLBACK: Remittance Date
+            // 3. FALLBACK: Remittance Date
             else if (r.date) {
                 periodDate = new Date(r.date);
             }
@@ -1290,19 +1315,32 @@ const GstRemittanceModule = {
                 return;
             }
 
-            // Extract month and year from the date for database sync
+            // Extract month and year from the date for database sync (Legacy / Fallback)
             const dateObj = new Date(date);
-            const month = dateObj.getMonth() + 1; // 1-12
-            const year = dateObj.getFullYear();
+            // const month = dateObj.getMonth() + 1; // 1-12 (Legacy)
+            // const year = dateObj.getFullYear();   // (Legacy)
+
+            // NEW LOGIC: Use user-selected Period as the primary accounting period
+            // This maps the explicit 'For Period' to the database 'month'/'year' columns
+            const month = forMonth;
+            const year = forYear;
 
             const record = {
                 amount: amount,
                 date: date,
+
+                // MAPPED: Saving Period into the standard DB columns
                 month: month.toString(),
                 year: year.toString(),
-                referenceNo: notes, // Map notes to referenceNo for DB compatibility
+
+                // Redundant fields kept just in case local storage needs them explicit, 
+                // but db auto-saves 'month'/'year'
+                forMonth: forMonth,
+                forYear: forYear,
+
+                referenceNo: notes,
                 notes: notes,
-                bankName: '', // Optional field, can be added to form later
+                bankName: '',
                 timestamp: new Date().toISOString()
             };
 
