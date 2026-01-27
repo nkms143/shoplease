@@ -90,14 +90,14 @@ const SettingsModule = {
         // Migration: If old settings exist but no history, create initial history
         if ((!s || !s.gstHistory || s.gstHistory.length === 0) && s) {
             if (s.gstBaseRate) {
-                SettingsModule.gstHistory.push({ date: '2000-01-01', rate: s.gstBaseRate });
+                SettingsModule.gstHistory.push({ date: '2018-01-01', rate: s.gstBaseRate });
             }
             if (s.gstNewRate && s.gstEffectiveDate) {
                 SettingsModule.gstHistory.push({ date: s.gstEffectiveDate, rate: s.gstNewRate });
             }
             // Fallback if absolutely nothing
             if (SettingsModule.gstHistory.length === 0) {
-                SettingsModule.gstHistory.push({ date: '2000-01-01', rate: 18 });
+                SettingsModule.gstHistory.push({ date: '2018-01-01', rate: 18 });
             }
         }
 
