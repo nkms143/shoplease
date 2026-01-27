@@ -1896,10 +1896,23 @@ const DashboardModule = {
                         <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
+                <!-- REPLACED PAYMENT MODES WITH RECENT TRANSACTIONS -->
                 <div class="glass-panel">
-                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Payment Modes (FY)</h4>
-                    <div style="height: 250px; position: relative; display: flex; align-items: center; justify-content: center;">
-                        <canvas id="modeChart"></canvas>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                        <h4 style="color: var(--text-color);">Last 5 Payments</h4>
+                        <button class="btn-primary" onclick="app.router.navigate('transactions-list')" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
+                    </div>
+                    <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Shop</th>
+                                    <th style="text-align:right;">Amount</th>
+                                    <th style="text-align:right;">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-recent-list"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1963,20 +1976,12 @@ const DashboardModule = {
 
         // --- KPI 1: Revenue ---
         let totalRev = 0;
-        const modeCounts = { 'Cash': 0, 'Online': 0, 'DD/Cheque': 0 };
 
         payments.forEach(p => {
             const pDate = new Date(p.paymentDate || p.timestamp);
             if (pDate >= fyStart && pDate <= fyEnd) {
                 const amt = parseFloat(p.grandTotal || 0);
                 totalRev += amt;
-
-                // Mode calc
-                let m = p.paymentMethod || 'Cash';
-                if (m.toLowerCase().includes('online')) m = 'Online';
-                else if (m.toLowerCase().includes('dd') || m.includes('check') || m.includes('cheque')) m = 'DD/Cheque';
-                else m = 'Cash';
-                modeCounts[m] += amt;
             }
         });
         document.getElementById('kpi-revenue').textContent = totalRev.toLocaleString('en-IN'); // Format
@@ -2101,65 +2106,18 @@ const DashboardModule = {
             });
         }
 
-        // --- CHART 2: PAYMENT MODES (FY) ---
-        const ctxMode = document.getElementById('modeChart');
-        if (ctxMode && window.Chart) {
-            // Filter payments for current FY
-            const fyStart = `${fyYear}-04-01`;
-            const fyEnd = `${fyYear + 1}-03-31`;
-            const fyPayments = payments.filter(p => {
-                const pDate = p.paymentDate || p.timestamp;
-                return pDate && pDate >= fyStart && pDate <= fyEnd;
-            });
-
-            // Count payment modes
-            const modeCounts = {};
-            fyPayments.forEach(p => {
-                const mode = p.paymentMode || 'Unknown';
-                modeCounts[mode] = (modeCounts[mode] || 0) + 1;
-            });
-
-            const modeLabels = Object.keys(modeCounts);
-            const modeData = Object.values(modeCounts);
-
-            if (modeLabels.length > 0) {
-                new Chart(ctxMode, {
-                    type: 'doughnut',
-                    data: {
-                        labels: modeLabels,
-                        datasets: [{
-                            data: modeData,
-                            backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            } else {
-                // No data
-                ctxMode.parentElement.innerHTML = '<p style="color: #94a3b8; text-align: center;">No payment data for current FY</p>';
-            }
-        }
-
-        // 3. Recent Transactions List
-        const allPayments = payments.filter(p => fyStart <= new Date(p.paymentDate) && new Date(p.paymentDate) <= fyEnd);
-        const sortedPayments = allPayments.sort((a, b) => {
+        // --- 3. RECENT TRANSACTIONS LIST (Last 5) ---
+        // Sort all payments by date descending
+        const sortedPayments = payments.sort((a, b) => {
             const dateA = new Date(a.paymentDate || a.timestamp || 0);
             const dateB = new Date(b.paymentDate || b.timestamp || 0);
             return dateB - dateA;
         }).slice(0, 5);
 
         const listBody = document.getElementById('dash-recent-list');
-        if (listBody) { // Only populate if element exists
+        if (listBody) {
             if (sortedPayments.length === 0) {
-                listBody.innerHTML = '<tr><td colspan="4" style="text-align:center">No payments recorded yet.</td></tr>';
+                listBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8;">No recent payments.</td></tr>';
             } else {
                 listBody.innerHTML = sortedPayments.map(p => {
                     let dStr = p.paymentDate || p.timestamp;
@@ -2171,9 +2129,16 @@ const DashboardModule = {
                         }
                     }
                     const shop = shops.find(s => s.id === p.shopId);
-                    const shopNo = shop ? shop.shopNumber : 'N/A';
+                    const shopNo = shop ? shop.shopNumber : (p.shopNo || 'N/A');
                     const amt = parseFloat(p.grandTotal || 0).toFixed(2);
-                    return `<tr><td>${dateDisplay}</td><td>Shop ${shopNo}</td><td>₹${amt}</td><td>${p.paymentMode || 'Cash'}</td></tr>`;
+
+                    return `
+                        <tr>
+                            <td style="font-weight: 500;">${shopNo}</td>
+                            <td style="text-align:right; color: #166534; font-weight: 600;">₹${amt}</td>
+                            <td style="text-align:right; font-size: 0.9rem; color: #64748b;">${dateDisplay}</td>
+                        </tr>
+                    `;
                 }).join('');
             }
         }
