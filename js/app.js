@@ -281,6 +281,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (Store.normalizeRemittances) Store.normalizeRemittances();
         Store.deduplicatePayments();
         initRouter();
+
+        // Auto-load Dashboard on app initialization
+        handleRoute('dashboard');
     } else {
         loginContainer.style.display = 'flex';
         appContainer.style.display = 'none';
@@ -1784,6 +1787,10 @@ function handleRoute(route) {
         case 'dcb-report':
             pageTitle.textContent = 'DCB Reports';
             ReportModule.render(contentArea); // Call main render to show tabs
+            break;
+        case 'shop-ledger':
+            pageTitle.textContent = 'Shop Ledger';
+            ShopLedgerModule.render(contentArea);
             break;
         case 'gst-monthwise':
             pageTitle.textContent = 'GST Month-wise Report';

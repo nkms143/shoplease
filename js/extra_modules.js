@@ -13,6 +13,12 @@ const SettingsModule = {
                         <input type="number" id="set-penalty-rate" class="form-input" placeholder="e.g. 15">
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Penalty Implementation Date</label>
+                        <input type="date" id="set-penalty-date" class="form-input">
+                        <small style="color:#666;">Penalties will only apply for delays AFTER this date.</small>
+                    </div>
+
                     <div class="glass-panel" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; margin: 1rem 0;">
                         <h5 style="margin-bottom: 0.5rem; color: var(--primary-color);">GST Rate History</h5>
                         <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
@@ -43,12 +49,6 @@ const SettingsModule = {
                             </div>
                             <button onclick="SettingsModule.addGstEntry()" class="btn-primary" style="padding: 0.7rem;">+</button>
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Penalty Implementation Date</label>
-                        <input type="date" id="set-penalty-date" class="form-input">
-                        <small style="color:#666;">Penalties will only apply for delays AFTER this date.</small>
                     </div>
 
                     <button onclick="SettingsModule.save()" class="btn-primary" style="width:100%; margin-top: 1rem;">Save Settings</button>
@@ -1663,14 +1663,9 @@ const ReportModule = {
     render(container) {
         container.innerHTML = `
             <div class="glass-panel">
-                <h3>Reports</h3>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button class="nav-btn-sub active" onclick="ReportModule.renderDCB()" style="background: #e0e7ff; color: var(--primary-color); border:none; padding: 8px 16px; border-radius: 6px; font-weight: 500;">DCB Report</button>
-                    <button class="nav-btn-sub" onclick="ReportModule.renderStatement()" style="background: transparent; color: var(--text-color); border:none; padding: 8px 16px;">Shop Ledger</button>
-                </div>
-
+                <h3>DCB Report</h3>
                 <div id="report-content" style="margin-top: 1.5rem;">
-                    <!-- DCB View Default -->
+                    <!-- DCB View -->
                 </div>
             </div>
         `;
@@ -1678,7 +1673,7 @@ const ReportModule = {
     },
 
     renderDCB(container) {
-        // Fix: Target the inner content area so we don't wipe out the tabs
+        // Target the inner content area
         const targetContainer = document.getElementById('report-content');
         if (!targetContainer) {
             // Ideally should not happen if render() called first.
@@ -1686,16 +1681,6 @@ const ReportModule = {
             console.error("Report content area not found!");
             return;
         }
-
-        // Update active tab styling
-        const tabs = document.querySelectorAll('.nav-btn-sub');
-        tabs.forEach(t => {
-            if (t.textContent.includes('DCB')) {
-                t.style.background = '#e0e7ff'; t.style.color = 'var(--primary-color)'; t.classList.add('active');
-            } else {
-                t.style.background = 'transparent'; t.style.color = 'var(--text-color)'; t.classList.remove('active');
-            }
-        });
 
         targetContainer.innerHTML = `
             <div class="glass-panel">
@@ -2568,6 +2553,138 @@ const ReportModule = {
         w.document.close();
     }
 
+};
+
+// ==========================================
+// SHOP LEDGER MODULE
+// ==========================================
+const ShopLedgerModule = {
+    render(container) {
+        container.innerHTML = `
+             <div class="glass-panel">
+                <h3>Shop-wise Outstanding Dues Statement</h3>
+                <div style="display: flex; gap: 1rem; align-items: flex-end; margin-top: 1.5rem;">
+                    <div class="form-group" style="flex: 1; max-width: 300px;">
+                        <label class="form-label">Select Shop</label>
+                        <select id="rep-stmt-shop" class="form-select">
+                            <option value="">-- Select Shop --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="stmt-results" style="margin-top: 2rem; display: none;">
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-bottom: 1rem;">
+                        <button class="btn-primary" id="btn-stmt-print" style="background: #64748b; font-size: 0.8rem;">Print Statement</button>
+                    </div>
+                    <div class="glass-panel" style="background: #fff; color: #000; border: 1px solid #e2e8f0; padding: 2rem;" id="print-stmt-area">
+                        <div style="text-align: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #000;">
+                             <h3 style="margin: 0; text-transform: uppercase;">Siddipet Urban Development Authority</h3>
+                             <p style="margin: 5px 0;">Commercial Shop Lease - Outstanding Dues Statement</p>
+                             <p style="margin: 5px 0; font-size: 0.9rem;" id="stmt-date">As on: </p>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
+                            <div>
+                                <strong>Shop No:</strong> <span id="stmt-shop-no"></span><br>
+                                <strong>Tenant:</strong> <span id="stmt-name"></span>
+                            </div>
+                            <div style="text-align: right;">
+                                <strong>Contact:</strong> <span id="stmt-contact"></span>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #000;">
+                                        <th style="text-align: left; padding: 8px;">Sl No</th>
+                                        <th style="text-align: left; padding: 8px;">Due Month</th>
+                                        <th style="text-align: right; padding: 8px;">Rent + GST</th>
+                                        <th style="text-align: right; padding: 8px;">Penalty (Today)</th>
+                                        <th style="text-align: right; padding: 8px;">Total Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stmt-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Populate shop dropdown
+        const shops = Store.getShops();
+        const sel = document.getElementById('rep-stmt-shop');
+        shops.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `Shop ${s.shopNumber} - ${s.shopName || 'N/A'}`;
+            sel.appendChild(opt);
+        });
+
+        sel.addEventListener('change', () => {
+            const selectedId = sel.value;
+            if (selectedId) this.generateStatement(selectedId);
+        });
+
+        const printBtn = document.getElementById('btn-stmt-print');
+        if (printBtn) {
+            printBtn.addEventListener('click', () => {
+                const content = document.getElementById('print-stmt-area').innerHTML;
+                const w = window.open('', '_blank');
+                if (!w) { alert('Please allow popups'); return; }
+                w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Shop Ledger</title><style>body{font-family:Arial;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #000;padding:8px;}</style></head><body>${content}<script>window.onload=function(){setTimeout(()=>{window.print();},200);};</script></body></html>`);
+                w.document.close();
+            });
+        }
+    },
+
+    generateStatement(shopId) {
+        const shop = Store.getShops().find(s => s.id === shopId);
+        if (!shop) return;
+
+        const app = Store.getApplicants().find(a => a.shopId === shopId);
+        if (!app) {
+            alert('No tenant found for this shop');
+            return;
+        }
+
+        // Populate tenant info
+        document.getElementById('stmt-shop-no').textContent = shop.shopNumber || 'N/A';
+        document.getElementById('stmt-name').textContent = app.name || 'N/A';
+        document.getElementById('stmt-contact').textContent = app.contact || 'N/A';
+        document.getElementById('stmt-date').textContent = `As on: ${new Date().toLocaleDateString('en-GB')}`;
+
+        // Calculate outstanding
+        const dues = Store.calculateOutstandingDues(app);
+        const tbody = document.getElementById('stmt-tbody');
+
+        let html = '';
+        if (dues.months && dues.months.length > 0) {
+            dues.months.forEach((m, idx) => {
+                html += `
+                <tr>
+                    <td class="data-cell" style="padding: 8px;">${idx + 1}</td>
+                    <td class="data-cell" style="padding: 8px;">${m.monthDisplay}</td>
+                    <td class="data-cell" style="text-align: right; padding: 8px;">₹${(m.baseRent + m.gst).toFixed(2)}</td>
+                    <td class="data-cell" style="text-align: right; padding: 8px;">₹${m.penalty.toFixed(2)}</td>
+                    <td class="data-cell" style="text-align: right; padding: 8px; font-weight: bold;">₹${(m.baseRent + m.gst + m.penalty).toFixed(2)}</td>
+                </tr>
+            `;
+            });
+            html += `
+                <tr style="border-top: 2px solid #000; font-weight: bold; font-size: 1.05rem;">
+                    <td colspan="2" style="text-align: right; padding: 10px;">TOTAL OUTSTANDING</td>
+                    <td style="text-align: right; padding: 10px;">₹${(dues.baseRent + dues.gst).toFixed(2)}</td>
+                    <td style="text-align: right; padding: 10px;">₹${dues.penalty.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 10px; font-size: 1.1rem;">₹${dues.totalAmount.toFixed(2)}</td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+        document.getElementById('stmt-results').style.display = 'block';
+    }
 };
 
 // ==========================================
