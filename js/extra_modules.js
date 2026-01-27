@@ -1875,6 +1875,24 @@ const ReportModule = {
             opt.textContent = `${s.shopNo} - ${displayName}`;
             select.appendChild(opt);
         });
+
+        // Add hidden debug trigger
+        window.debugShopPenalty = (shopNo) => {
+            window.dcbDebugTarget = shopNo;
+            window.dcbDebugLog = [];
+            // Trigger generation
+            this.generateDCB();
+            console.table(window.dcbDebugLog);
+            // Summarize for alert
+            let msg = `Penalty Analysis for Shop ${shopNo}:\n\n`;
+            window.dcbDebugLog.forEach(row => {
+                if (row.Penalty > 0) {
+                    msg += `${row.Month}: ${row.Days} days overdue -> ₹${row.Penalty}\n`;
+                }
+            });
+            alert(msg || "No Arrear Penalty found for this shop.");
+            window.dcbDebugTarget = null;
+        };
     },
 
     populateFinancialYears() {
@@ -1997,6 +2015,7 @@ const ReportModule = {
                     <td>₹${result.arrearBalance.toFixed(2)}</td>
                     <td style="color: ${result.totalBalance > 0 ? '#ef4444' : '#10b981'}; font-weight: bold;">₹${result.totalBalance.toFixed(2)}</td>
                     <td>${pct}%</td>
+                    <td><button onclick="window.debugShopPenalty('${app.shopNo}')" style="font-size:0.7rem; padding:2px 5px;">Analyze</button></td>
                 </tr>
             `;
 
@@ -2359,7 +2378,22 @@ const ReportModule = {
 
                 // Find matching waiver
                 // Find matching waiver (Compare strings robustly)
+                // Find matching waiver (Compare strings robustly)
+                // const allWaivers = Store.getWaivers() || []; (Already declared)
                 const waiver = allWaivers.find(w => String(w.shopNo) === String(app.shopNo) && w.month === monthStr);
+
+                // DEBUG TRACE HOOK
+                if (window.dcbDebugTarget === app.shopNo && window.dcbDebugLog) {
+                    window.dcbDebugLog.push({
+                        Month: monthStr,
+                        DueDate: dueDate.toLocaleDateString(),
+                        IsArrear: true,
+                        SettledBefore: isSettledBeforeReport,
+                        Penalty: penaltyForMonth,
+                        Days: penaltyForMonth / penaltyRate // Infer days
+                    });
+                }
+
                 if (waiver) {
                     // reduce demand by waiver
                     // For now, let's effectively set it to 0 if waiver exists, 
@@ -2458,7 +2492,7 @@ const ReportModule = {
         const header = [
             'Sl No', 'Shop No', 'Shop Name', 'Current Demand (Base)', 'Current Demand (GST)', 'Arrear Demand (Base)',
             'Arrear Demand (GST)', 'Arrear Demand (Penalty)', 'Total Demand', 'Current Collection', 'Current Collection (Penalty)', 'Arrear Collection', 'Total Collection',
-            'Current Balance', 'Arrear Balance', 'Total Balance', '% Collection'
+            'Current Balance', 'Arrear Balance', 'Total Balance', '% Collection', 'Action'
         ];
 
         const periodText = (this.lastDcbResults.period && this.lastDcbResults.period.fy)
