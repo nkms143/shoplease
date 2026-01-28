@@ -32,8 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 3. Force sign out explicitly on any existing state just in case
-    await supabaseResetClient.auth.signOut();
+    // 3. (Removed explicit signOut here to prevent invalidating the recovery hash)
     // ---------------------------------------------------------
 
     const btnUpdate = document.getElementById('btn-update');
