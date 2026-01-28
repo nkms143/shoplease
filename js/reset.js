@@ -7,7 +7,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Supabase client inside DOMContentLoaded to ensure config.js has loaded
     const SUPABASE_URL = window.CONFIG.SUPABASE_URL;
     const SUPABASE_KEY = window.CONFIG.SUPABASE_KEY;
-    const supabaseResetClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // CRITICAL SECURITY FIX: Disable persistence so this temporary session 
+    // doesn't leak to the main app (dashboard) if user navigates away.
+    const supabaseResetClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+            persistSession: false // Memory only
+        }
+    });
     const btnUpdate = document.getElementById('btn-update');
     const inputPass = document.getElementById('new-password');
     const msgDiv = document.getElementById('message');
@@ -114,4 +120,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             btnUpdate.disabled = false;
         }
     });
+
+    // 5. Handle "Back to Login" - Ensure Sign Out
+    const btnBack = document.getElementById('btn-back-login');
+    if (btnBack) {
+        btnBack.addEventListener('click', async (e) => {
+            e.preventDefault(); // Stop default navigation
+            await supabaseResetClient.auth.signOut(); // Kill session
+            window.location.href = 'index.html'; // Go to login
+        });
+    }
 });
