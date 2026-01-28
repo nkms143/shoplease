@@ -7,13 +7,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Supabase client inside DOMContentLoaded to ensure config.js has loaded
     const SUPABASE_URL = window.CONFIG.SUPABASE_URL;
     const SUPABASE_KEY = window.CONFIG.SUPABASE_KEY;
-    // CRITICAL SECURITY FIX: Disable persistence so this temporary session 
-    // doesn't leak to the main app (dashboard) if user navigates away.
+    // ---------------------------------------------------------
+    // SECURITY HARDENING: WIPE PREVIOUS SESSIONS
+    // ---------------------------------------------------------
+    // 1. Manually clear Supabase tokens from LocalStorage
+    // (This ensures that even if the ephemeral session below "leaks", 
+    // the main app on index.html won't find a token in storage).
+    for (const key in localStorage) {
+        if (key.startsWith('sb-') && key.endsWith('-token')) {
+            localStorage.removeItem(key);
+            console.log("Security: Wiped existing auth token from storage:", key);
+        }
+    }
+    // Also remove the specific known key if configured differently
+    localStorage.removeItem('supabase.auth.token');
+
+
+    // 2. Initialize ephemeral client
     const supabaseResetClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
         auth: {
-            persistSession: false // Memory only
+            persistSession: false, // Memory only
+            autoRefreshToken: false,
+            detectSessionInUrl: true
         }
     });
+
+    // 3. Force sign out explicitly on any existing state just in case
+    await supabaseResetClient.auth.signOut();
+    // ---------------------------------------------------------
+
     const btnUpdate = document.getElementById('btn-update');
     const inputPass = document.getElementById('new-password');
     const msgDiv = document.getElementById('message');
