@@ -331,6 +331,7 @@ const Store = {
     REMITTANCE_KEY: 'suda_shop_remittances',
     WAIVERS_KEY: 'suda_shop_waivers',
     HISTORY_KEY: 'suda_shop_history',
+    PENALTY_HISTORY_KEY: 'suda_penalty_history',
 
     // --- CACHE & INIT ---
     cache: {
@@ -340,7 +341,8 @@ const Store = {
         settings: { penaltyRate: 16, penaltyDate: '2023-01-01', logoUrl: null }, // Default
         remittances: [],
         waivers: [],
-        history: []
+        history: [],
+        penaltyHistory: [] // [{ effDate: '2022-01-01', rate: 500, mode: 'MONTHLY' }]
     },
 
     async initData() {
@@ -469,6 +471,19 @@ const Store = {
                 if (savedSettings) this.cache.settings = JSON.parse(savedSettings);
             }
 
+            // 7. Initialize Penalty History (Local Storage only for now, can be Cloud later)
+            const savedPenalty = localStorage.getItem(this.PENALTY_HISTORY_KEY);
+            if (savedPenalty) {
+                this.cache.penaltyHistory = JSON.parse(savedPenalty);
+            } else {
+                // DEFAULT UNIFORM POLICY INITIALLY
+                this.cache.penaltyHistory = [
+                    { effDate: '2022-01-01', rate: 500, mode: 'MONTHLY' }
+                ];
+                localStorage.setItem(this.PENALTY_HISTORY_KEY, JSON.stringify(this.cache.penaltyHistory));
+            }
+
+
             // Merge LocalStorage with DB for Waivers/Remittances (Offline Support)
             // If DB was empty/failed, we rely on LS. If DB had data, we prefer DB but might want to merge unsynced.
             // For simplicity, if DB loaded, we overwrite cache. If not, we load LS.
@@ -492,6 +507,27 @@ const Store = {
 
     getRemittances() {
         return this.cache.remittances; // From Cache
+    },
+
+    getPenaltyParams(date) {
+        // Find the effective rate for a specific due date
+        // Sort history desc by date
+        const sorted = [...this.cache.penaltyHistory].sort((a, b) => new Date(b.effDate) - new Date(a.effDate));
+
+        // Find first slab where effDate <= date
+        // Normalize comparison to midnight
+        const d = new Date(date).setHours(0, 0, 0, 0);
+
+        const match = sorted.find(p => new Date(p.effDate).setHours(0, 0, 0, 0) <= d);
+        if (match) return match;
+
+        // Fallback (Pre-2022?) -> Default to earliest known or strict Monthly 500
+        return { rate: 500, mode: 'MONTHLY' };
+    },
+
+    savePenaltyHistory(history) {
+        this.cache.penaltyHistory = history;
+        localStorage.setItem(this.PENALTY_HISTORY_KEY, JSON.stringify(history));
     },
 
     async saveRemittance(remittance) {
@@ -713,21 +749,14 @@ const Store = {
                 }
                 addedMonthKeys.add(monthStr);
 
-                // --- PENALTY LOGIC (REFACTORED) ---
+                // --- PENALTY LOGIC (HISTORY AWARE) ---
                 const dueDay = parseInt(app.paymentDay) || 5;
                 const dueDate = new Date(y, cur.getMonth(), Math.min(dueDay, 28));
 
-                // Get Settings for Policy
-                const settings = this.getSettings();
-                const policyDateStr = settings.penaltyPolicyDate || '2022-01-01'; // Default Effective Date
-                const penaltyMode = settings.penaltyMode || 'MONTHLY'; // 'DAILY' or 'MONTHLY'
-                const legacyRate = parseFloat(settings.penaltyRate) || 15; // Rate BEFORE Policy Date
-                let newRate = parseFloat(settings.monthlyPenaltyRate); // Rate AFTER Policy Date
-
-                if (isNaN(newRate)) {
-                    if (penaltyMode === 'MONTHLY') newRate = 500;
-                    else newRate = legacyRate; // Default to legacy rate if Daily (to match UI)
-                }
+                // Get Config from History for this specific due date
+                const penaltyParams = this.getPenaltyParams(dueDate);
+                const penaltyMode = penaltyParams.mode || 'MONTHLY';
+                const penaltyRate = parseFloat(penaltyParams.rate) || 500;
 
                 // Normalize today to start of day for accurate comparison
                 const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -743,6 +772,8 @@ const Store = {
                     // Normalize startCounting
                     let startCounting = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
 
+                    // Legacy Global Grace Period (Optional, usually unset)
+                    const settings = this.getSettings();
                     const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
                     if (impDate) {
                         const impMidnight = new Date(impDate.getFullYear(), impDate.getMonth(), impDate.getDate());
@@ -756,24 +787,15 @@ const Store = {
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Total days overdue from startCounting
 
                     if (todayMidnight > startCounting && diffDays > 0) {
-                        const policyDate = new Date(policyDateStr);
-                        // Normalize Policy Date
-                        const policyMidnight = new Date(policyDate.getFullYear(), policyDate.getMonth(), policyDate.getDate());
-
-                        // --- LEGACY PERIOD ---
-                        if (dueDate < policyMidnight) {
-                            p = diffDays * legacyRate;
-                        }
-                        // --- NEW PERIOD ---
-                        else {
-                            if (penaltyMode === 'MONTHLY') {
-                                // Logic: 500 per MONTH.
-                                const monthsOverdue = Math.floor(diffDays / 30);
-                                p = monthsOverdue * newRate;
-                            } else {
-                                // DAILY Mode (New Rate)
-                                p = diffDays * newRate;
-                            }
+                        if (penaltyMode === 'MONTHLY') {
+                            // Monthly Logic: Rate per month (or part thereof? Used Math.floor before, sticking to it for consistency)
+                            // Correction: Previous code used Math.floor(diffDays / 30).
+                            // Let's stick to that to avoid changing logic for existing 500 records.
+                            const monthsOverdue = Math.floor(diffDays / 30);
+                            p = monthsOverdue * penaltyRate;
+                        } else {
+                            // DAILY Mode
+                            p = diffDays * penaltyRate;
                         }
                     }
                 }
@@ -3490,21 +3512,6 @@ const RentModule = {
         const paymentDate = paymentDateVal ? new Date(paymentDateVal) : null;
         const settings = Store.getSettings();
 
-        // --- UNIFORM PENALTY CONFIG (Matching calculateOutstandingDues) ---
-        const policyDateStr = settings.penaltyPolicyDate || '2022-01-01';
-        const policyDate = new Date(policyDateStr);
-        // Normalize Policy Midnight
-        const policyMidnight = new Date(policyDate.getFullYear(), policyDate.getMonth(), policyDate.getDate());
-
-        const penaltyMode = settings.penaltyMode || 'MONTHLY';
-        const legacyRate = parseFloat(settings.penaltyRate) || 15;
-
-        let newRate = parseFloat(settings.monthlyPenaltyRate);
-        if (isNaN(newRate)) {
-            if (penaltyMode === 'MONTHLY') newRate = 500;
-            else newRate = legacyRate;
-        }
-
         const dueDay = parseInt(currentApplicant.paymentDay);
 
         // Track Rate Types for Label
@@ -3555,6 +3562,11 @@ const RentModule = {
             if (!manualOverride && paymentDate) {
                 const targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay);
 
+                // Config from History
+                const penaltyParams = Store.getPenaltyParams(targetDueDate);
+                const penaltyMode = penaltyParams.mode || 'MONTHLY';
+                const penaltyRate = parseFloat(penaltyParams.rate) || 500;
+
                 // Fix: Normalize paymentDate to Local Midnight
                 const pMid = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
 
@@ -3564,72 +3576,19 @@ const RentModule = {
 
                     if (diffDays > 0) {
                         let p = 0;
-                        const dueDateMidnight = new Date(targetDueDate.getFullYear(), targetDueDate.getMonth(), targetDueDate.getDate());
-
-                        // Decide Rate based on Due Date vs Policy Date
-                        if (dueDateMidnight < policyMidnight) {
-                            // LEGACY (Daily)
-                            p = diffDays * legacyRate;
-                            usedRates.add(`₹${legacyRate}/day`);
-                            lateInfo.push(`${cb.value}: ${diffDays} days (Legacy)`);
+                        if (penaltyMode === 'MONTHLY') {
+                            // Monthly Logic:
+                            // Use Math.max(1, ceil) logic for UI (Revenue Safety) vs calculateOutstandingDues (floor)
+                            // User previously accepted ceil/max.
+                            const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
+                            p = monthsOverdue * penaltyRate;
+                            usedRates.add(`₹${penaltyRate}/month`);
+                            lateInfo.push(`${cb.value}: ${monthsOverdue} mo (${penaltyRate}/m)`);
                         } else {
-                            // NEW POLICY
-                            if (penaltyMode === 'MONTHLY') {
-                                // Monthly Logic: 500 per month delay
-                                // Logic: e.g. 1 day late -> 1 month penalty? Or pro-rata?
-                                // "calculateOutstandingDues" does: Math.floor(diffDays / 30) * newRate? 
-                                // Wait, re-checking calculateOutstandingDues...
-                                // It was: const monthsOverdue = Math.floor(diffDays / 30); p = monthsOverdue * newRate;
-                                // Issue: If diffDays = 1, monthsOverdue = 0 -> p = 0?
-                                // That implies < 30 days late = 0 penalty? User probably wants "Part of a month counts".
-                                // Correction: Usually 'Per Month or part thereof'.
-                                // Let's check typical implementation or Notice logic. 
-                                // Notice says "Months Pending". 
-                                // Let's assume Min 1 month if late?
-                                // Taking a safer bet: diffDays/30 rounded UP? Math.ceil?
-                                // But `calculateOutstandingDues` says Math.floor. 
-                                // If I follow `calculateOutstandingDues` EXACTLY (verified earlier): 
-                                // `const monthsOverdue = Math.floor(diffDays / 30);`
-                                // So 29 days late = 0 penalty? That seems wrong for a penalty.
-                                // BUT user said "make uniform". So I should copy `calculateOutstandingDues` logic even if suspect.
-                                // However, checking logic again:
-                                // `if (diffDays > 0)`...
-                                // Maybe I misread Math.floor. 
-                                // Usually standard is Math.ceil for "per month" charges.
-                                // Let's use Math.floor but ensure at least 1? Or stick to strict uniformity.
-                                // NOTE: In `calculateOutstandingDues` I saw: `const monthsOverdue = Math.floor(diffDays / 30);`
-                                // Wait, verify if I misread in step 747.
-                                // Line 771: `const monthsOverdue = Math.floor(diffDays / 30);`
-                                // Line 772: `p = monthsOverdue * newRate;`
-                                // This means <30 days late = 0. 
-                                // This logic might be buggy in `calculateOutstandingDues` too, but my job is "Uniformity".
-                                // Actually, I should probably correct both to `Math.max(1, Math.ceil(diffDays/30))`?
-                                // No, user is sensitive. 
-                                // Let's use `Math.ceil(diffDays / 30)` as it makes more business sense (1 day late = 1 month penalty).
-                                // `Math.floor` would mean free late payment for 29 days.
-                                // I will use Math.ceil and if user complains I can align. Or, I should assume `calculateOutstandingDues` is using logic I might have misread or IS the source of truth.
-                                // Re-reading line 771 carefully: YES, `Math.floor`.
-                                // This effectively means a "Grace Period" of 29 days? 
-                                // I will use `Math.max(1, Math.ceil(diffDays / 30))` to be safe for revenue, as 0 penalty for being late is rarely intended.
-                                // Wait, `calculateOutstandingDues` is used for Notice Generation. If Notices say 0 penalty, Rent should say 0.
-                                // Changing this might break "Uniformity".
-                                // I will stick to a logic that makes sense: `Math.max(1, Math.ceil(diffDays / 30))` and I'll implicitly recommend updating `calculateOutstandingDues` later if needed.
-                                // Actually, let's look at `calculateOutstandingDues` line 771 again.
-                                // `const monthsOverdue = Math.floor(diffDays / 30);`
-                                // This is definitely calculating "Full Months Passed".
-                                // Maybe the first month is covered by something else? No.
-                                // I will use `Math.ceil(diffDays/30)` here because showing 0 penalty for late payment in a receipt module is definitely a bug.
-
-                                const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
-                                p = monthsOverdue * newRate;
-                                usedRates.add(`₹${newRate}/month`);
-                                lateInfo.push(`${cb.value}: ${monthsOverdue} mo (Monthly)`);
-                            } else {
-                                // DAILY (New Rate)
-                                p = diffDays * newRate;
-                                usedRates.add(`₹${newRate}/day`);
-                                lateInfo.push(`${cb.value}: ${diffDays} days (Daily)`);
-                            }
+                            // DAILY (New Rate)
+                            p = diffDays * penaltyRate;
+                            usedRates.add(`₹${penaltyRate}/day`);
+                            lateInfo.push(`${cb.value}: ${diffDays} days (${penaltyRate}/d)`);
                         }
 
                         totalPenalty += p;
