@@ -92,7 +92,7 @@ const SettingsModule = {
 
                 <!-- GST History -->
                 <div style="margin-top: 3rem; border-top: 2px solid #e2e8f0; padding-top: 2rem;">
-                     <h3 style="margin-bottom: 1rem;">税 GST Rate History</h3>
+                     <h3 style="margin-bottom: 1rem;">GST Rate History</h3>
                      <div class="table-container">
                         <table class="data-table">
                             <thead>
@@ -203,12 +203,17 @@ const SettingsModule = {
         // Reset tempLogo on re-render
         SettingsModule.tempLogo = undefined;
 
-        logoPreview.src = currentSettings.logoUrl;
-        logoPreview.style.display = 'block';
-        clearLogoBtn.style.display = 'block';
-        // FIX: Restore existing URL to hidden input so it persists on save
-        const hiddenUrl = document.getElementById('set-logo-url');
-        if (hiddenUrl) hiddenUrl.value = currentSettings.logoUrl;
+        if (currentSettings.logoUrl) {
+            logoPreview.src = currentSettings.logoUrl;
+            logoPreview.style.display = 'block';
+            clearLogoBtn.style.display = 'block';
+            const placeholder = document.getElementById('logo-placeholder');
+            if (placeholder) placeholder.style.display = 'none';
+
+            // FIX: Restore existing URL to hidden input so it persists on save
+            const hiddenUrl = document.getElementById('set-logo-url');
+            if (hiddenUrl) hiddenUrl.value = currentSettings.logoUrl;
+        }
 
         if (logoInput) {
             logoInput.addEventListener('change', (e) => {
@@ -227,6 +232,8 @@ const SettingsModule = {
                     logoPreview.src = ev.target.result;
                     logoPreview.style.display = 'block';
                     clearLogoBtn.style.display = 'block';
+                    const placeholder = document.getElementById('logo-placeholder');
+                    if (placeholder) placeholder.style.display = 'none';
                 };
                 reader.readAsDataURL(file);
             });
@@ -239,6 +246,8 @@ const SettingsModule = {
                 logoPreview.src = '';
                 logoPreview.style.display = 'none';
                 clearLogoBtn.style.display = 'none';
+                const placeholder = document.getElementById('logo-placeholder');
+                if (placeholder) placeholder.style.display = 'block';
             });
         }
         // ----------------------------------------
@@ -649,7 +658,7 @@ const NoticeModule = {
                     <strong>${dues.details.length > 0 ? dues.details[0].month : ''}</strong> to 
                     <strong>${dues.details.length > 0 ? dues.details[dues.details.length - 1].month : ''}</strong> continuously. 
                     The non-payment of monthly rent will result for eviction from the occupation of shops. Further you are instructed 
-                    to pay the <u>${dues.monthsCount}</u> months monthly rent by adding Rs. ${(settings.penaltyMode === 'MONTHLY' ? (settings.monthlyPenaltyRate || 500) : (settings.monthlyPenaltyRate || settings.penaltyRate || 15)).toFixed(2)} 
+                    to pay the <u>${dues.monthsCount}</u> months monthly rent by adding Rs. ${displayRate.toFixed(2)} 
                     penalty per ${settings.penaltyMode === 'MONTHLY' ? 'month' : 'day'} totalling to an amount of 
                     <strong>Rs. ${dues.totalAmount.toFixed(2)}</strong> (Rent ${((dues.baseRent + dues.gst).toFixed(2))} and 
                     Penalty Amount for ${dues.monthsCount} Months Rs. ${dues.penalty.toFixed(2)}).
@@ -2552,7 +2561,9 @@ const ReportModule = {
                         IsArrear: true,
                         SettledBefore: isSettledBeforeReport,
                         Penalty: penaltyForMonth,
-                        RateUsed: (dueDate < policyDate ? legacyRate : newRate)
+                        Penalty: penaltyForMonth,
+                        RateUsed: (dueDate < policyDate ? legacyRate : newRate),
+                        Days: (dueDate < policyDate ? legacyRate : newRate) > 0 ? (penaltyForMonth / (dueDate < policyDate ? legacyRate : newRate)).toFixed(1) : 0
                     });
                 }
 
