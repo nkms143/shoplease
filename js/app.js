@@ -817,6 +817,17 @@ const Store = {
 
                 const rentTotal = rentBase + gstAmt;
 
+                // --- WAIVER CHECK (Centralized) ---
+                // Apply waiver BEFORE adding to totals
+                const allWaivers = this.getWaivers() || [];
+                // Use current processing month for waiver check (YYYY-MM)
+                const mStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`;
+                const hasWaiver = allWaivers.some(w => String(w.shopNo) === String(app.shopNo) && w.month === mStr);
+
+                if (hasWaiver) {
+                    p = 0;
+                }
+
                 totalBase += rentBase;
                 totalGST += gstAmt;
                 totalPenalty += p;
@@ -827,30 +838,6 @@ const Store = {
                     penalty: p,
                     source: period.meta && period.meta.source === 'history' ? 'history' : 'active'
                 });
-
-
-
-                // --- WAIVER CHECK (Centralized) ---
-                const allWaivers = this.getWaivers() || [];
-                const mStr = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}`;
-                const hasWaiver = allWaivers.some(w => String(w.shopNo) === String(app.shopNo) && w.month === mStr);
-
-                if (hasWaiver) {
-                    p = 0;
-                }
-
-                dues.details.push({
-                    month: cur.toLocaleString('default', { month: 'long', year: 'numeric' }),
-                    rent: monthlyRental,
-                    penalty: p,
-                    gst: gstVal,
-                    total: monthlyRental + gstVal + p
-                });
-
-                dues.baseRent += monthlyRental;
-                dues.gst += gstVal;
-                dues.penalty += p;
-                dues.totalAmount += (monthlyRental + gstVal + p);
 
             }
         });
