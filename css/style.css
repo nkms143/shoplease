@@ -5,33 +5,39 @@
 }
 
 :root {
-    --primary-color: #0d6efd;
-    /* Govt Blue */
-    --primary-hover: #0b5ed7;
-    --secondary-color: #d63384;
-    /* Pink Detail */
-    --nav-bg: #1e3a8a;
-    /* Navy Blue for Nav */
-    --header-bg: #ffffff;
-    --text-main: #212529;
-    --text-muted: #6c757d;
-    --bg-body: #f8f9fa;
-    --border-color: #dee2e6;
-    --radius-md: 4px;
-    /* Sharper corners for formal look */
-    --radius-lg: 8px;
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary-color: #ec4899;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --bg-gradient: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    --radius-lg: 16px;
+    --radius-md: 12px;
     --font-main: 'Inter', sans-serif;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+    /* Govt Portal Colors (for landing page only) */
+    --govt-blue: #0d6efd;
+    --govt-pink: #d63384;
+    --govt-nav-bg: #1e3a8a;
 }
 
 body {
     font-family: var(--font-main);
-    background: var(--bg-body);
+    background: #e0e7ff;
+    background-image:
+        radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+        radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
+        radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%),
+        url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     color: var(--text-main);
     min-height: 100vh;
     overflow-x: hidden;
-    line-height: 1.5;
 }
 
 .app-container {
@@ -538,11 +544,17 @@ body {
    GOVT PORTAL DESIGN (LANDING PAGE)
    ========================================== */
 
+/* Landing Page Background Override */
+#landing-page {
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
 /* Header */
 .govt-header {
     background: white;
     padding: 1rem 2rem;
-    border-bottom: 4px solid var(--secondary-color);
+    border-bottom: 4px solid var(--govt-pink);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -582,12 +594,12 @@ body {
 
 /* Navigation Bar */
 .govt-navbar {
-    background: var(--nav-bg);
+    background: var(--govt-nav-bg);
     padding: 0 2rem;
     display: flex;
     align-items: center;
     height: 50px;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .govt-nav-link {
@@ -706,7 +718,7 @@ body {
 }
 
 .login-box-header {
-    background: var(--primary-color);
+    background: var(--govt-blue);
     color: white;
     padding: 1rem 1.5rem;
 }
