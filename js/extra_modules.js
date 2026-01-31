@@ -2036,7 +2036,9 @@ const ReportModule = {
             let msg = `Penalty Analysis for Shop ${shopNo}:\n\n`;
             window.dcbDebugLog.forEach(row => {
                 if (row.Penalty > 0) {
-                    msg += `${row.Month}: ${row.Days} days overdue -> ₹${row.Penalty}\n`;
+                    // Heuristic: If RateUsed >= 100, assume Monthly logic, else Daily.
+                    const unitLabel = (row.RateUsed >= 100) ? 'months' : 'days';
+                    msg += `${row.Month}: ${row.Days} ${unitLabel} overdue -> ₹${row.Penalty}\n`;
                 }
             });
             alert(msg || "No Arrear Penalty found for this shop.");
