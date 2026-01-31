@@ -203,11 +203,12 @@ const SettingsModule = {
         // Reset tempLogo on re-render
         SettingsModule.tempLogo = undefined;
 
-        if (currentSettings.logoUrl) {
-            logoPreview.src = currentSettings.logoUrl;
-            logoPreview.style.display = 'block';
-            clearLogoBtn.style.display = 'block';
-        }
+        logoPreview.src = currentSettings.logoUrl;
+        logoPreview.style.display = 'block';
+        clearLogoBtn.style.display = 'block';
+        // FIX: Restore existing URL to hidden input so it persists on save
+        const hiddenUrl = document.getElementById('set-logo-url');
+        if (hiddenUrl) hiddenUrl.value = currentSettings.logoUrl;
 
         if (logoInput) {
             logoInput.addEventListener('change', (e) => {
@@ -261,52 +262,56 @@ const SettingsModule = {
             }
         });
 
-        document.getElementById('btn-cloud-backup').addEventListener('click', async () => {
-            const btn = document.getElementById('btn-cloud-backup');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>⏳</span> Saving...';
-            btn.disabled = true;
-
-            try {
-                await Store.createCloudBackup();
-                alert("Cloud Backup Created Successfully!");
-            } catch (e) {
-                console.error("Cloud Backup Failed", e);
-                alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        });
+        const btnCloud = document.getElementById('btn-cloud-backup');
+        if (btnCloud) {
+            btnCloud.addEventListener('click', async () => {
+                const btn = document.getElementById('btn-cloud-backup');
+                const origText = btn.innerHTML;
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span>⏳</span> Syncing...';
+                    await Store.createCloudBackup();
+                    alert("Cloud Backup Sync Successful!");
+                } catch (e) {
+                    console.error(e);
+                    alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = origText;
+                }
+            });
+        }
 
         const restoreBtn = document.getElementById('btn-restore');
         const fileInput = document.getElementById('restore-file-input');
 
-        restoreBtn.addEventListener('click', () => fileInput.click());
+        if (restoreBtn) restoreBtn.addEventListener('click', () => fileInput.click());
 
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-            if (!confirm('⚠️ CRITICAL WARNING ⚠️\n\nRestoring from backup will COMPLETELY ERASE and OVERWRITE all current:\n- Shops\n- Applicants (Tenants)\n- Payments\n- History\n\nThis action cannot be undone.\n\nAre you absolutely sure you want to proceed?')) {
-                e.target.value = ''; // Reset
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const data = JSON.parse(ev.target.result);
-                    Store.restoreData(data);
-                    alert('✅ Data restored successfully! The application will now reload.');
-                    location.reload();
-                } catch (err) {
-                    alert('❌ Restore Failed: ' + err.message);
-                    console.error(err);
+                if (!confirm('⚠️ CRITICAL WARNING ⚠️\n\nRestoring from backup will COMPLETELY ERASE and OVERWRITE all current:\n- Shops\n- Applicants (Tenants)\n- Payments\n- History\n\nThis action cannot be undone.\n\nAre you absolutely sure you want to proceed?')) {
+                    e.target.value = ''; // Reset
+                    return;
                 }
-            };
-            reader.readAsText(file);
-        });
+
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        Store.restoreData(data);
+                        alert('✅ Data restored successfully! The application will now reload.');
+                        location.reload();
+                    } catch (err) {
+                        alert('❌ Restore Failed: ' + err.message);
+                        console.error(err);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
     },
 
     gstHistory: [],
@@ -345,41 +350,13 @@ const SettingsModule = {
     },
 
     save() {
-        const rate = document.getElementById('set-penalty-rate').value;
-        const date = document.getElementById('set-penalty-date').value;
-
-        if (!rate || !date) {
-            alert("Please fill required penalty fields");
-            return;
+        // Redundant save handler (kept for robust compatibility if called directly)
+        // Main logic is now in the form submit handler inside render()
+        // But if this is called from console or elsewhere:
+        const form = document.getElementById('settings-form');
+        if (form) {
+            form.dispatchEvent(new Event('submit'));
         }
-
-        if (this.gstHistory.length === 0) {
-            alert("Please add at least one GST Rate entry (e.g. from 2018-01-01)");
-            return;
-        }
-
-        const newSettings = {
-            penaltyRate: parseFloat(rate),
-            penaltyDate: date,
-            gstHistory: this.gstHistory
-        };
-
-        // Handle Logo Update
-        // Logic: 
-        // 1. If tempLogo is string -> User uploaded new logo -> Save it
-        // 2. If tempLogo is null -> User clicked Clear -> Remove it
-        // 3. If tempLogo is undefined -> User did nothing -> Keep old logo
-
-        const oldSettings = Store.getSettings() || {};
-        if (this.tempLogo !== undefined) {
-            newSettings.logoUrl = this.tempLogo; // Can be string or null
-        } else {
-            newSettings.logoUrl = oldSettings.logoUrl; // Preserve existing
-        }
-
-        Store.saveSettings(newSettings).then(() => {
-            alert("Settings Saved!");
-        });
     }
 };
 
@@ -587,6 +564,13 @@ const NoticeModule = {
             const dues = this.calculateApplicantDues(app, parseFloat(settings.penaltyRate) || 15, impDate, new Date());
             const monthsText = dues.details.map(d => d.source === 'history' ? `${d.month} (prev)` : d.month).join(', ');
 
+            // Calculate Display Rate Safely
+            const pMode = settings.penaltyMode || 'MONTHLY';
+            const mRate = parseFloat(settings.monthlyPenaltyRate) || 500;
+            const dRate = parseFloat(settings.penaltyRate) || 15;
+            // Strict Mode: If Daily, use legacy rate. If Monthly, use new rate.
+            const displayRate = pMode === 'MONTHLY' ? mRate : dRate;
+
             // Define Logo HTML based on settings
             let logoHtml = '';
             if (settings.logoUrl) {
@@ -638,7 +622,7 @@ const NoticeModule = {
                         Monthly rent for the months from <strong>${dues.details.length > 0 ? dues.details[0].month : '...'}</strong> to 
                         <strong>${dues.details.length > 0 ? dues.details[dues.details.length - 1].month : '...'}</strong> for 
                         <u>Rs. ${dues.totalAmount.toFixed(2)}</u> pending to be pay attracts 
-                        <u>Rs. ${(settings.penaltyMode === 'MONTHLY' ? (settings.monthlyPenaltyRate || 500) : (settings.monthlyPenaltyRate || settings.penaltyRate || 15)).toFixed(2)}</u> penalty per ${settings.penaltyMode === 'MONTHLY' ? 'month' : 'day'} 
+                        <u>Rs. ${displayRate.toFixed(2)}</u> penalty per ${settings.penaltyMode === 'MONTHLY' ? 'month' : 'day'} 
                         for delay payment to an amount of <u>Rs. ${dues.totalAmount.toFixed(2)}</u> (including Penalty) and 
                         take action to evict from the Shop – notice issued.
                     </div>
@@ -2568,7 +2552,7 @@ const ReportModule = {
                         IsArrear: true,
                         SettledBefore: isSettledBeforeReport,
                         Penalty: penaltyForMonth,
-                        Days: penaltyForMonth / penaltyRate // Infer days
+                        RateUsed: (dueDate < policyDate ? legacyRate : newRate)
                     });
                 }
 

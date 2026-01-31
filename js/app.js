@@ -723,7 +723,11 @@ const Store = {
                 const penaltyMode = settings.penaltyMode || 'MONTHLY'; // 'DAILY' or 'MONTHLY'
                 const legacyRate = parseFloat(settings.penaltyRate) || 15; // Rate BEFORE Policy Date
                 let newRate = parseFloat(settings.monthlyPenaltyRate); // Rate AFTER Policy Date
-                if (isNaN(newRate)) newRate = 500; // Default if not set
+
+                if (isNaN(newRate)) {
+                    if (penaltyMode === 'MONTHLY') newRate = 500;
+                    else newRate = legacyRate; // Default to legacy rate if Daily (to match UI)
+                }
 
                 // Normalize today to start of day for accurate comparison
                 const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -2844,7 +2848,8 @@ const RentModule = {
     render(container) {
         const s = Store.getSettings();
         const m = s.penaltyMode || 'MONTHLY';
-        const r = m === 'MONTHLY' ? (s.monthlyPenaltyRate || 500) : (s.monthlyPenaltyRate || s.penaltyRate || 15);
+        // Fix: Do not fallback to monthlyRate if mode is DAILY
+        const r = m === 'MONTHLY' ? (parseFloat(s.monthlyPenaltyRate) || 500) : (parseFloat(s.penaltyRate) || 15);
         const penaltyText = m === 'MONTHLY' ? `₹${r}/month` : `₹${r}/day`;
 
         container.innerHTML = `
