@@ -1780,9 +1780,11 @@ const Store = {
             shops: this.getShops(),
             settings: this.getSettings(),
             remittances: this.getRemittances(),
+            waivers: this.getWaivers(),
             history: this.getHistory(),
+            penaltyHistory: this.cache.penaltyHistory,
             timestamp: new Date().toISOString(),
-            version: '1.0'
+            version: '1.2'
         };
     },
 
@@ -1803,7 +1805,9 @@ const Store = {
             if (data.payments) localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(data.payments));
             if (data.settings) localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(data.settings));
             if (data.remittances) localStorage.setItem(this.REMITTANCE_KEY, JSON.stringify(data.remittances));
+            if (data.waivers) localStorage.setItem(this.WAIVERS_KEY, JSON.stringify(data.waivers));
             if (data.history) localStorage.setItem(this.HISTORY_KEY, JSON.stringify(data.history));
+            if (data.penaltyHistory) localStorage.setItem(this.PENALTY_HISTORY_KEY, JSON.stringify(data.penaltyHistory));
 
             return true;
         } catch (e) {
