@@ -5,34 +5,33 @@
 }
 
 :root {
-    --primary-color: #4f46e5;
-    --primary-hover: #4338ca;
-    --secondary-color: #ec4899;
-    --text-main: #1e293b;
-    --text-muted: #64748b;
-    --bg-gradient: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.5);
-    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-    --radius-lg: 16px;
-    --radius-md: 12px;
+    --primary-color: #0d6efd;
+    /* Govt Blue */
+    --primary-hover: #0b5ed7;
+    --secondary-color: #d63384;
+    /* Pink Detail */
+    --nav-bg: #1e3a8a;
+    /* Navy Blue for Nav */
+    --header-bg: #ffffff;
+    --text-main: #212529;
+    --text-muted: #6c757d;
+    --bg-body: #f8f9fa;
+    --border-color: #dee2e6;
+    --radius-md: 4px;
+    /* Sharper corners for formal look */
+    --radius-lg: 8px;
     --font-main: 'Inter', sans-serif;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 body {
     font-family: var(--font-main);
-    background: #e0e7ff;
-    background-image:
-        radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
-        radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
-        radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%),
-        url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+    background: var(--bg-body);
     color: var(--text-main);
     min-height: 100vh;
     overflow-x: hidden;
+    line-height: 1.5;
 }
 
 .app-container {
@@ -533,4 +532,273 @@ body {
     background: #b91c1c;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* ==========================================
+   GOVT PORTAL DESIGN (LANDING PAGE)
+   ========================================== */
+
+/* Header */
+.govt-header {
+    background: white;
+    padding: 1rem 2rem;
+    border-bottom: 4px solid var(--secondary-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.govt-logo-block {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.govt-logo-img {
+    height: 80px;
+    width: auto;
+}
+
+.govt-titles h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.govt-titles h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 0px;
+}
+
+.govt-titles p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Navigation Bar */
+.govt-navbar {
+    background: var(--nav-bg);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    height: 50px;
+    box-shadow: var(--shadow-md);
+}
+
+.govt-nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 0 1.5rem;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.2s;
+}
+
+.govt-nav-link:first-child {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.govt-nav-link:hover,
+.govt-nav-link.active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Marquee */
+.marquee-container {
+    background: #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.marquee-label {
+    background: var(--secondary-color);
+    color: white;
+    padding: 0 1.5rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    z-index: 10;
+}
+
+.marquee-content {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+    color: #b91c1c;
+    /* Urgent red? or just dark */
+    font-weight: 500;
+}
+
+.marquee-content span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee 25s linear infinite;
+}
+
+@keyframes marquee {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    100% {
+        transform: translate(-100%, 0);
+    }
+}
+
+/* Hero Section */
+.landing-hero {
+    display: flex;
+    min-height: calc(100vh - 200px);
+    /* Fill remaining space roughly */
+    background: white;
+}
+
+.hero-visual {
+    flex: 2;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-visual img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hero-login-container {
+    flex: 1;
+    min-width: 400px;
+    padding: 3rem;
+    background: #f8f9fa;
+    border-left: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Login Box (Govt Style) */
+.landing-login-box {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.login-box-header {
+    background: var(--primary-color);
+    color: white;
+    padding: 1rem 1.5rem;
+}
+
+.login-box-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.login-box-body {
+    padding: 2rem;
+}
+
+.login-footer {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+}
+
+.login-footer a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Overriding old Login Styles if necessary */
+#login-container {
+    display: none;
+    /* Hide old glass login */
+}
+
+/* Footer */
+.govt-footer {
+    background: #343a40;
+    color: white;
+    padding: 1rem 0;
+    text-align: center;
+    font-size: 0.85rem;
+    margin-top: auto;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .landing-hero {
+        flex-direction: column;
+    }
+
+    .hero-visual {
+        min-height: 200px;
+        flex: none;
+    }
+
+    .hero-login-container {
+        padding: 2rem;
+        border-left: none;
+    }
+
+    .govt-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    .govt-logo-block {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .govt-navbar {
+        height: auto;
+        flex-wrap: wrap;
+        padding: 0.5rem;
+    }
+
+    .govt-nav-link {
+        width: 100%;
+        border: none;
+        height: 40px;
+    }
+}
+
+/* Responsive Utility */
+@media (min-width: 900px) {
+    .desktop-only-logo {
+        display: block !important;
+    }
 }

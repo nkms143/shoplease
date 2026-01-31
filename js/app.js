@@ -216,8 +216,9 @@ window.logout = AuthModule.logout.bind(AuthModule); // Bind to keep context
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. AUTH CHECK
+    // 1. AUTH CHECK
     // 0. INITIALIZE UI EVENTS (Immediate)
-    const loginContainer = document.getElementById('login-container');
+    const landingPage = document.getElementById('landing-page'); // Replaces login-container
     const appContainer = document.getElementById('app-container');
     const loginForm = document.getElementById('login-form');
     const loginError = document.getElementById('login-error');
@@ -231,8 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resetEmailInput = document.getElementById('reset-email');
 
     if (forgotLink && forgotModal) {
-        // Redundant listeners removed. Handled by global window.openForgotModal & inline onclick.
-
+        // Redundant listeners logic...
         cancelResetBtn.addEventListener('click', () => {
             forgotModal.style.display = 'none';
         });
@@ -263,15 +263,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Password Reset now handled by dedicated reset.html page
-    // Removed old PASSWORD_RECOVERY modal logic to prevent duplicate modals
-
     // 1. AUTH CHECK (Async)
-
     const isLoggedIn = await AuthModule.checkSession();
 
     if (isLoggedIn) {
-        loginContainer.style.display = 'none';
+        if (landingPage) landingPage.style.display = 'none';
         appContainer.style.display = 'flex'; // Show Flex container
 
         // Initialize App Logic ONLY if logged in
@@ -285,8 +281,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Auto-load Dashboard on app initialization
         handleRoute('dashboard');
     } else {
-        loginContainer.style.display = 'flex';
+        if (landingPage) landingPage.style.display = 'block'; // Show Landing Page
         appContainer.style.display = 'none';
+        // Logos are now loaded from assets/ folder directly
     }
 
     // Login Event

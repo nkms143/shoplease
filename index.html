@@ -14,35 +14,95 @@
 </head>
 
 <body>
-    <div id="login-container" class="login-container">
-        <div class="glass-panel login-box">
-            <div class="login-header">
-                <h1>SUDA</h1>
-                <p>Shop Lease Manager</p>
-                <div
-                    style="width: 50px; height: 4px; background: var(--primary-color); margin: 15px auto; border-radius: 2px;">
+    <!-- LANDING PAGE (GOVT PORTAL STYLE) -->
+    <div id="landing-page">
+        <!-- Top Header -->
+        <header class="govt-header">
+            <div class="govt-logo-block">
+                <!-- Official Seal/Emblem -->
+                <img id="govt-emblem" src="assets/emblem.png" alt="Government Emblem"
+                    style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: #e9ecef;">
+                <div class="govt-titles">
+                    <h1>Government of Telangana</h1>
+                    <h2>Shop Lease Manager (SUDA)</h2>
+                    <p>Municipal Administration & Urban Development Department</p>
                 </div>
             </div>
-            <form id="login-form">
-                <div class="form-group">
-                    <label class="form-label" for="login-id">Email Address</label>
-                    <input type="email" id="login-id" class="form-input" placeholder="admin@shoplease.com" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="login-pass">Password</label>
-                    <input type="password" id="login-pass" class="form-input" placeholder="Enter Password" required>
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Secure Login</button>
-            </form>
-            <div style="text-align: right; margin-top: 10px;">
-                <a href="javascript:void(0)" onclick="openForgotModal(event)" id="forgot-password-link"
-                    style="color: #64748b; font-size: 0.9rem; text-decoration: none;">Forgot Password?</a>
+            <!-- Secondary Logo (SUDA) -->
+            <div class="desktop-only-logo" style="display: none;">
+                <img id="landing-logo" src="assets/logo.jpg" alt="SUDA Logo"
+                    style="height: 70px; width: auto; border-radius: 4px;">
             </div>
-            <div id="login-error"
-                style="color: #ef4444; font-size: 0.9rem; text-align: center; margin-top: 1rem; display: none;">
-                Invalid Credentials
+        </header>
+
+        <!-- Navbar -->
+        <nav class="govt-navbar">
+            <a href="#" class="govt-nav-link active">Home</a>
+            <a href="#" class="govt-nav-link">Contact Us</a>
+        </nav>
+
+        <!-- Marquee -->
+        <div class="marquee-container">
+            <div class="marquee-label">Latest Updates</div>
+            <div class="marquee-content">
+                <span>
+                    🔔 Important: All shop owners must update their profile details by 31st March.
+                    &nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;
+                    📢 Penalty Rates are effective from 2026-02-01. Please check the notifications.
+
+                </span>
             </div>
         </div>
+
+        <!-- Hero Section -->
+        <section class="landing-hero">
+            <!-- Visual Side -->
+            <div class="hero-visual">
+                <img src="assets/Telangana Rising.png" alt="Telangana Rising"
+                    style="max-width: 400px; max-height: 400px; width: auto; height: auto; object-fit: contain;">
+            </div>
+
+            <!-- Login Side -->
+            <div class="hero-login-container">
+                <div class="landing-login-box">
+                    <div class="login-box-header">
+                        <h3>🔑 Officer Login</h3>
+                    </div>
+                    <div class="login-box-body">
+                        <form id="login-form">
+                            <div class="form-group">
+                                <label class="form-label" for="login-id">Username / Email</label>
+                                <input type="email" id="login-id" class="form-input" placeholder="Enter official ID"
+                                    required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="login-pass">Password</label>
+                                <input type="password" id="login-pass" class="form-input" placeholder="Enter password"
+                                    required>
+                            </div>
+
+                            <button type="submit" class="btn-primary"
+                                style="width: 100%; background: var(--primary-color);">Login</button>
+                        </form>
+                    </div>
+                    <div class="login-footer">
+                        <a href="javascript:void(0)" onclick="openForgotModal(event)">Forgot Password?</a>
+                        <span style="color: #6c757d;">|</span>
+                        <a href="#">Help Desk</a>
+                    </div>
+                    <div id="login-error"
+                        style="background: #fee2e2; color: #b91c1c; padding: 0.5rem; text-align: center; border-top: 1px solid #fecaca; display: none;">
+                        Invalid Credentials
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="govt-footer">
+            <p>&copy; 2026 Municipal Administration & Urban Development Department, Government of Telangana.</p>
+            <p style="opacity: 0.7; font-size: 0.75rem; margin-top: 0.25rem;">Designed & Developed by Centre for Good
+                Governance (CGG)</p>
+        </footer>
     </div>
 
 
