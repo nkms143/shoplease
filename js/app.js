@@ -231,7 +231,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resetEmailInput = document.getElementById('reset-email');
 
     if (forgotModal && cancelResetBtn && sendResetBtn && resetEmailInput) {
+        console.log("Password reset modal elements found, attaching event listener");
+
         sendResetBtn.addEventListener('click', async () => {
+            console.log("Send Reset Link clicked");
             const email = resetEmailInput.value.trim();
             if (!email) {
                 alert('Please enter your email address.');
@@ -242,7 +245,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             sendResetBtn.textContent = 'Sending...';
             sendResetBtn.disabled = true;
 
+            console.log("Calling AuthModule.sendPasswordReset for:", email);
             const result = await AuthModule.sendPasswordReset(email);
+            console.log("Reset result:", result);
 
             sendResetBtn.textContent = originalText;
             sendResetBtn.disabled = false;
@@ -254,6 +259,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 alert('Error: ' + (result.error || 'Failed to send reset link.'));
             }
+        });
+    } else {
+        console.error("Password reset modal elements not found:", {
+            forgotModal: !!forgotModal,
+            cancelResetBtn: !!cancelResetBtn,
+            sendResetBtn: !!sendResetBtn,
+            resetEmailInput: !!resetEmailInput
         });
     }
 
