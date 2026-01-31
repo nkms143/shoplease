@@ -4365,8 +4365,6 @@ const PaymentReportModule = {
             });
         }
 
-        this.bindDataEvents(); // Assuming this method exists within PaymentReportModule
-
         this.renderReport();
     },
 
