@@ -4,99 +4,126 @@
 // ==========================================
 const SettingsModule = {
     render(container) {
+
+        const s = Store.getSettings();
+        // --- PENALTY CONFIGURATION ---
+        const penaltyRate = (s && s.penaltyRate) || 15;
+        const penaltyDate = (s && s.penaltyDate) || '';
+
+        // New Policy Fields
+        const penaltyPolicyDate = (s && s.penaltyPolicyDate) || '2022-01-01';
+        const penaltyMode = (s && s.penaltyMode) || 'MONTHLY'; // 'DAILY' or 'MONTHLY'
+        const monthlyPenaltyRate = (s && s.monthlyPenaltyRate) || 500;
+
         container.innerHTML = `
             <div class="glass-panel" style="max-width: 600px; margin: 0 auto;">
-                <h3>Global Application Settings</h3>
-                <div style="margin-top: 2rem;">
-                    <div class="form-group">
-                        <label class="form-label">Delay Penalty Rate (₹ per day)</label>
-                        <input type="number" id="set-penalty-rate" class="form-input" placeholder="e.g. 15">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Penalty Implementation Date</label>
-                        <input type="date" id="set-penalty-date" class="form-input">
-                        <small style="color:#666;">Penalties will only apply for delays AFTER this date.</small>
-                    </div>
-
-                    <div class="glass-panel" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; margin: 1rem 0;">
-                        <h5 style="margin-bottom: 0.5rem; color: var(--primary-color);">Organization Logo</h5>
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                            <div style="flex-shrink: 0;">
-                                <img id="logo-preview" src="" alt="No Logo" style="height: 60px; max-width: 150px; border: 1px dashed #cbd5e1; display: none;">
-                            </div>
-                            <div style="flex-grow: 1;">
-                                <input type="file" id="logo-upload" accept="image/*" class="form-input">
-                                <small style="color:#666; display:block;">Select an image to appear on notices (Max 500KB).</small>
-                            </div>
-                            <button id="btn-clear-logo" class="btn-primary" style="background: #ef4444; padding: 0.5rem 0.8rem; font-size: 0.8rem; display: none;">Remove</button>
+                <h3 style="margin-bottom: 2rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem;">⚙️ Application Settings</h3>
+                
+                <form id="settings-form">
+                    
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e2e8f0;">
+                        <h4 style="margin-top: 0; color: #334155; margin-bottom: 1rem;">🛑 Penalty Configuration (Legacy)</h4>
+                        <div class="form-group">
+                            <label class="form-label">Legacy Daily Penalty Rate (₹)</label>
+                            <input type="number" id="set-penalty-rate" class="form-control" value="${penaltyRate}">
+                            <small style="color: #64748b;">Applied for dues BEFORE the Policy Effective Date.</small>
+                        </div>
+                        <div class="form-group">
+                             <label class="form-label">Legacy Implementation Date</label>
+                             <input type="date" id="set-penalty-date" class="form-control" value="${penaltyDate}">
+                             <small style="color: #64748b;">(Optional) Start calculations from this date.</small>
                         </div>
                     </div>
 
-                    <div class="glass-panel" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; margin: 1rem 0;">
-                        <h5 style="margin-bottom: 0.5rem; color: var(--primary-color);">GST Rate History</h5>
-                        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
-                            Define GST rates and their effective dates. The system will automatically use the rate applicable for any given month.
-                        </p>
+                    <div style="background: #ecfdf5; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #d1fae5;">
+                         <h4 style="margin-top: 0; color: #065f46; margin-bottom: 1rem;">✨ New Penalty Policy</h4>
+                         
+                         <div class="form-group">
+                            <label class="form-label">Policy Effective Date</label>
+                            <input type="date" id="set-policy-date" class="form-control" value="${penaltyPolicyDate}">
+                            <small style="color: #047857;">New calculation logic applies to dues on or after this date.</small>
+                        </div>
 
-                        <table class="data-table" style="margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Calculation Mode</label>
+                            <select id="set-penalty-mode" class="form-select">
+                                <option value="MONTHLY" ${penaltyMode === 'MONTHLY' ? 'selected' : ''}>Monthly (Per Month)</option>
+                                <option value="DAILY" ${penaltyMode === 'DAILY' ? 'selected' : ''}>Daily (Per Day)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Applicable Rate (₹)</label>
+                            <input type="number" id="set-monthly-rate" class="form-control" value="${monthlyPenaltyRate}">
+                            <small style="color: #047857;">Rate applied based on the selected mode (e.g. ₹500/Month or ₹20/Day).</small>
+                        </div>
+                    </div>
+
+                    <!-- Logo Configuration -->
+                    <div style="background: #fff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 2rem;">
+                        <h4 style="margin-top: 0; color: #334155; margin-bottom: 1rem;">🖼️ Logo Settings</h4>
+                        <div class="form-group" style="display: flex; gap: 1rem; align-items: start;">
+                           <div style="border: 1px solid #cbd5e1; width: 150px; height: 100px; display: flex; align-items: center; justify-content: center; background: #f1f5f9;">
+                                <img id="logo-preview" style="max-width: 100%; max-height: 100%; display: none;">
+                                <span id="logo-placeholder" style="color: #94a3b8; font-size: 0.8rem;">No Logo</span>
+                           </div>
+                           <div style="flex: 1;">
+                                <label class="form-label">Upload Logo</label>
+                                <input type="file" id="logo-upload" class="form-control" accept="image/*">
+                                <input type="hidden" id="set-logo-url"> 
+                                <button type="button" id="btn-clear-logo" style="margin-top: 0.5rem; display: none; background: #ef4444; color: white; border: none; padding: 0.5rem; border-radius: 4px; cursor: pointer;">Remove Logo</button>
+                           </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem;">💾 Save Settings</button>
+                </form>
+
+                <!-- Data Management -->
+                <div style="margin-top: 3rem; border-top: 2px solid #e2e8f0; padding-top: 2rem;">
+                    <h3 style="margin-bottom: 1.5rem;">💾 Data Management</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <button id="btn-backup" class="btn-primary" style="background: #3b82f6;">⬇️ Download Backup</button>
+                        <button id="btn-restore" class="btn-primary" style="background: #8b5cf6;">⬆️ Restore Backup</button>
+                        <button id="btn-cloud-backup" class="btn-primary" style="background: #0ea5e9;">☁️ Cloud Sync</button>
+                    </div>
+                    <input type="file" id="restore-file-input" style="display: none;" accept=".json">
+                </div>
+
+                <!-- GST History -->
+                <div style="margin-top: 3rem; border-top: 2px solid #e2e8f0; padding-top: 2rem;">
+                     <h3 style="margin-bottom: 1rem;">税 GST Rate History</h3>
+                     <div class="table-container">
+                        <table class="data-table">
                             <thead>
                                 <tr>
                                     <th>Effective Date</th>
-                                    <th>GST Rate (%)</th>
-                                    <th style="width: 50px;"></th>
+                                    <th>Rate (%)</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="gst-history-list">
-                                <!-- Populated via JS -->
+                                <!-- Populated by JS -->
                             </tbody>
                         </table>
-
-                        <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
-                            <div style="flex: 1;">
-                                <label class="form-label" style="font-size: 0.8rem;">New Effective Date</label>
-                                <input type="date" id="new-gst-date" class="form-input">
-                            </div>
-                            <div style="flex: 1;">
-                                <label class="form-label" style="font-size: 0.8rem;">New Rate (%)</label>
-                                <input type="number" id="new-gst-rate" class="form-input" placeholder="e.g. 12">
-                            </div>
-                            <button onclick="SettingsModule.addGstEntry()" class="btn-primary" style="padding: 0.7rem;">+</button>
+                     </div>
+                     <div style="display: flex; gap: 1rem; margin-top: 1rem; align-items: end;">
+                        <div>
+                            <label class="form-label">Date</label>
+                            <input type="date" id="new-gst-date" class="form-control">
                         </div>
-                    </div>
-
-                    <button onclick="SettingsModule.save()" class="btn-primary" style="width:100%; margin-top: 1rem;">Save Settings</button>
+                         <div>
+                            <label class="form-label">Rate (%)</label>
+                            <input type="number" id="new-gst-rate" class="form-control">
+                        </div>
+                        <button onclick="SettingsModule.addGstEntry()" class="btn-primary" style="margin-bottom: 2px;">+ Add Rate</button>
+                     </div>
                 </div>
 
-                <!-- BACKUP & RESTORE SECTION -->
-                <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e2e8f0;">
-                    <h4 style="margin-bottom: 1rem; color: var(--primary-color);">Data Backup & Recovery</h4>
-                    <div style="display: grid; gap: 1rem; grid-template-columns: 1fr 1fr 1fr;">
-                        <button id="btn-backup" class="btn-primary" style="background: #0ea5e9; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; padding: 0.5rem;">
-                            <span>⬇</span> Local
-                        </button>
-                        <button id="btn-cloud-backup" class="btn-primary" style="background: #8b5cf6; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; padding: 0.5rem;">
-                            <span>☁</span> Cloud
-                        </button>
-                        <button id="btn-restore" class="btn-primary" style="background: #f59e0b; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; padding: 0.5rem;">
-                            <span>⬆</span> Restore
-                        </button>
-                        <input type="file" id="restore-file-input" accept=".json" style="display: none;">
-                    </div>
-                    <small style="display: block; margin-top: 0.5rem; color: var(--text-muted); text-align: center;">
-                        Download a JSON backup to keep your data safe.<br>
-                        <strong>Warning:</strong> Restoring will overwrite all current data.
-                    </small>
-                </div>
             </div>
         `;
 
-        const s = Store.getSettings();
-        // Load Penalty Settings
-        if (s) {
-            document.getElementById('set-penalty-rate').value = s.penaltyRate || 15;
-            document.getElementById('set-penalty-date').value = s.penaltyDate || '2025-01-01';
-        }
+
 
         // Initialize/Load GST History
         SettingsModule.gstHistory = s && s.gstHistory ? s.gstHistory : [];
@@ -110,35 +137,43 @@ const SettingsModule = {
             clearBtn.style.display = 'block';
         }
 
-        // Logo Upload Handler
-        document.getElementById('logo-upload').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        // --- SAVE HANDLER ---
+        const form = document.getElementById('settings-form');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
 
-            if (file.size > 500 * 1024) {
-                alert("File too large! Please select an image under 500KB.");
-                e.target.value = '';
-                return;
-            }
+                // Get current settings to merge
+                const currentFromStore = Store.getSettings() || {};
 
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const base64 = ev.target.result;
-                document.getElementById('logo-preview').src = base64;
-                document.getElementById('logo-preview').style.display = 'block';
-                document.getElementById('btn-clear-logo').style.display = 'block';
-                SettingsModule.tempLogo = base64; // Stored temporarily until Save
-            };
-            reader.readAsDataURL(file);
-        });
+                const newSettings = {
+                    ...currentFromStore,
+                    penaltyRate: document.getElementById('set-penalty-rate').value,
+                    penaltyDate: document.getElementById('set-penalty-date').value,
 
-        document.getElementById('btn-clear-logo').addEventListener('click', () => {
-            document.getElementById('logo-preview').src = '';
-            document.getElementById('logo-preview').style.display = 'none';
-            document.getElementById('logo-upload').value = '';
-            document.getElementById('btn-clear-logo').style.display = 'none';
-            SettingsModule.tempLogo = null; // Explicit null to indicate removal
-        });
+                    // New Fields
+                    penaltyPolicyDate: document.getElementById('set-policy-date').value,
+                    penaltyMode: document.getElementById('set-penalty-mode').value,
+                    monthlyPenaltyRate: document.getElementById('set-monthly-rate').value,
+
+                    logoUrl: document.getElementById('set-logo-url').value,
+                    gstHistory: SettingsModule.gstHistory
+                };
+
+                // Helper to save if logo is being uploaded (handled separately usually but ensuring consistency)
+                if (SettingsModule.tempLogo !== undefined) {
+                    if (SettingsModule.tempLogo === null) {
+                        newSettings.logoUrl = '';
+                    } else {
+                        newSettings.logoUrl = SettingsModule.tempLogo;
+                    }
+                }
+
+                await Store.saveSettings(newSettings);
+                alert("Settings Saved Successfully!");
+            });
+        }
+
 
         // Migration: If old settings exist but no history, create initial history
         if ((!s || !s.gstHistory || s.gstHistory.length === 0) && s) {
@@ -603,7 +638,7 @@ const NoticeModule = {
                         Monthly rent for the months from <strong>${dues.details.length > 0 ? dues.details[0].month : '...'}</strong> to 
                         <strong>${dues.details.length > 0 ? dues.details[dues.details.length - 1].month : '...'}</strong> for 
                         <u>Rs. ${dues.totalAmount.toFixed(2)}</u> pending to be pay attracts 
-                        <u>Rs. ${(parseFloat(settings.penaltyRate) || 15).toFixed(2)}</u> penalty per ${settings.penaltyRate ? 'day' : 'month'} 
+                        <u>Rs. ${(settings.penaltyMode === 'MONTHLY' ? (settings.monthlyPenaltyRate || 500) : (settings.monthlyPenaltyRate || settings.penaltyRate || 15)).toFixed(2)}</u> penalty per ${settings.penaltyMode === 'MONTHLY' ? 'month' : 'day'} 
                         for delay payment to an amount of <u>Rs. ${dues.totalAmount.toFixed(2)}</u> (including Penalty) and 
                         take action to evict from the Shop – notice issued.
                     </div>
@@ -630,8 +665,8 @@ const NoticeModule = {
                     <strong>${dues.details.length > 0 ? dues.details[0].month : ''}</strong> to 
                     <strong>${dues.details.length > 0 ? dues.details[dues.details.length - 1].month : ''}</strong> continuously. 
                     The non-payment of monthly rent will result for eviction from the occupation of shops. Further you are instructed 
-                    to pay the <u>${dues.monthsCount}</u> months monthly rent by adding Rs. ${(parseFloat(settings.penaltyRate) || 15).toFixed(2)} 
-                    penalty per ${settings.penaltyRate ? 'day' : 'month'} totalling to an amount of 
+                    to pay the <u>${dues.monthsCount}</u> months monthly rent by adding Rs. ${(settings.penaltyMode === 'MONTHLY' ? (settings.monthlyPenaltyRate || 500) : (settings.monthlyPenaltyRate || settings.penaltyRate || 15)).toFixed(2)} 
+                    penalty per ${settings.penaltyMode === 'MONTHLY' ? 'month' : 'day'} totalling to an amount of 
                     <strong>Rs. ${dues.totalAmount.toFixed(2)}</strong> (Rent ${((dues.baseRent + dues.gst).toFixed(2))} and 
                     Penalty Amount for ${dues.monthsCount} Months Rs. ${dues.penalty.toFixed(2)}).
                 </p>
@@ -2094,7 +2129,7 @@ const ReportModule = {
         const rows = [];
 
         targets.forEach(app => {
-            const result = this.calculateDCBForApplicant(app, fromDate, toDate, payments, penaltyRate, implementationDate);
+            const result = this.calculateDCBForApplicant(app, fromDate, toDate, payments, settings);
 
             totalCurrentDemandBase += result.currentDemandBase;
             totalCurrentDemandGst += result.currentDemandGst;
@@ -2196,6 +2231,11 @@ const ReportModule = {
             }
         });
 
+        const s = Store.getSettings();
+        const m = s.penaltyMode || 'MONTHLY';
+        const r = m === 'MONTHLY' ? (s.monthlyPenaltyRate || 500) : (s.monthlyPenaltyRate || s.penaltyRate || 15);
+        const penaltyText = m === 'MONTHLY' ? `₹${r}/month` : `₹${r}/day`;
+
         target.innerHTML = `
              <div class="glass-panel">
                 <!-- Removed duplicate tab buttons here since they are in main render now -->
@@ -2248,7 +2288,7 @@ const ReportModule = {
                         </div>
                         
                         <div style="margin-top: 2rem; font-size: 0.9rem; color: #666;">
-                            * Penalty is calculated @ ₹16/day for delay.<br>
+                            * Penalty is calculated @ ${penaltyText} for delay.<br>
                             * This is a computer generated statement.
                         </div>
                     </div>
@@ -2345,11 +2385,16 @@ const ReportModule = {
         document.getElementById('stmt-results').style.display = 'block';
     },
 
-    calculateDCBForApplicant(app, fromDate, toDate, allPayments, rate, impDate) {
+    calculateDCBForApplicant(app, fromDate, toDate, allPayments, settings) {
         // Calculate detailed current vs arrear demand/collection/balance
 
         // Ensure inputs are safe
-        const penaltyRate = parseFloat(rate) || 15; // default 15 if NaN/missing
+        const legacyRate = parseFloat(settings.penaltyRate) || 15;
+        const newRate = parseFloat(settings.monthlyPenaltyRate) || 500;
+        const policyDateStr = settings.penaltyPolicyDate || '2022-01-01';
+        const policyDate = new Date(policyDateStr);
+        const mode = settings.penaltyMode || 'MONTHLY';
+        const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
 
         // STRICT FREEZE LOGIC:
         // Filter payments to ignore anything after the report 'toDate' (End of selected FY).
@@ -2456,7 +2501,7 @@ const ReportModule = {
                 // NOTE: Using specific requirement: "Arrear Collection" = Collections made for old months.
 
                 // Penalty Logic for Arrears:
-                const dueDay = parseInt(app.paymentDay) || 1;
+                const dueDay = parseInt(app.paymentDay) || 5;
                 const dueDate = new Date(current.getFullYear(), current.getMonth(), Math.min(dueDay, 28));
                 let countStart = dueDate;
                 if (impDate && !isNaN(new Date(impDate).getTime()) && impDate > dueDate) countStart = impDate;
@@ -2476,13 +2521,25 @@ const ReportModule = {
                 }
 
                 // 2. Calculate Theoretical Opening Penalty (Up to Previous FY End)
-                // This represents the penalty liability that existed at the START of this report period.
-                // We calculate this regardless of whether it was paid *during* this period or not.
                 if (!isSettledBeforeReport) {
                     if (prevFyEnd > countStart && !isNaN(prevFyEnd.getTime()) && !isNaN(countStart.getTime())) {
                         const diffDays = Math.ceil((prevFyEnd - countStart) / (1000 * 60 * 60 * 24));
+
                         if (diffDays > 0) {
-                            penaltyForMonth = diffDays * penaltyRate;
+                            // SPLIT LOGIC
+                            if (dueDate < policyDate) {
+                                // Legacy
+                                penaltyForMonth = diffDays * legacyRate;
+                            } else {
+                                // New Policy
+                                if (mode === 'MONTHLY') {
+                                    const months = Math.floor(diffDays / 30);
+                                    penaltyForMonth = months * newRate;
+                                } else {
+                                    // Daily New
+                                    penaltyForMonth = diffDays * newRate;
+                                }
+                            }
                         }
                     }
                 }
@@ -4607,10 +4664,31 @@ const WaiverModule = {
 
         const diffTime = Math.abs(today - dueDate);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const rate = 15; // Standard Rate
+        const settings = Store.getSettings();
+        const legacyRate = parseFloat(settings.penaltyRate) || 15;
+        const newRate = parseFloat(settings.monthlyPenaltyRate) || 500;
+        const policyDateStr = settings.penaltyPolicyDate || '2022-01-01';
+        const policyDate = new Date(policyDateStr);
+        const mode = settings.penaltyMode || 'MONTHLY';
 
-        // Return calculated
-        return diffDays * rate;
+        let penaltyAmount = 0;
+
+        if (dueDate < policyDate) {
+            // Legacy
+            penaltyAmount = diffDays * legacyRate;
+        } else {
+            // New Policy
+            if (mode === 'MONTHLY') {
+                // Approx months
+                const months = Math.floor(diffDays / 30);
+                penaltyAmount = months * newRate;
+            } else {
+                // Daily New
+                penaltyAmount = diffDays * newRate;
+            }
+        }
+
+        return penaltyAmount;
     }
 };
 

@@ -713,16 +713,25 @@ const Store = {
                 }
                 addedMonthKeys.add(monthStr);
 
-                // Penalty Logic
+                // --- PENALTY LOGIC (REFACTORED) ---
                 const dueDay = parseInt(app.paymentDay) || 5;
                 const dueDate = new Date(y, cur.getMonth(), Math.min(dueDay, 28));
+
+                // Get Settings for Policy
+                const settings = this.getSettings();
+                const policyDateStr = settings.penaltyPolicyDate || '2022-01-01'; // Default Effective Date
+                const penaltyMode = settings.penaltyMode || 'MONTHLY'; // 'DAILY' or 'MONTHLY'
+                const legacyRate = parseFloat(settings.penaltyRate) || 15; // Rate BEFORE Policy Date
+                let newRate = parseFloat(settings.monthlyPenaltyRate); // Rate AFTER Policy Date
+                if (isNaN(newRate)) newRate = 500; // Default if not set
 
                 // Normalize today to start of day for accurate comparison
                 const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
+                // If not due yet, skip
                 if (todayMidnight <= dueDate) {
                     cur.setMonth(cur.getMonth() + 1);
-                    continue; // Not properly due yet
+                    continue;
                 }
 
                 let p = 0;
@@ -730,9 +739,9 @@ const Store = {
                     // Normalize startCounting
                     let startCounting = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
 
-                    if (implementationDate) {
-                        // normalize implementationDate to midnight
-                        const impMidnight = new Date(implementationDate.getFullYear(), implementationDate.getMonth(), implementationDate.getDate());
+                    const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
+                    if (impDate) {
+                        const impMidnight = new Date(impDate.getFullYear(), impDate.getMonth(), impDate.getDate());
                         if (impMidnight > startCounting) {
                             startCounting = impMidnight;
                         }
@@ -740,10 +749,28 @@ const Store = {
 
                     // Check diff
                     const diffTime = todayMidnight - startCounting;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Total days overdue from startCounting
 
                     if (todayMidnight > startCounting && diffDays > 0) {
-                        p = diffDays * penaltyRate;
+                        const policyDate = new Date(policyDateStr);
+                        // Normalize Policy Date
+                        const policyMidnight = new Date(policyDate.getFullYear(), policyDate.getMonth(), policyDate.getDate());
+
+                        // --- LEGACY PERIOD ---
+                        if (dueDate < policyMidnight) {
+                            p = diffDays * legacyRate;
+                        }
+                        // --- NEW PERIOD ---
+                        else {
+                            if (penaltyMode === 'MONTHLY') {
+                                // Logic: 500 per MONTH.
+                                const monthsOverdue = Math.floor(diffDays / 30);
+                                p = monthsOverdue * newRate;
+                            } else {
+                                // DAILY Mode (New Rate)
+                                p = diffDays * newRate;
+                            }
+                        }
                     }
                 }
 
@@ -801,7 +828,30 @@ const Store = {
                     source: period.meta && period.meta.source === 'history' ? 'history' : 'active'
                 });
 
-                cur.setMonth(cur.getMonth() + 1);
+
+
+                // --- WAIVER CHECK (Centralized) ---
+                const allWaivers = this.getWaivers() || [];
+                const mStr = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}`;
+                const hasWaiver = allWaivers.some(w => String(w.shopNo) === String(app.shopNo) && w.month === mStr);
+
+                if (hasWaiver) {
+                    p = 0;
+                }
+
+                dues.details.push({
+                    month: cur.toLocaleString('default', { month: 'long', year: 'numeric' }),
+                    rent: monthlyRental,
+                    penalty: p,
+                    gst: gstVal,
+                    total: monthlyRental + gstVal + p
+                });
+
+                dues.baseRent += monthlyRental;
+                dues.gst += gstVal;
+                dues.penalty += p;
+                dues.totalAmount += (monthlyRental + gstVal + p);
+
             }
         });
 
@@ -815,6 +865,7 @@ const Store = {
             penalty: totalPenalty
         };
     },
+
 
     /**
      * Checks for tenants who have NOT paid for the CURRENT month
@@ -2804,6 +2855,11 @@ const ApplicantModule = {
 // ==========================================
 const RentModule = {
     render(container) {
+        const s = Store.getSettings();
+        const m = s.penaltyMode || 'MONTHLY';
+        const r = m === 'MONTHLY' ? (s.monthlyPenaltyRate || 500) : (s.monthlyPenaltyRate || s.penaltyRate || 15);
+        const penaltyText = m === 'MONTHLY' ? `₹${r}/month` : `₹${r}/day`;
+
         container.innerHTML = `
     <div class="glass-panel">
                 <h3>Rent Collection</h3>
@@ -2859,7 +2915,7 @@ const RentModule = {
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label" for="penalty-amount">Total Delay Penalty (₹15/day)</label>
+                                <label class="form-label" for="penalty-amount">Total Delay Penalty (${penaltyText})</label>
                                 <input type="number" id="penalty-amount" class="form-input" style="color: #ef4444;" value="0">
                             </div>
 

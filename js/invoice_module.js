@@ -179,7 +179,12 @@ const InvoiceModule = {
 
         // Dynamic Penalty Rate
         const settings = Store.getSettings();
-        const penaltyRate = parseFloat(settings.penaltyRate || 16).toFixed(2);
+        const mode = settings.penaltyMode || 'MONTHLY';
+        const rate = mode === 'MONTHLY'
+            ? (parseFloat(settings.monthlyPenaltyRate) || 500)
+            : (parseFloat(settings.monthlyPenaltyRate) || parseFloat(settings.penaltyRate) || 15);
+
+        const rateText = mode === 'MONTHLY' ? `Rs. ${rate} per month` : `Rs. ${rate} per day`;
 
         return `
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
@@ -225,7 +230,7 @@ const InvoiceModule = {
                     </table>
 
                     <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 15px; border-radius: 6px; color: #9a3412; font-size: 0.9rem;">
-                        <strong>Note:</strong> Please pay by the ${dueDay}th of the month to avoid penalty (Rs. ${penaltyRate} per day after due date).
+                        <strong>Note:</strong> Please pay by the ${dueDay}th of the month to avoid penalty (${rateText} after due date).
                     </div>
                     <div style="margin-top:20px; font-size: 0.8rem; text-align: center; color: #64748b;">
                         This is a computer-generated invoice. No signature required.
