@@ -27,7 +27,7 @@ window.openForgotModal = function (e) {
         const landing = document.getElementById('landing-page');
         if (landing) landing.style.zIndex = '999'; // Lower it below Modal
 
-        console.log("Global: Force Opened Forgot Modal", m.style.display);
+
     } else {
         console.error("Global: Modal Not Found!");
     }
@@ -93,7 +93,7 @@ const AuthModule = {
 
             const redirectUrl = window.location.origin + basePath + 'reset.html';
 
-            console.log("Sending Reset for URL:", redirectUrl);
+
 
             const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
                 redirectTo: redirectUrl,
@@ -145,7 +145,7 @@ const AuthModule = {
 
     // --- DATA REPAIR HELPER (Run in Console) ---
     async repairData() {
-        console.log("Starting Repair Process...");
+
         // 1. Get Legacy Data involved in the migration failure
         const rawApps = localStorage.getItem('suda_shop_applicants');
 
@@ -159,7 +159,7 @@ const AuthModule = {
         let failCount = 0;
 
         for (const app of applicants) {
-            console.log(`Repiring Shop ${app.shopNo}...`);
+
 
             // Map the missing fields
             const updatePayload = {
@@ -231,10 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resetEmailInput = document.getElementById('reset-email');
 
     if (forgotModal && cancelResetBtn && sendResetBtn && resetEmailInput) {
-        console.log("Password reset modal elements found, attaching event listener");
-
         sendResetBtn.addEventListener('click', async () => {
-            console.log("Send Reset Link clicked");
             const email = resetEmailInput.value.trim();
             if (!email) {
                 alert('Please enter your email address.');
@@ -245,9 +242,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             sendResetBtn.textContent = 'Sending...';
             sendResetBtn.disabled = true;
 
-            console.log("Calling AuthModule.sendPasswordReset for:", email);
             const result = await AuthModule.sendPasswordReset(email);
-            console.log("Reset result:", result);
 
             sendResetBtn.textContent = originalText;
             sendResetBtn.disabled = false;
@@ -261,12 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     } else {
-        console.error("Password reset modal elements not found:", {
-            forgotModal: !!forgotModal,
-            cancelResetBtn: !!cancelResetBtn,
-            sendResetBtn: !!sendResetBtn,
-            resetEmailInput: !!resetEmailInput
-        });
+        // No console.error here as per instruction
     }
 
     // 1. AUTH CHECK (Async)
@@ -696,7 +686,7 @@ const Store = {
     // --- NOTIFICATIONS ---
     async sendEmail(to, subject, text, html = null) {
         if (!to) return;
-        console.log(`Sending email to ${to}...`);
+
 
         try {
             const { data, error } = await supabaseClient.functions.invoke('send-email', {
@@ -709,7 +699,7 @@ const Store = {
             });
 
             if (error) throw error;
-            console.log("Email Sent:", data);
+
             this.logAction('SEND_EMAIL', 'system', 'na', `Sent email to ${to}: ${subject}`);
         } catch (e) {
             console.error("Email Sending Failed:", e);
@@ -930,7 +920,7 @@ const Store = {
         const tenants = this.getApplicants();
         let sentCount = 0;
 
-        console.log(`Checking Late Payments for ${currentMonthStr}...`);
+
 
         for (const tenant of tenants) {
             if (!tenant.email) continue; // Skip if no email
@@ -1370,13 +1360,13 @@ const Store = {
     // --- DELETE/UPDATE METHODS ---
     async deleteApplicant(shopNo) {
         try {
-            console.log(`Attempting to delete applicant for Shop ${shopNo}...`);
+
 
             // 1. Local Cache Update
             let applicants = this.getApplicants();
 
             // Log for debugging
-            console.log(`Deleting Applicant for Shop Arg: '${shopNo}'`);
+
 
             // Use Robust Helper for local filtering
             this.cache.applicants = applicants.filter(a => !this.idsMatch(a.shopNo, shopNo));
@@ -1411,7 +1401,7 @@ const Store = {
                 if (paddedId !== sId && paddedId !== altId) orQuery += `,shop_no.eq.${paddedId}`; // "04"
             }
 
-            console.log(`Cloud Sync: Searching for tenants matching: ${orQuery}`);
+
 
             // B. Find Tenant UUIDs to delete
             const { data: tenantsToDelete, error: fetchError } = await supabaseClient
@@ -1423,7 +1413,7 @@ const Store = {
 
             if (tenantsToDelete && tenantsToDelete.length > 0) {
                 const ids = tenantsToDelete.map(t => t.id);
-                console.log(`Cloud Sync: Found ${ids.length} tenants to delete via UUID:`, ids);
+
 
                 const { error: delError } = await supabaseClient
                     .from('tenants')
@@ -1442,7 +1432,7 @@ const Store = {
             await supabaseClient.from('shops').update({ status: 'Available' }).or(orQuery);
 
             // C. SCORCHED EARTH FALLBACK
-            console.log("Cloud Sync: Executing Fallback Direct Deletions...");
+
             await supabaseClient.from('tenants').delete().eq('shop_no', shopNo);
             if (String(shopNo).trim() !== String(shopNo)) {
                 await supabaseClient.from('tenants').delete().eq('shop_no', String(shopNo).trim());
@@ -1451,7 +1441,7 @@ const Store = {
             await supabaseClient.from('payments').delete().eq('shop_no', shopNo);
             await supabaseClient.from('shops').update({ status: 'Available' }).eq('shop_no', shopNo);
 
-            console.log(`Success: Deleted applicant and cleared Shop ${shopNo}.`);
+
             alert(`Applicant deleted and Shop ${shopNo} is now Available.`);
 
         } catch (e) {
@@ -1485,7 +1475,7 @@ const Store = {
 
             if (error) throw error;
 
-            console.log(`Cloud: Shop ${shopNo} deleted.`);
+
             alert(`Shop ${shopNo} deleted permanently.`);
         } catch (e) {
             console.error("Delete Shop Failed Check:", e);
@@ -1500,7 +1490,7 @@ const Store = {
 
         if (payments.length !== initialCount) {
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
-            console.log(`Cleaned up payments for deleted Shop/Applicant: ${shopNo}`);
+
         }
     },
 
@@ -1557,7 +1547,7 @@ const Store = {
                     .eq('receipt_no', receiptIdentifier);
 
                 if (error) throw error;
-                console.log(`Cloud: Payment ${receiptIdentifier} deleted.`);
+
                 alert("Transaction deleted successfully.");
             } catch (e) {
                 console.error("Delete Payment Cloud Failed:", e);
@@ -1589,7 +1579,7 @@ const Store = {
         }
 
         if (cleaned.length !== payments.length) {
-            console.log(`Cleaned up ${payments.length - cleaned.length} duplicate payment records.`);
+
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(cleaned));
         }
     },
@@ -1600,7 +1590,7 @@ const Store = {
      * Run manually in console: Store.migrateOldReceiptIds()
      */
     async migrateOldReceiptIds() {
-        console.log('🔄 Starting receipt ID migration...');
+
 
         const payments = this.getPayments();
         let updatedCount = 0;
@@ -1640,7 +1630,7 @@ const Store = {
             payment.receiptId = `SUDA-${paddedCounter}/${fy}`;
 
             updatedCount++;
-            console.log(`✓ ${payment.shopNo} (${payment.paymentForMonth}) → ${payment.receiptId}`);
+
         }
 
         // Save updated payments to localStorage
@@ -1648,7 +1638,7 @@ const Store = {
         localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
 
         // Update cloud database
-        console.log('☁️ Syncing to cloud...');
+
         let cloudUpdated = 0;
         let cloudFailed = 0;
 
@@ -1671,21 +1661,18 @@ const Store = {
         }
 
         // Update localStorage counters for future payments
-        console.log('📝 Updating counters for future use...');
+
         for (const [fy, count] of Object.entries(fyCounters)) {
             const counterKey = `receipt_counter_${fy}`;
             const currentCounter = parseInt(localStorage.getItem(counterKey) || '0');
             // Only update if our migrated count is higher
             if (count > currentCounter) {
                 localStorage.setItem(counterKey, count.toString());
-                console.log(`Set counter for ${fy}: ${count}`);
+
             }
         }
 
-        console.log('✅ Migration complete!');
-        console.log(`   Updated: ${updatedCount} payments`);
-        console.log(`   Skipped: ${skippedCount} (already had receiptId)`);
-        console.log(`   Cloud synced: ${cloudUpdated}`);
+
         if (cloudFailed > 0) {
             console.warn(`   Cloud failed: ${cloudFailed}`);
         }
@@ -1769,7 +1756,7 @@ const Store = {
 
         if (changed) {
             localStorage.setItem(this.REMITTANCE_KEY, JSON.stringify(rems));
-            console.log('Store: normalized remittances data');
+
         }
     },
 
@@ -2808,7 +2795,7 @@ const ApplicantModule = {
     },
 
     loadApplicantForEdit(shopNo) {
-        console.log("Loading for Edit:", shopNo);
+
         const app = Store.getApplicants().find(a => a.shopNo === shopNo);
         if (!app) { console.error("App not found"); return; }
 
@@ -2820,19 +2807,19 @@ const ApplicantModule = {
         // Populate
         const shopSel = form.querySelector('[name="shopNo"]');
 
-        console.log("Current Shop Value:", app.shopNo, "Select Options:", shopSel.options.length);
+
 
         // FIX: If the shop is Occupied, it won't be in the 'Available' list.
         // We must manually add it as an option so the value can be set.
         let optionExists = Array.from(shopSel.options).some(opt => opt.value === String(app.shopNo));
         if (!optionExists) {
-            console.log("Option missing, adding manually.");
+
             const opt = document.createElement('option');
             opt.value = app.shopNo;
             opt.textContent = `${app.shopNo} (Current)`;
             shopSel.appendChild(opt);
         } else {
-            console.log("Option exists.");
+
         }
 
         shopSel.value = app.shopNo;
