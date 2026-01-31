@@ -4818,4 +4818,5 @@ const WaiverModule = {
     }
 };
 
+window.ReportModule = ReportModule;
 window.WaiverModule = WaiverModule;
