@@ -70,6 +70,45 @@ const SettingsModule = {
                          </div>
                     </div>
 
+                    <!-- GST Rate History -->
+                    <div style="background: #eff6ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #dbeafe;">
+                         <h4 style="margin-top: 0; color: #1d4ed8; margin-bottom: 1rem;">🧾 GST Rate History</h4>
+                         <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 1rem;">
+                            Define GST rates over time. The system applies the rate effective at the time of invoice/payment.
+                            Default: 18%.
+                         </p>
+
+                         <div class="table-container" style="background: white; border-radius: 4px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Effective Date</th>
+                                        <th>Rate (%)</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gst-history-list">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                         </div>
+
+                         <div style="background: white; padding: 1rem; border-radius: 4px; border: 1px solid #e2e8f0;">
+                             <h5 style="margin: 0 0 0.5rem 0; font-size: 0.95rem;">Add New GST Rate</h5>
+                             <div style="display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap;">
+                                <div>
+                                    <label class="form-label">Effective From</label>
+                                    <input type="date" id="new-gst-date" class="form-control">
+                                </div>
+                                 <div style="flex: 1; min-width: 120px;">
+                                    <label class="form-label">Rate (%)</label>
+                                    <input type="number" id="new-gst-rate" class="form-control" placeholder="e.g. 18">
+                                </div>
+                                <button type="button" onclick="SettingsModule.addGstEntry()" class="btn-primary" style="margin-bottom: 1px; background: #1d4ed8;">+ Add</button>
+                             </div>
+                         </div>
+                    </div>
+
                     <!-- Logo Configuration -->
                     <div style="background: #fff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 2rem;">
                         <h4 style="margin-top: 0; color: #334155; margin-bottom: 1rem;">🖼️ Logo Settings</h4>
@@ -99,36 +138,6 @@ const SettingsModule = {
                         <button id="btn-cloud-backup" class="btn-primary" style="background: #0ea5e9;">☁️ Cloud Sync</button>
                     </div>
                     <input type="file" id="restore-file-input" style="display: none;" accept=".json">
-                </div>
-
-                <!-- GST History -->
-                <div style="margin-top: 3rem; border-top: 2px solid #e2e8f0; padding-top: 2rem;">
-                     <h3 style="margin-bottom: 1rem;">GST Rate History</h3>
-                     <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Effective Date</th>
-                                    <th>Rate (%)</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="gst-history-list">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
-                     </div>
-                     <div style="display: flex; gap: 1rem; margin-top: 1rem; align-items: end;">
-                        <div>
-                            <label class="form-label">Date</label>
-                            <input type="date" id="new-gst-date" class="form-control">
-                        </div>
-                         <div>
-                            <label class="form-label">Rate (%)</label>
-                            <input type="number" id="new-gst-rate" class="form-control">
-                        </div>
-                        <button onclick="SettingsModule.addGstEntry()" class="btn-primary" style="margin-bottom: 2px;">+ Add Rate</button>
-                     </div>
                 </div>
 
             </div>
