@@ -2846,11 +2846,7 @@ const ApplicantModule = {
 // ==========================================
 const RentModule = {
     render(container) {
-        const s = Store.getSettings();
-        const m = s.penaltyMode || 'MONTHLY';
-        // Fix: Do not fallback to monthlyRate if mode is DAILY
-        const r = m === 'MONTHLY' ? (parseFloat(s.monthlyPenaltyRate) || 500) : (parseFloat(s.penaltyRate) || 15);
-        const penaltyText = m === 'MONTHLY' ? `₹${r}/month` : `₹${r}/day`;
+
 
         container.innerHTML = `
     <div class="glass-panel">
@@ -2907,7 +2903,7 @@ const RentModule = {
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label" for="penalty-amount">Total Delay Penalty (${penaltyText})</label>
+                                <label class="form-label" for="penalty-amount">Penalty</label>
                                 <input type="number" id="penalty-amount" class="form-input" style="color: #ef4444;" value="0">
                             </div>
 
@@ -3648,12 +3644,12 @@ const RentModule = {
         const lbl = document.querySelector('label[for="penalty-amount"]');
         if (lbl) {
             if (usedRates.size === 0) {
-                // Default show current setting
-                lbl.textContent = `Total Delay Penalty (₹${settings.penaltyRate}/day)`; // Fallback
+                lbl.textContent = 'Penalty';
             } else if (usedRates.size === 1) {
                 lbl.textContent = `Total Delay Penalty (${Array.from(usedRates)[0]})`;
             } else {
-                lbl.textContent = `Total Delay Penalty (Variable)`;
+                const mixedRates = Array.from(usedRates).join(' & ');
+                lbl.textContent = `Total Delay Penalty (${mixedRates})`;
             }
         }
 
