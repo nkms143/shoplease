@@ -1132,7 +1132,7 @@ const GstRemittanceModule = {
                 <td>${r.date ? new Date(r.date).toLocaleDateString('en-IN') : '-'}</td>
                 <td style="font-weight:600; color:#4f46e5;">${periodDisplay}</td>
                 <td>${r.notes || r.referenceNo || '-'}</td>
-                <td style="font-weight: bold; color: #10b981;">₹${parseFloat(r.amount).toFixed(2)}</td>
+                <td style="font-weight: bold; color: #10b981;">₹${Utils.parseNumber(r.amount).toFixed(2)}</td>
             </tr>
             `;
         }).join('');
