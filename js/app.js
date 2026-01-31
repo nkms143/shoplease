@@ -471,17 +471,26 @@ const Store = {
                 if (savedSettings) this.cache.settings = JSON.parse(savedSettings);
             }
 
-            // 7. Initialize Penalty History (Local Storage only for now, can be Cloud later)
-            const savedPenalty = localStorage.getItem(this.PENALTY_HISTORY_KEY);
-            if (savedPenalty) {
-                this.cache.penaltyHistory = JSON.parse(savedPenalty);
+            // 7. Initialize Penalty History
+            // Priority: Cloud Settings -> Local Storage -> Default
+            let ph = null;
+            if (this.cache.settings && this.cache.settings.penaltyHistory) {
+                ph = this.cache.settings.penaltyHistory;
+            } else {
+                const savedPenalty = localStorage.getItem(this.PENALTY_HISTORY_KEY);
+                if (savedPenalty) ph = JSON.parse(savedPenalty);
+            }
+
+            if (ph) {
+                this.cache.penaltyHistory = ph;
             } else {
                 // DEFAULT UNIFORM POLICY INITIALLY
                 this.cache.penaltyHistory = [
                     { effDate: '2022-01-01', rate: 500, mode: 'MONTHLY' }
                 ];
-                localStorage.setItem(this.PENALTY_HISTORY_KEY, JSON.stringify(this.cache.penaltyHistory));
             }
+            // Ensure consistency
+            localStorage.setItem(this.PENALTY_HISTORY_KEY, JSON.stringify(this.cache.penaltyHistory));
 
 
             // Merge LocalStorage with DB for Waivers/Remittances (Offline Support)
@@ -525,9 +534,14 @@ const Store = {
         return { rate: 500, mode: 'MONTHLY' };
     },
 
-    savePenaltyHistory(history) {
+    async savePenaltyHistory(history) {
         this.cache.penaltyHistory = history;
         localStorage.setItem(this.PENALTY_HISTORY_KEY, JSON.stringify(history));
+
+        // Sync to Cloud via Settings
+        const s = this.getSettings() || {};
+        s.penaltyHistory = history;
+        await this.saveSettings(s);
     },
 
     async saveRemittance(remittance) {
@@ -625,6 +639,29 @@ const Store = {
 
     getSettings() {
         return this.cache.settings;
+    },
+
+    async saveSettings(settings) {
+        this.cache.settings = settings;
+        localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
+
+        try {
+            // Upsert to 'settings' table, key='global_settings'
+            // We store the entire settings object as the 'value'
+            const { error } = await supabaseClient
+                .from('settings')
+                .upsert({
+                    key: 'global_settings',
+                    value: settings,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+
+            if (error) throw error;
+            // console.log("Settings synced to cloud");
+        } catch (e) {
+            console.error("Settings Sync Failed:", e);
+            alert("Warning: Settings updated locally but failed to sync to Cloud.");
+        }
     },
 
     // --- AUDIT LOGGING ---
