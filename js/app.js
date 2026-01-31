@@ -225,18 +225,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const logoutBtn = document.getElementById('btn-logout');
 
     // Forgot Password Event Logic
-    const forgotLink = document.getElementById('forgot-password-link');
     const forgotModal = document.getElementById('forgot-password-modal');
     const cancelResetBtn = document.getElementById('btn-cancel-reset');
     const sendResetBtn = document.getElementById('btn-send-reset');
     const resetEmailInput = document.getElementById('reset-email');
 
-    if (forgotLink && forgotModal) {
-        // Redundant listeners logic...
-        cancelResetBtn.addEventListener('click', () => {
-            forgotModal.style.display = 'none';
-        });
-
+    if (forgotModal && cancelResetBtn && sendResetBtn && resetEmailInput) {
         sendResetBtn.addEventListener('click', async () => {
             const email = resetEmailInput.value.trim();
             if (!email) {
