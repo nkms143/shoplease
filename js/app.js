@@ -712,7 +712,7 @@ const Store = {
             const { data, error } = await supabaseClient
                 .from('audit_logs')
                 .select('record_id, created_at')
-                .eq('action', 'SEND_EMAIL')
+                .eq('action_type', 'SEND_EMAIL')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;

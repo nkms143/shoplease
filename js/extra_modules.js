@@ -556,6 +556,50 @@ const NoticeModule = {
         return `${day}-${month}-${year}`;
     },
 
+    getEscalationInfo(shopNo, logs, dues) {
+        // Standardize comparison for shops like "01" vs "1"
+        const shopLogs = logs.filter(l => String(l.record_id) == String(shopNo));
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const recentLogs = shopLogs.filter(l => new Date(l.created_at) >= thirtyDaysAgo);
+        const count = recentLogs.length;
+
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const tooRecent = recentLogs.some(l => new Date(l.created_at) >= sevenDaysAgo);
+
+        const isPenaltyOnly = (dues.baseRent + dues.gst) <= 0;
+
+        let nextLevel = 1;
+        let currentStatus = 'No Notice Sent';
+        let color = '#64748b'; // Default Gray
+
+        if (isPenaltyOnly) {
+            nextLevel = 0; // Specialty level
+            currentStatus = count > 0 ? 'Reminder Sent' : 'No Reminder';
+            color = '#0ea5e9';
+        } else if (count === 0) {
+            nextLevel = 1;
+            currentStatus = 'No Notice Sent';
+            color = '#64748b';
+        } else if (count === 1) {
+            nextLevel = 2;
+            currentStatus = '1st Notice Sent';
+            color = '#f59e0b';
+        } else if (count === 2) {
+            nextLevel = 3;
+            currentStatus = '2nd Notice Sent';
+            color = '#f97316'; // Darker Orange
+        } else {
+            nextLevel = 3; // Stay at Final
+            currentStatus = 'Final Notice Sent';
+            color = '#ef4444';
+        }
+
+        return { nextLevel, currentStatus, color, count, tooRecent, isPenaltyOnly };
+    },
+
     async scanDefaulters() {
         const applicants = Store.getApplicants();
         const tbody = document.getElementById('notice-list-body');
@@ -568,8 +612,14 @@ const NoticeModule = {
         const logs = await Store.getNoticeLogs();
         const lastSentMap = {};
         logs.forEach(log => {
-            if (!lastSentMap[log.record_id]) {
-                lastSentMap[log.record_id] = this.formatDateDMY(log.created_at);
+            const sNo = String(log.record_id);
+            // We store the mapping for both "1" and "01" to be safe
+            if (!lastSentMap[sNo]) {
+                lastSentMap[sNo] = this.formatDateDMY(log.created_at);
+            }
+            const paddedSNo = sNo.padStart(2, '0');
+            if (!lastSentMap[paddedSNo]) {
+                lastSentMap[paddedSNo] = this.formatDateDMY(log.created_at);
             }
         });
 
@@ -581,6 +631,9 @@ const NoticeModule = {
             const dues = this.calculateApplicantDues(app, penaltyRate, implementationDate, today);
 
             if (dues.totalAmount > 0) {
+                const esc = this.getEscalationInfo(app.shopNo, logs, dues);
+                const lastSentDate = lastSentMap[app.shopNo] || '-';
+
                 // Count previous-lease months (if any)
                 const prevCount = dues.details.filter(d => d.source === 'history').length;
                 const monthsDisplay = prevCount > 0
@@ -590,7 +643,12 @@ const NoticeModule = {
                 html += `
                     <tr>
                         <td>${serial++}</td>
-                        <td><strong>${app.shopNo}</strong></td>
+                        <td>
+                            <strong>${app.shopNo}</strong>
+                            <button class="btn-history-notice" title="Communication History" 
+                                style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:5px;"
+                                data-shop="${app.shopNo}">📜</button>
+                        </td>
                         <td>${app.applicantName}</td>
                         <td style="text-align: center; font-weight: bold;">${monthsDisplay}</td>
                         <td>₹${dues.baseRent.toFixed(2)}</td>
@@ -600,15 +658,17 @@ const NoticeModule = {
                         <td style="display: flex; gap: 5px;">
                             <button class="btn-gen-notice btn-primary" style="padding: 4px 12px; font-size: 0.8rem;"
                                 data-shop="${app.shopNo}">
-                                Generate Notice
+                                Generate
                             </button>
-                            <button class="btn-email-notice btn-primary" style="padding: 4px 12px; font-size: 0.8rem; background: #4f46e5;"
-                                data-shop="${app.shopNo}">
-                                ✉️ Email
+                            <button class="btn-email-notice btn-primary" 
+                                style="padding: 4px 12px; font-size: 0.8rem; background: ${esc.tooRecent ? '#94a3b8' : '#4f46e5'};"
+                                data-shop="${app.shopNo}" ${esc.tooRecent ? 'disabled title="Wait 7 days between notices"' : ''}>
+                                ${esc.tooRecent ? 'Sent ✉️' : '✉️ Email'}
                             </button>
                         </td>
-                        <td id="comm-${app.shopNo}" style="font-size: 0.85rem; color: #64748b;">
-                            ${lastSentMap[app.shopNo] || 'N/A'}
+                        <td id="comm-${app.shopNo}" style="font-size: 0.75rem;">
+                            <span style="display: block; font-weight: bold; color: ${esc.color};">${esc.currentStatus}</span>
+                            <span style="color: #64748b;">${lastSentDate === '-' ? '' : 'On: ' + lastSentDate}</span>
                         </td>
                     </tr>
                 `;
@@ -631,6 +691,49 @@ const NoticeModule = {
                 this.sendNoticeEmail(btn.dataset.shop, btn);
             });
         });
+
+        const historyButtons = tbody.querySelectorAll('.btn-history-notice');
+        historyButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.showHistoryTimeline(btn.dataset.shop);
+            });
+        });
+    },
+
+    async showHistoryTimeline(shopNo) {
+        const logs = await Store.getNoticeLogs();
+        const shopLogs = logs.filter(l => l.record_id === shopNo).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        let rows = '';
+        shopLogs.forEach(log => {
+            rows += `
+                <div style="border-left: 2px solid #e2e8f0; margin-left: 10px; padding-left: 15px; padding-bottom: 20px; position: relative;">
+                    <span style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; background: #6366f1; border-radius: 50%;"></span>
+                    <strong style="display: block; font-size: 0.9rem;">Notice Sent</strong>
+                    <span style="font-size: 0.8rem; color: #64748b;">${this.formatDateDMY(log.created_at)}</span>
+                </div>
+            `;
+        });
+
+        if (rows === '') {
+            rows = '<p style="text-align: center; color: #64748b;">No communication history found.</p>';
+        }
+
+        const overlay = document.createElement('div');
+        overlay.style = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px);';
+        overlay.innerHTML = `
+            <div class="glass-panel" style="width: 100%; max-width: 400px; padding: 25px; position: relative; background: #fff;">
+                <button id="close-history" style="position: absolute; right: 15px; top: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                <h3 style="margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">📋 History: Shop ${shopNo}</h3>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    ${rows}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        overlay.querySelector('#close-history').onclick = () => overlay.remove();
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     },
 
     async sendNoticeEmail(shopNo, btn = null) {
@@ -650,13 +753,27 @@ const NoticeModule = {
             const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
             const dues = this.calculateApplicantDues(app, parseFloat(settings.penaltyRate) || 15, impDate, new Date());
 
-            // Use existing logic to generate similar content to the print notice
-            // Instead of duplicating noticeBody, we can call generateNotice but without the overlay?
-            // Let's create a helper specifically for the HTML content.
+            // 1. Determine Escalation from Logs
+            const logs = await Store.getNoticeLogs();
+            const esc = this.getEscalationInfo(app.shopNo, logs, dues);
 
-            const noticeHtml = this.getNoticeHTMLForEmail(app, dues, settings);
-            const subject = `Notice: Rent Outstanding for Shop ${app.shopNo}`;
-            const text = `Dear ${app.applicantName},\n\nPlease find the attached rent outstanding notice for Shop ${app.shopNo}.\nTotal Amount Due: ₹${dues.totalAmount.toFixed(2)}`;
+            // 2. Prepare Subject and Wording
+            let subject = `Notice: Rent Outstanding for Shop ${app.shopNo}`;
+            let warningType = '1st Notice';
+
+            if (esc.isPenaltyOnly) {
+                subject = `Reminder: Pending Penalty Balance - Shop ${app.shopNo}`;
+                warningType = 'Penalty Reminder';
+            } else if (esc.nextLevel === 2) {
+                subject = `Formal Notice: Outstanding Rent Dues - Shop ${app.shopNo}`;
+                warningType = '2nd Notice';
+            } else if (esc.nextLevel === 3) {
+                subject = `URGENT: Final Notice Before Eviction - Shop ${app.shopNo}`;
+                warningType = 'Final Notice';
+            }
+
+            const noticeHtml = this.getNoticeHTMLForEmail(app, dues, settings, warningType);
+            const text = `Dear ${app.applicantName},\n\nThis is the ${warningType} regarding your outstanding rent for Shop ${app.shopNo}.\nTotal Amount Due: ₹${dues.totalAmount.toFixed(2)}`;
 
             await Store.sendEmail(app.email, subject, text, noticeHtml, app.shopNo);
 
@@ -688,8 +805,13 @@ const NoticeModule = {
         }
     },
 
-    getNoticeHTMLForEmail(app, dues, settings) {
+    getNoticeHTMLForEmail(app, dues, settings, warningType = 'Notice') {
         const monthsText = dues.details.map(d => d.source === 'history' ? `${d.month} (prev)` : d.month).join(', ');
+
+        const isFinal = warningType.includes('Final');
+        const isPenalty = warningType.includes('Penalty');
+        const badgeColor = isFinal ? '#b91c1c' : (isPenalty ? '#0ea5e9' : '#b91c1c');
+        const badgeText = warningType.toUpperCase();
 
         // --- Gmail Size Optimization ---
         // Gmail clips at 102KB. If the logo is a large base64, we omit it and use text.
@@ -725,10 +847,10 @@ const NoticeModule = {
                     </div>
 
                     <div style="margin-bottom: 20px;">
-                        <span style="font-size: 18px; font-weight: bold; color: #b91c1c; border-bottom: 2px solid #fca5a5; padding-bottom: 2px;">N O T I C E</span>
+                        <span style="font-size: 18px; font-weight: bold; color: ${badgeColor}; border-bottom: 2px solid #fca5a5; padding-bottom: 2px;">${badgeText}</span>
                     </div>
 
-                    <p style="margin: 0 0 15px 0;"><strong>Sub:</strong> Rent Outstanding for Shop No. <strong>${app.shopNo}</strong> - Notice Issued.</p>
+                    <p style="margin: 0 0 15px 0;"><strong>Sub:</strong> ${warningType} for Shop No. <strong>${app.shopNo}</strong> - Issued.</p>
                     <p style="margin: 0 0 15px 0;">Dear ${app.applicantName},</p>
                     
                     <p style="margin: 0 0 10px 0;">This is to inform you that the rent for Shop No. <strong>${app.shopNo}</strong> is pending for:</p>
@@ -752,7 +874,12 @@ const NoticeModule = {
                     </table>
 
                     <p style="margin: 0 0 25px 0; font-size: 14px; color: #475569;">
-                        You are directed to clear the outstanding dues within <strong>7 days</strong> from the date of this notice to avoid eviction proceedings.
+                        ${isFinal
+                ? `<strong>FINAL WARNING:</strong> You are directed to clear the outstanding dues within <strong>3 days</strong> to avoid immediate eviction and legal proceedings.`
+                : isPenalty
+                    ? `You are requested to clear the pending penalty balance at your earliest convenience.`
+                    : `You are directed to clear the outstanding dues within <strong>7 days</strong> from the date of this notice to avoid further proceedings.`
+            }
                     </p>
 
                     ${typeof ShopLedgerModule !== 'undefined' ? ShopLedgerModule.getLedgerHTML(app) : ''}
