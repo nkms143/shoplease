@@ -673,7 +673,7 @@ const Store = {
                 user_email: userEmail,
                 action_type: actionType,
                 table_name: tableName,
-                record_id: recordId,
+                record_id: String(recordId), // Ensure ID is always a string for DB consistency
                 description: description,
                 metadata: metadata,
                 created_at: new Date().toISOString()
@@ -730,27 +730,25 @@ const Store = {
 
     async clearNoticeLogs(shopNo) {
         try {
-            // Be very aggressive - try string, integer, and padded variations
             const sVal = String(shopNo).trim();
             const iVal = parseInt(sVal);
             const pVal2 = String(iVal).padStart(2, '0');
             const pVal3 = String(iVal).padStart(3, '0');
 
-            // Try all possible String and Number variants to handle DB type safely
-            const idVariants = [sVal, String(iVal), pVal2, pVal3];
-            if (!isNaN(iVal)) idVariants.push(iVal);
-            const ids = [...new Set(idVariants)];
+            // FORCE ALL TO STRINGS to be safe with Supabase Text column matching
+            const ids = [...new Set([sVal, String(iVal), pVal2, pVal3])];
 
-            console.log(`Store: Attempting to clear notice logs for Shop ${shopNo}. Targeting IDs:`, ids);
+            console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
 
-            const { error } = await supabaseClient
+            // DELETE targeting either the specific action types OR the 'system' communication area
+            const { error, count } = await supabaseClient
                 .from('audit_logs')
-                .delete()
-                .in('action_type', ['SEND_EMAIL', 'SERVE_PHYSICAL'])
+                .delete({ count: 'exact' })
+                .eq('table_name', 'system')
                 .in('record_id', ids);
 
             if (error) throw error;
-            console.log(`Store: Successfully cleared history for Shop ${shopNo}.`);
+            console.log(`Store: Successfully deleted ${count} logs from DB.`);
             return true;
         } catch (e) {
             console.error("Failed to clear notice logs:", e);
