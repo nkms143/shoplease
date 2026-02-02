@@ -724,11 +724,17 @@ const Store = {
 
     async clearNoticeLogs(shopNo) {
         try {
+            const ids = [String(shopNo)];
+            const unpadded = String(parseInt(shopNo));
+            if (!ids.includes(unpadded)) ids.push(unpadded);
+            const padded = unpadded.padStart(2, '0');
+            if (!ids.includes(padded)) ids.push(padded);
+
             const { error } = await supabaseClient
                 .from('audit_logs')
                 .delete()
                 .eq('action_type', 'SEND_EMAIL')
-                .eq('record_id', String(shopNo));
+                .in('record_id', ids);
 
             if (error) throw error;
             return true;
