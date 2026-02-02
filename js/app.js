@@ -710,8 +710,8 @@ const Store = {
         try {
             const { data, error } = await supabaseClient
                 .from('audit_logs')
-                .select('record_id, created_at')
-                .eq('action_type', 'SEND_EMAIL')
+                .select('record_id, created_at, action_type')
+                .in('action_type', ['SEND_EMAIL', 'SERVE_PHYSICAL'])
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -734,13 +734,23 @@ const Store = {
             const { error } = await supabaseClient
                 .from('audit_logs')
                 .delete()
-                .eq('action_type', 'SEND_EMAIL')
+                .in('action_type', ['SEND_EMAIL', 'SERVE_PHYSICAL'])
                 .in('record_id', ids);
 
             if (error) throw error;
             return true;
         } catch (e) {
             console.error("Failed to clear notice logs:", e);
+            return false;
+        }
+    },
+
+    async logPhysicalNotice(shopNo) {
+        try {
+            this.logAction('SERVE_PHYSICAL', 'system', shopNo, `Notice served physically to Shop ${shopNo}`);
+            return true;
+        } catch (e) {
+            console.error("Log Physical Notice Error:", e);
             return false;
         }
     },

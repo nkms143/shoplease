@@ -556,14 +556,20 @@ const NoticeModule = {
             let rows = '';
             candidates.forEach((c, i) => {
                 const isSkipped = c.esc.tooRecent;
+                const noEmail = !c.tenant.email;
                 rows += `
-                    <tr style="${isSkipped ? 'opacity: 0.5; background: #f8fafc;' : ''}">
-                        <td style="padding: 10px;"><input type="checkbox" class="bulk-check" data-index="${i}" ${isSkipped ? 'disabled' : 'checked'}></td>
+                    <tr style="${isSkipped ? 'opacity: 0.5; background: #f8fafc;' : ''} ${noEmail ? 'background: #fff7ed;' : ''}">
+                        <td style="padding: 10px;"><input type="checkbox" class="bulk-check" data-index="${i}" ${isSkipped || noEmail ? 'disabled' : 'checked'}></td>
                         <td style="padding: 10px;"><strong>${c.tenant.shopNo}</strong></td>
-                        <td style="padding: 10px;">${c.tenant.applicantName}</td>
+                        <td style="padding: 10px;">
+                            ${c.tenant.applicantName}
+                            ${noEmail ? '<span style="color:#f97316; font-size:0.7rem; display:block;">⚠️ No Email</span>' : ''}
+                        </td>
                         <td style="padding: 10px;">₹${c.dues.totalAmount.toFixed(0)}</td>
                         <td style="padding: 10px; color: ${c.esc.color}; font-size: 0.8rem;">${c.esc.currentStatus}</td>
-                        <td style="padding: 10px; font-size: 0.7rem; color: #ef4444;">${isSkipped ? 'Skip (Sent < 7d)' : ''}</td>
+                        <td style="padding: 10px; font-size: 0.7rem; color: #ef4444;">
+                            ${isSkipped ? 'Skip (Sent < 7d)' : (noEmail ? 'Skip (Need Manual Service)' : '')}
+                        </td>
                     </tr>
                 `;
             });
@@ -791,10 +797,11 @@ const NoticeModule = {
 
         let rows = '';
         shopLogs.forEach(log => {
+            const isPhysical = log.action_type === 'SERVE_PHYSICAL';
             rows += `
                 <div style="border-left: 2px solid #e2e8f0; margin-left: 10px; padding-left: 15px; padding-bottom: 20px; position: relative;">
-                    <span style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; background: #6366f1; border-radius: 50%;"></span>
-                    <strong style="display: block; font-size: 0.9rem;">Notice Sent</strong>
+                    <span style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; background: ${isPhysical ? '#10b981' : '#6366f1'}; border-radius: 50%;"></span>
+                    <strong style="display: block; font-size: 0.9rem;">${isPhysical ? 'Physical Notice Served' : 'Email Notice Sent'}</strong>
                     <span style="font-size: 0.8rem; color: #64748b;">${this.formatDateDMY(log.created_at)}</span>
                 </div>
             `;
@@ -1259,6 +1266,7 @@ const NoticeModule = {
                     <button id="btn-close-preview" class="btn-preview" style="background: #ef4444;">Close</button>
                     <button id="btn-email-action" class="btn-preview" style="background: #4f46e5;">✉️ Email Notice</button>
                     <button id="btn-print-action" class="btn-preview" style="background: #0ea5e9;">📑 Download PDF</button>
+                    <button id="btn-physical-action" class="btn-preview" style="background: #10b981;">🖨️ Record Physical Service</button>
                     <div style="color: white; font-size: 0.8rem; margin: auto 10px;">✍️ <i>Click text to edit</i></div>
                 </div>
 
@@ -1271,6 +1279,32 @@ const NoticeModule = {
 
             // Attach Events
             document.getElementById('btn-close-preview').onclick = () => overlay.remove();
+
+            // PHYSICAL SERVICE LOGGING
+            const physicalBtn = document.getElementById('btn-physical-action');
+            if (esc.tooRecent) {
+                physicalBtn.disabled = true;
+                physicalBtn.style.background = '#94a3b8';
+                physicalBtn.textContent = 'Recorded 🖨️';
+            }
+
+            physicalBtn.onclick = async () => {
+                if (confirm("Have you served this notice physically? This will record the action in history.")) {
+                    physicalBtn.disabled = true;
+                    physicalBtn.textContent = 'Saving...';
+                    const ok = await Store.logPhysicalNotice(shopNo);
+                    if (ok) {
+                        alert("Physical service recorded successfully.");
+                        physicalBtn.textContent = 'Recorded 🖨️';
+                        physicalBtn.style.background = '#94a3b8';
+                        this.scanDefaulters(); // Refresh list
+                    } else {
+                        alert("Failed to record service.");
+                        physicalBtn.disabled = false;
+                        physicalBtn.textContent = '🖨️ Record Physical Service';
+                    }
+                }
+            };
 
             // PDF DOWNLOAD ACTION (html2pdf Approach)
             document.getElementById('btn-print-action').onclick = () => {
