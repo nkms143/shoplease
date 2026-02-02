@@ -931,9 +931,13 @@ const Store = {
                 try {
                     const subject = `Urgent: Pending Rent Payments for Shop ${tenant.shopNo}`;
                     const monthsText = dues.details.map(d => d.month).join(', ');
-                    const text = `Dear ${tenant.applicantName},\n\nOur records show that you have outstanding rent for the following months: ${monthsText}.\n\nTotal Outstanding Balance: ₹${dues.totalAmount.toFixed(2)}\n\nPlease pay immediately to avoid penalty and further action.\n\nIgnore this if you have already paid today.\n\nSincerely,\nVice Chairman SUDA`;
+                    const text = `Dear ${tenant.applicantName},\n\nOur records show that you have outstanding rent for the following months: ${monthsText}.\n\nTotal Outstanding Balance: ₹${dues.totalAmount.toFixed(2)}\n\nPlease pay immediately to avoid penalty and further action.`;
 
-                    await this.sendEmail(tenant.email, subject, text);
+                    // Generate HTML using the same format as individual notices
+                    const settings = this.getSettings();
+                    const html = typeof NoticeModule !== 'undefined' ? NoticeModule.getNoticeHTMLForEmail(tenant, dues, settings) : null;
+
+                    await this.sendEmail(tenant.email, subject, text, html);
                     sentCount++;
                 } catch (e) {
                     console.error(`Failed to warn ${tenant.shopNo}`, e);

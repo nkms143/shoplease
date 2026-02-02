@@ -646,9 +646,9 @@ const NoticeModule = {
                     btn.textContent = '✉️ Email';
                     btn.style.background = '#4f46e5';
                 }, 3000);
-            } else {
-                alert('Email sent successfully!');
             }
+
+            alert('Notice Message sent successfully');
         } catch (e) {
             console.error(e);
             alert('Failed to send email: ' + e.message);
@@ -4961,5 +4961,6 @@ const WaiverModule = {
     }
 };
 
+window.NoticeModule = NoticeModule;
 window.ReportModule = ReportModule;
 window.WaiverModule = WaiverModule;
