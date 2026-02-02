@@ -532,18 +532,103 @@ const NoticeModule = {
 
         document.getElementById('btn-warn-late').addEventListener('click', async () => {
             const btn = document.getElementById('btn-warn-late');
-            btn.innerHTML = 'Sending...';
-            btn.disabled = true;
-            try {
-                const count = await Store.processLatePaymentWarnings();
-                alert(`Warnings Sent Successfully to ${count} tenants.`);
-            } catch (e) {
-                console.error(e);
-                alert("Failed to send warnings.");
-            } finally {
-                btn.innerHTML = '✉️ Send Late Warnings';
-                btn.disabled = false;
+            const tenants = Store.getApplicants().filter(t => t.status !== 'Terminated' && t.email);
+            const logs = await Store.getNoticeLogs();
+
+            let candidates = [];
+            for (const t of tenants) {
+                const dues = Store.calculateOutstandingDues(t);
+                if (dues.totalAmount > 0) {
+                    const esc = this.getEscalationInfo(t.shopNo, logs, dues);
+                    candidates.push({ tenant: t, dues, esc });
+                }
             }
+
+            if (candidates.length === 0) {
+                alert("No late payment candidates found.");
+                return;
+            }
+
+            // Create Review Modal
+            const overlay = document.createElement('div');
+            overlay.style = 'position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px;';
+
+            let rows = '';
+            candidates.forEach((c, i) => {
+                const isSkipped = c.esc.tooRecent;
+                rows += `
+                    <tr style="${isSkipped ? 'opacity: 0.5; background: #f8fafc;' : ''}">
+                        <td style="padding: 10px;"><input type="checkbox" class="bulk-check" data-index="${i}" ${isSkipped ? 'disabled' : 'checked'}></td>
+                        <td style="padding: 10px;"><strong>${c.tenant.shopNo}</strong></td>
+                        <td style="padding: 10px;">${c.tenant.applicantName}</td>
+                        <td style="padding: 10px;">₹${c.dues.totalAmount.toFixed(0)}</td>
+                        <td style="padding: 10px; color: ${c.esc.color}; font-size: 0.8rem;">${c.esc.currentStatus}</td>
+                        <td style="padding: 10px; font-size: 0.7rem; color: #ef4444;">${isSkipped ? 'Skip (Sent < 7d)' : ''}</td>
+                    </tr>
+                `;
+            });
+
+            overlay.innerHTML = `
+                <div class="glass-panel" style="width: 100%; max-width: 600px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+                    <h3 style="margin-bottom: 5px;">Review Warnings</h3>
+                    <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 20px;">Review and select tenants to receive automated warnings.</p>
+                    
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                            <thead style="background: #f1f5f9; position: sticky; top: 0;">
+                                <tr>
+                                    <th style="padding: 10px; text-align: left;">Select</th>
+                                    <th style="padding: 10px; text-align: left;">Shop</th>
+                                    <th style="padding: 10px; text-align: left;">Tenant</th>
+                                    <th style="padding: 10px; text-align: left;">Due</th>
+                                    <th style="padding: 10px; text-align: left;">Status</th>
+                                    <th style="padding: 10px; text-align: left;">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+
+                    <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px;">
+                        <button id="btn-bulk-cancel" class="btn-primary" style="background: #94a3b8;">Cancel</button>
+                        <button id="btn-bulk-confirm" class="btn-primary" style="background: #4f46e5;">Send Selected Warnings</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#btn-bulk-cancel').onclick = () => overlay.remove();
+            overlay.querySelector('#btn-bulk-confirm').onclick = async () => {
+                const checks = overlay.querySelectorAll('.bulk-check:checked');
+                if (checks.length === 0) {
+                    alert("No tenants selected.");
+                    return;
+                }
+
+                const confirmBtn = overlay.querySelector('#btn-bulk-confirm');
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Processing...';
+
+                let sentCount = 0;
+                for (const check of checks) {
+                    const c = candidates[check.dataset.index];
+                    try {
+                        // Re-trigger the email logic for each selected tenant
+                        // Since processLatePaymentWarnings in app.js is generic, 
+                        // we can either call it with filters or implement local send here.
+                        // For consistency, let's call NoticeModule's sendNoticeEmail directly.
+                        await this.sendNoticeEmail(c.tenant.shopNo);
+                        sentCount++;
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                alert(`Bulk Batch Completed: ${sentCount} warnings sent.`);
+                overlay.remove();
+                this.scanDefaulters();
+            };
         });
     },
 
@@ -702,7 +787,7 @@ const NoticeModule = {
 
     async showHistoryTimeline(shopNo) {
         const logs = await Store.getNoticeLogs();
-        const shopLogs = logs.filter(l => l.record_id === shopNo).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const shopLogs = logs.filter(l => String(l.record_id) == String(shopNo)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         let rows = '';
         shopLogs.forEach(log => {
@@ -759,7 +844,7 @@ const NoticeModule = {
         };
     },
 
-    async sendNoticeEmail(shopNo, btn = null) {
+    async sendNoticeEmail(shopNo, btn = null, customHtml = null) {
         try {
             const app = Store.getApplicants().find(a => a.shopNo === shopNo);
             if (!app || !app.email) {
@@ -795,7 +880,7 @@ const NoticeModule = {
                 warningType = 'Final Notice';
             }
 
-            const noticeHtml = this.getNoticeHTMLForEmail(app, dues, settings, warningType);
+            const noticeHtml = customHtml || this.getNoticeHTMLForEmail(app, dues, settings, warningType);
             const text = `Dear ${app.applicantName},\n\nThis is the ${warningType} regarding your outstanding rent for Shop ${app.shopNo}.\nTotal Amount Due: ₹${dues.totalAmount.toFixed(2)}`;
 
             await Store.sendEmail(app.email, subject, text, noticeHtml, app.shopNo);
@@ -861,10 +946,20 @@ const NoticeModule = {
             `;
         }
 
+        let noticeLabel = "NOTICE No. 1";
+        if (warningType === '2nd Notice') noticeLabel = "NOTICE No. 2";
+        else if (warningType === 'Final Notice') noticeLabel = "FINAL NOTICE (No. 3)";
+        else if (warningType === 'Penalty Reminder') noticeLabel = "REMINDER";
+
         return `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; color: #334155;">
                 ${headerHtml}
                 <div style="padding: 25px; line-height: 1.6;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; display: block; margin-bottom: 5px;">${noticeLabel}</span>
+                        <h1 style="margin: 0; font-size: 24px; color: #1e293b; text-decoration: underline;">N O T I C E</h1>
+                    </div>
+
                     <div style="text-align: right; margin-bottom: 15px; font-weight: bold; color: #64748b; font-size: 13px;">
                         Date: ${this.formatDateDMY(new Date())}
                     </div>
@@ -1025,6 +1120,10 @@ const NoticeModule = {
                 `;
             }
 
+            const logs = await Store.getNoticeLogs();
+            const esc = this.getEscalationInfo(shopNo, logs, dues);
+            const noticeNo = esc.isPenaltyOnly ? "REMINDER" : `NOTICE No. ${esc.nextLevel}`;
+
             // --- 1. CORE NOTICE CONTENT (Clean HTML) ---
             const noticeBody = `
                 <!-- Logo Header -->
@@ -1043,6 +1142,7 @@ const NoticeModule = {
 
                 <!-- Notice Title -->
                 <div style="text-align: center; margin-bottom: 1rem;">
+                    <div style="font-size: 10pt; color: #666; margin-bottom: 5px; font-weight: bold;">${noticeNo}</div>
                     <span style="font-size: 14pt; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 2px;">N O T I C E</span>
                 </div>
 
@@ -1111,56 +1211,95 @@ const NoticeModule = {
                 </div>
             `;
 
-            // --- 2. PREVIEW OVERLAY (Screen Only) ---
+            // --- 2. PREVIEW OVERLAY (Responsive Glass Modal) ---
             overlay.innerHTML = `
                 <style>
                     #print-overlay {
-                        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                        background: rgba(0,0,0,0.85); z-index: 10000;
-                        overflow-y: auto; display: flex; justify-content: center;
-                        padding: 40px 0; box-sizing: border-box;
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                        background: rgba(15, 23, 42, 0.9); z-index: 10000;
+                        overflow-y: auto; display: flex; flex-direction: column; align-items: center;
+                        padding: 20px; box-sizing: border-box; backdrop-filter: blur(8px);
+                    }
+                    .toolbar {
+                        position: sticky; top: 0; display: flex; gap: 10px; z-index: 10001;
+                        background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 50px;
+                        margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-wrap: wrap; justify-content: center;
+                    }
+                    .preview-container {
+                        width: 100%; display: flex; justify-content: center;
                     }
                     #preview-page {
                         width: 210mm; min-height: 297mm;
-                        padding: 15mm 20mm;
-                        background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-                        font-family: 'Times New Roman', serif; color: black; line-height: 1.4;
-                        box-sizing: border-box; display: flex; flex-direction: column;
+                        padding: 20mm;
+                        background: white; border-radius: 2px;
+                        font-family: 'Times New Roman', serif; color: black; line-height: 1.5;
+                        box-sizing: border-box; overflow: hidden;
+                        transform-origin: top center;
                     }
-                    .toolbar {
-                        position: fixed; top: 20px; right: 30px; display: flex; gap: 10px; z-index: 10001;
+                    @media (max-width: 850px) {
+                        #preview-page {
+                            transform: scale(0.45); margin-top: -300px; /* Scale for mobile */
+                        }
                     }
+                    @media (max-width: 450px) {
+                        #preview-page {
+                            transform: scale(0.35); margin-top: -450px;
+                        }
+                    }
+                    .btn-preview {
+                        cursor:pointer; padding: 10px 20px; font-size: 14px; color: white; border: none; border-radius: 25px;
+                        font-weight: 600; transition: transform 0.2s;
+                    }
+                    .btn-preview:active { transform: scale(0.95); }
+                    [contenteditable]:hover { outline: 2px dashed #6366f1; cursor: text; }
                 </style>
                 
                 <div class="toolbar">
-                    <button id="btn-close-preview" style="cursor:pointer; padding: 8px 16px; font-size: 14px; background: #ef4444; color: white; border: none; border-radius: 4px;">Close Preview</button>
-                    <button id="btn-email-action" style="cursor:pointer; padding: 8px 16px; font-size: 14px; background: #4f46e5; color: white; border: none; border-radius: 4px;">✉️ Email Notice</button>
-                    <button id="btn-print-action" style="cursor:pointer; padding: 8px 16px; font-size: 14px; background: #3b82f6; color: white; border: none; border-radius: 4px;">🖨️ Print Notice</button>
+                    <button id="btn-close-preview" class="btn-preview" style="background: #ef4444;">Close</button>
+                    <button id="btn-email-action" class="btn-preview" style="background: #4f46e5;">✉️ Email Notice</button>
+                    <button id="btn-print-action" class="btn-preview" style="background: #0ea5e9;">📑 Download PDF</button>
+                    <div style="color: white; font-size: 0.8rem; margin: auto 10px;">✍️ <i>Click text to edit</i></div>
                 </div>
 
-                <div id="preview-page">
-                    ${noticeBody}
+                <div class="preview-container">
+                    <div id="preview-page" contenteditable="true">
+                        ${noticeBody}
+                    </div>
                 </div>
             `;
 
             // Attach Events
             document.getElementById('btn-close-preview').onclick = () => overlay.remove();
-            document.getElementById('btn-print-action').onclick = () => this.printNotice(noticeBody);
+
+            // PDF DOWNLOAD ACTION (html2pdf Approach)
+            document.getElementById('btn-print-action').onclick = () => {
+                const element = document.getElementById('preview-page');
+                const opt = {
+                    margin: 0,
+                    filename: `Notice_Shop_${shopNo}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                html2pdf().set(opt).from(element).save();
+            };
 
             const emailActionBtn = document.getElementById('btn-email-action');
-            // Check escalation status for this button too
-            const logs = await Store.getNoticeLogs();
-            const esc = this.getEscalationInfo(shopNo, logs, dues);
+            // Re-use logs/esc from above
 
             if (esc.tooRecent) {
                 emailActionBtn.disabled = true;
                 emailActionBtn.style.background = '#94a3b8';
                 emailActionBtn.textContent = 'Sent ✉️';
-                emailActionBtn.title = 'Wait 7 days between notices';
             }
 
-            emailActionBtn.onclick = () => {
-                this.sendNoticeEmail(shopNo, emailActionBtn);
+            emailActionBtn.onclick = async () => {
+                const customHtml = document.getElementById('preview-page').innerHTML;
+                emailActionBtn.disabled = true;
+                emailActionBtn.textContent = 'Sending...';
+
+                await this.sendNoticeEmail(shopNo, emailActionBtn, customHtml);
             };
 
         } catch (e) {

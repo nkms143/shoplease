@@ -724,11 +724,12 @@ const Store = {
 
     async clearNoticeLogs(shopNo) {
         try {
-            const ids = [String(shopNo)];
-            const unpadded = String(parseInt(shopNo));
-            if (!ids.includes(unpadded)) ids.push(unpadded);
-            const padded = unpadded.padStart(2, '0');
-            if (!ids.includes(padded)) ids.push(padded);
+            // Be very aggressive - try string, integer, and padded variations
+            const sVal = String(shopNo).trim();
+            const iVal = parseInt(sVal);
+            const pVal = String(iVal).padStart(2, '0');
+
+            const ids = [...new Set([sVal, String(iVal), pVal])];
 
             const { error } = await supabaseClient
                 .from('audit_logs')
