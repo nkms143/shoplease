@@ -953,20 +953,44 @@ const Store = {
 
 
 
+        const logs = await this.getNoticeLogs();
+
         for (const tenant of tenants) {
             if (!tenant.email || tenant.status === 'Terminated') continue;
 
             const dues = this.calculateOutstandingDues(tenant, today);
             if (dues.totalAmount > 0) {
+                // Check Escalation Status
+                const esc = typeof NoticeModule !== 'undefined' ? NoticeModule.getEscalationInfo(tenant.shopNo, logs, dues) : null;
+                if (esc && esc.tooRecent) {
+                    console.log(`Skipping ${tenant.shopNo} - Sent recently.`);
+                    continue;
+                }
+
                 // Send Warning
                 try {
-                    const subject = `Urgent: Pending Rent Payments for Shop ${tenant.shopNo}`;
+                    let subject = `Urgent: Pending Rent Payments for Shop ${tenant.shopNo}`;
+                    let warningType = 'Late Warning';
+
+                    if (esc) {
+                        if (esc.isPenaltyOnly) {
+                            subject = `Reminder: Pending Penalty Balance - Shop ${tenant.shopNo}`;
+                            warningType = 'Penalty Reminder';
+                        } else if (esc.nextLevel === 2) {
+                            subject = `Formal Notice: Outstanding Rent Dues - Shop ${tenant.shopNo}`;
+                            warningType = '2nd Notice';
+                        } else if (esc.nextLevel === 3) {
+                            subject = `URGENT: Final Notice Before Eviction - Shop ${tenant.shopNo}`;
+                            warningType = 'Final Notice';
+                        }
+                    }
+
                     const monthsText = dues.details.map(d => d.month).join(', ');
-                    const text = `Dear ${tenant.applicantName},\n\nOur records show that you have outstanding rent for the following months: ${monthsText}.\n\nTotal Outstanding Balance: ₹${dues.totalAmount.toFixed(2)}\n\nPlease pay immediately to avoid penalty and further action.`;
+                    const text = `Dear ${tenant.applicantName},\n\nThis is a ${warningType} regarding your outstanding rent balance: ₹${dues.totalAmount.toFixed(2)}.\n\nPlease pay immediately to avoid further action.`;
 
                     // Generate HTML using the same format as individual notices
                     const settings = this.getSettings();
-                    const html = typeof NoticeModule !== 'undefined' ? NoticeModule.getNoticeHTMLForEmail(tenant, dues, settings) : null;
+                    const html = typeof NoticeModule !== 'undefined' ? NoticeModule.getNoticeHTMLForEmail(tenant, dues, settings, warningType) : null;
 
                     await this.sendEmail(tenant.email, subject, text, html, tenant.shopNo);
                     sentCount++;
