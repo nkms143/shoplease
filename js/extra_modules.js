@@ -476,6 +476,10 @@ const SettingsModule = {
 // NOTICE MODULE
 // ==========================================
 const NoticeModule = {
+    normalizeID(id) {
+        return String(id).trim().replace(/^0+/, '') || '0';
+    },
+
     render(container) {
         container.innerHTML = `
             <div class="glass-panel">
@@ -649,7 +653,8 @@ const NoticeModule = {
 
     getEscalationInfo(shopNo, logs, dues) {
         // Standardize comparison for shops like "01" vs "1"
-        const shopLogs = logs.filter(l => String(l.record_id) == String(shopNo));
+        const normTarget = this.normalizeID(shopNo);
+        const shopLogs = logs.filter(l => this.normalizeID(l.record_id) === normTarget);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -703,14 +708,9 @@ const NoticeModule = {
         const logs = await Store.getNoticeLogs();
         const lastSentMap = {};
         logs.forEach(log => {
-            const sNo = String(log.record_id);
-            // We store the mapping for both "1" and "01" to be safe
-            if (!lastSentMap[sNo]) {
-                lastSentMap[sNo] = this.formatDateDMY(log.created_at);
-            }
-            const paddedSNo = sNo.padStart(2, '0');
-            if (!lastSentMap[paddedSNo]) {
-                lastSentMap[paddedSNo] = this.formatDateDMY(log.created_at);
+            const normSNo = this.normalizeID(log.record_id);
+            if (!lastSentMap[normSNo]) {
+                lastSentMap[normSNo] = this.formatDateDMY(log.created_at);
             }
         });
 
@@ -759,7 +759,7 @@ const NoticeModule = {
                         </td>
                         <td id="comm-${app.shopNo}" style="font-size: 0.75rem;">
                             <span style="display: block; font-weight: bold; color: ${esc.color};">${esc.currentStatus}</span>
-                            <span style="color: #64748b;">${lastSentDate === '-' ? '' : 'On: ' + lastSentDate}</span>
+                            <span style="color: #64748b;">${lastSentMap[this.normalizeID(app.shopNo)] ? 'On: ' + lastSentMap[this.normalizeID(app.shopNo)] : ''}</span>
                         </td>
                     </tr>
                 `;
@@ -793,7 +793,8 @@ const NoticeModule = {
 
     async showHistoryTimeline(shopNo) {
         const logs = await Store.getNoticeLogs();
-        const shopLogs = logs.filter(l => String(l.record_id) == String(shopNo)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const normTarget = this.normalizeID(shopNo);
+        const shopLogs = logs.filter(l => this.normalizeID(l.record_id) === normTarget).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         let rows = '';
         shopLogs.forEach(log => {

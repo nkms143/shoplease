@@ -727,9 +727,13 @@ const Store = {
             // Be very aggressive - try string, integer, and padded variations
             const sVal = String(shopNo).trim();
             const iVal = parseInt(sVal);
-            const pVal = String(iVal).padStart(2, '0');
+            const pVal2 = String(iVal).padStart(2, '0');
+            const pVal3 = String(iVal).padStart(3, '0');
 
-            const ids = [...new Set([sVal, String(iVal), pVal])];
+            // Try all possible String and Number variants to handle DB type safely
+            const idVariants = [sVal, String(iVal), pVal2, pVal3];
+            if (!isNaN(iVal)) idVariants.push(iVal); // Add raw number
+            const ids = [...new Set(idVariants)];
 
             const { error } = await supabaseClient
                 .from('audit_logs')
