@@ -661,37 +661,81 @@ const NoticeModule = {
 
     getNoticeHTMLForEmail(app, dues, settings) {
         const monthsText = dues.details.map(d => d.source === 'history' ? `${d.month} (prev)` : d.month).join(', ');
-        const pMode = settings.penaltyMode || 'MONTHLY';
-        const mRate = parseFloat(settings.monthlyPenaltyRate) || 500;
-        const dRate = parseFloat(settings.penaltyRate) || 15;
-        const displayRate = pMode === 'MONTHLY' ? mRate : dRate;
 
-        let logoHtml = '';
-        if (settings.logoUrl) {
-            logoHtml = `<div style="text-align: right;"><img src="${settings.logoUrl}" style="height: 60px; max-width: 200px; object-fit: contain;"></div>`;
+        // --- Gmail Size Optimization ---
+        // Gmail clips at 102KB. If the logo is a large base64, we omit it and use text.
+        const logoSizeValid = settings.logoUrl && settings.logoUrl.length < 50000; // ~50KB limit
+        let headerHtml = '';
+
+        if (logoSizeValid) {
+            headerHtml = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">
+                    <div style="text-align: left;">
+                         <h2 style="margin: 0; font-size: 16px; color: #1e293b;">SUDA SIDDIPET</h2>
+                         <p style="margin: 0; font-size: 12px; color: #64748b;">Siddipet District</p>
+                    </div>
+                    <img src="${settings.logoUrl}" style="height: 60px; max-width: 150px; object-fit: contain;">
+                </div>
+            `;
+        } else {
+            // FALLBACK TO INVOICE STYLE HEADER (More reliable for large logos/clipped messages)
+            headerHtml = `
+                <div style="background: #1e293b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h2 style="margin: 0; font-size: 18px;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</h2>
+                    <p style="margin: 5px 0 0; font-size: 14px; opacity: 0.9;">Rent Outstanding Notice</p>
+                </div>
+            `;
         }
 
         return `
-            <div style="font-family: 'Times New Roman', serif; padding: 20px; border: 1px solid #eee; max-width: 800px; margin: auto; color: black; line-height: 1.5;">
-                ${logoHtml}
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0; font-size: 14pt;">Office of the Siddipet Urban Development Authority</h2>
-                    <h3 style="margin: 0;">Siddipet District</h3>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; color: #334155;">
+                ${headerHtml}
+                <div style="padding: 25px; line-height: 1.6;">
+                    <div style="text-align: right; margin-bottom: 15px; font-weight: bold; color: #64748b; font-size: 13px;">
+                        Date: ${new Date().toLocaleDateString('en-GB')}
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <span style="font-size: 18px; font-weight: bold; color: #b91c1c; border-bottom: 2px solid #fca5a5; padding-bottom: 2px;">N O T I C E</span>
+                    </div>
+
+                    <p style="margin: 0 0 15px 0;"><strong>Sub:</strong> Rent Outstanding for Shop No. <strong>${app.shopNo}</strong> - Notice Issued.</p>
+                    <p style="margin: 0 0 15px 0;">Dear ${app.applicantName},</p>
+                    
+                    <p style="margin: 0 0 10px 0;">This is to inform you that the rent for Shop No. <strong>${app.shopNo}</strong> is pending for:</p>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-weight: 500;">
+                        ${monthsText}
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; background: #fffcf0; border: 1px solid #fde68a; border-radius: 6px;">
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #fef3c7;">Base Rent + GST:</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #fef3c7; text-align: right;">₹${(dues.baseRent + dues.gst).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #fef3c7;">Penalty Amount:</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #fef3c7; text-align: right;">₹${dues.penalty.toFixed(2)}</td>
+                        </tr>
+                        <tr style="font-weight: bold; color: #b91c1c; font-size: 16px;">
+                            <td style="padding: 12px;">Total Outstanding:</td>
+                            <td style="padding: 12px; text-align: right;">₹${dues.totalAmount.toFixed(2)}</td>
+                        </tr>
+                    </table>
+
+                    <p style="margin: 0 0 25px 0; font-size: 14px; color: #475569;">
+                        You are directed to clear the outstanding dues within <strong>7 days</strong> from the date of this notice to avoid eviction proceedings.
+                    </p>
+
+                    <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                        <div style="float: right; text-align: center;">
+                            <strong style="display: block; color: #1e293b;">Vice Chairman</strong>
+                            <span style="font-size: 13px; color: #64748b;">SUDA, Siddipet</span>
+                        </div>
+                        <div style="clear: both;"></div>
+                    </div>
                 </div>
-                <div style="text-align: right; margin-bottom: 10px;">Dt: ${new Date().toLocaleDateString('en-GB')}</div>
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <span style="font-weight: bold; text-decoration: underline;">N O T I C E</span>
-                </div>
-                <p><strong>Sub:</strong> Rent Outstanding for Shop No. ${app.shopNo} - Notice Issued.</p>
-                <p>Dear ${app.applicantName},</p>
-                <p>This is to inform you that your rent for Shop No. <strong>${app.shopNo}</strong> is outstanding for the following months:</p>
-                <p style="background: #f8fafc; padding: 10px;"><strong>${monthsText}</strong></p>
-                <p>Total Outstanding Amount: <strong>₹${dues.totalAmount.toFixed(2)}</strong></p>
-                <p>(Base Rent + GST: ₹${(dues.baseRent + dues.gst).toFixed(2)}, Penalty: ₹${dues.penalty.toFixed(2)})</p>
-                <p>You are requested to pay the pending dues within 7 days to avoid further action.</p>
-                <div style="margin-top: 40px; text-align: right;">
-                    <strong>Vice Chairman</strong><br>
-                    SUDA, Siddipet
+                <div style="background: #f1f5f9; padding: 15px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+                    &copy; 2026 Siddipet Urban Development Authority. This is a computer-generated notice.
                 </div>
             </div>
         `;
