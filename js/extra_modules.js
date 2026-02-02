@@ -728,12 +728,35 @@ const NoticeModule = {
                 <div style="max-height: 400px; overflow-y: auto;">
                     ${rows}
                 </div>
+                <div style="margin-top:20px; text-align:center; border-top:1px solid #eee; padding-top:15px;">
+                    <button id="btn-clear-history" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:8px 15px; border-radius:4px; font-size:0.8rem; cursor:pointer;">
+                        Clear All Communication Logs
+                    </button>
+                </div>
             </div>
         `;
 
         document.body.appendChild(overlay);
         overlay.querySelector('#close-history').onclick = () => overlay.remove();
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+        const clearBtn = overlay.querySelector('#btn-clear-history');
+        clearBtn.onclick = async () => {
+            if (confirm(`Are you sure you want to clear all sent notice logs for Shop ${shopNo}? This will reset the escalation level to "1st Notice".`)) {
+                clearBtn.disabled = true;
+                clearBtn.textContent = 'Clearing...';
+                const success = await Store.clearNoticeLogs(shopNo);
+                if (success) {
+                    alert('History cleared successfully. Please scan again to see changes.');
+                    overlay.remove();
+                    this.scanDefaulters();
+                } else {
+                    alert('Failed to clear history.');
+                    clearBtn.disabled = false;
+                    clearBtn.textContent = 'Clear All Communication Logs';
+                }
+            }
+        };
     },
 
     async sendNoticeEmail(shopNo, btn = null) {
@@ -952,7 +975,7 @@ const NoticeModule = {
         doc.close();
     },
 
-    generateNotice(shopNo) {
+    async generateNotice(shopNo) {
         try {
             const app = Store.getApplicants().find(a => a.shopNo === shopNo);
             if (!app) {
@@ -1123,8 +1146,21 @@ const NoticeModule = {
             // Attach Events
             document.getElementById('btn-close-preview').onclick = () => overlay.remove();
             document.getElementById('btn-print-action').onclick = () => this.printNotice(noticeBody);
-            document.getElementById('btn-email-action').onclick = () => {
-                this.sendNoticeEmail(shopNo, document.getElementById('btn-email-action'));
+
+            const emailActionBtn = document.getElementById('btn-email-action');
+            // Check escalation status for this button too
+            const logs = await Store.getNoticeLogs();
+            const esc = this.getEscalationInfo(shopNo, logs, dues);
+
+            if (esc.tooRecent) {
+                emailActionBtn.disabled = true;
+                emailActionBtn.style.background = '#94a3b8';
+                emailActionBtn.textContent = 'Sent ✉️';
+                emailActionBtn.title = 'Wait 7 days between notices';
+            }
+
+            emailActionBtn.onclick = () => {
+                this.sendNoticeEmail(shopNo, emailActionBtn);
             };
 
         } catch (e) {

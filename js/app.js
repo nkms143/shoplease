@@ -703,7 +703,6 @@ const Store = {
             this.logAction('SEND_EMAIL', 'system', shopNo, `Sent email to ${to}: ${subject}`);
         } catch (e) {
             console.error("Email Sending Failed:", e);
-            // Don't alert user - notifications should fail silently
         }
     },
 
@@ -720,6 +719,22 @@ const Store = {
         } catch (e) {
             console.error("Failed to fetch notice logs:", e);
             return [];
+        }
+    },
+
+    async clearNoticeLogs(shopNo) {
+        try {
+            const { error } = await supabaseClient
+                .from('audit_logs')
+                .delete()
+                .eq('action_type', 'SEND_EMAIL')
+                .eq('record_id', String(shopNo));
+
+            if (error) throw error;
+            return true;
+        } catch (e) {
+            console.error("Failed to clear notice logs:", e);
+            return false;
         }
     },
 
