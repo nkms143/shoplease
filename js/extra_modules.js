@@ -578,10 +578,14 @@ const NoticeModule = {
                         <td>₹${dues.gst.toFixed(2)}</td>
                         <td style="color: #ef4444;">₹${dues.penalty.toFixed(2)}</td>
                         <td style="font-weight: bold;">₹${dues.totalAmount.toFixed(2)}</td>
-                        <td>
+                        <td style="display: flex; gap: 5px;">
                             <button class="btn-gen-notice btn-primary" style="padding: 4px 12px; font-size: 0.8rem;"
                                 data-shop="${app.shopNo}">
                                 Generate Notice
+                            </button>
+                            <button class="btn-email-notice btn-primary" style="padding: 4px 12px; font-size: 0.8rem; background: #4f46e5;"
+                                data-shop="${app.shopNo}">
+                                ✉️ Email
                             </button>
                         </td>
                     </tr>
@@ -598,6 +602,99 @@ const NoticeModule = {
                 this.generateNotice(btn.dataset.shop);
             });
         });
+
+        const emailButtons = tbody.querySelectorAll('.btn-email-notice');
+        emailButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.sendNoticeEmail(btn.dataset.shop, btn);
+            });
+        });
+    },
+
+    async sendNoticeEmail(shopNo, btn = null) {
+        try {
+            const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+            if (!app || !app.email) {
+                alert('Error: Applicant or Email not found.');
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Sending...';
+            }
+
+            const settings = Store.getSettings();
+            const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
+            const dues = this.calculateApplicantDues(app, parseFloat(settings.penaltyRate) || 15, impDate, new Date());
+
+            // Use existing logic to generate similar content to the print notice
+            // Instead of duplicating noticeBody, we can call generateNotice but without the overlay?
+            // Let's create a helper specifically for the HTML content.
+
+            const noticeHtml = this.getNoticeHTMLForEmail(app, dues, settings);
+            const subject = `Notice: Rent Outstanding for Shop ${app.shopNo}`;
+            const text = `Dear ${app.applicantName},\n\nPlease find the attached rent outstanding notice for Shop ${app.shopNo}.\nTotal Amount Due: ₹${dues.totalAmount.toFixed(2)}`;
+
+            await Store.sendEmail(app.email, subject, text, noticeHtml);
+
+            if (btn) {
+                btn.textContent = 'Sent ✅';
+                btn.style.background = '#059669';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = '✉️ Email';
+                    btn.style.background = '#4f46e5';
+                }, 3000);
+            } else {
+                alert('Email sent successfully!');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to send email: ' + e.message);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '✉️ Email';
+            }
+        }
+    },
+
+    getNoticeHTMLForEmail(app, dues, settings) {
+        const monthsText = dues.details.map(d => d.source === 'history' ? `${d.month} (prev)` : d.month).join(', ');
+        const pMode = settings.penaltyMode || 'MONTHLY';
+        const mRate = parseFloat(settings.monthlyPenaltyRate) || 500;
+        const dRate = parseFloat(settings.penaltyRate) || 15;
+        const displayRate = pMode === 'MONTHLY' ? mRate : dRate;
+
+        let logoHtml = '';
+        if (settings.logoUrl) {
+            logoHtml = `<div style="text-align: right;"><img src="${settings.logoUrl}" style="height: 60px; max-width: 200px; object-fit: contain;"></div>`;
+        }
+
+        return `
+            <div style="font-family: 'Times New Roman', serif; padding: 20px; border: 1px solid #eee; max-width: 800px; margin: auto; color: black; line-height: 1.5;">
+                ${logoHtml}
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0; font-size: 14pt;">Office of the Siddipet Urban Development Authority</h2>
+                    <h3 style="margin: 0;">Siddipet District</h3>
+                </div>
+                <div style="text-align: right; margin-bottom: 10px;">Dt: ${new Date().toLocaleDateString('en-GB')}</div>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="font-weight: bold; text-decoration: underline;">N O T I C E</span>
+                </div>
+                <p><strong>Sub:</strong> Rent Outstanding for Shop No. ${app.shopNo} - Notice Issued.</p>
+                <p>Dear ${app.applicantName},</p>
+                <p>This is to inform you that your rent for Shop No. <strong>${app.shopNo}</strong> is outstanding for the following months:</p>
+                <p style="background: #f8fafc; padding: 10px;"><strong>${monthsText}</strong></p>
+                <p>Total Outstanding Amount: <strong>₹${dues.totalAmount.toFixed(2)}</strong></p>
+                <p>(Base Rent + GST: ₹${(dues.baseRent + dues.gst).toFixed(2)}, Penalty: ₹${dues.penalty.toFixed(2)})</p>
+                <p>You are requested to pay the pending dues within 7 days to avoid further action.</p>
+                <div style="margin-top: 40px; text-align: right;">
+                    <strong>Vice Chairman</strong><br>
+                    SUDA, Siddipet
+                </div>
+            </div>
+        `;
     },
 
 
@@ -812,6 +909,7 @@ const NoticeModule = {
                 
                 <div class="toolbar">
                     <button id="btn-close-preview" style="cursor:pointer; padding: 8px 16px; font-size: 14px; background: #ef4444; color: white; border: none; border-radius: 4px;">Close Preview</button>
+                    <button id="btn-email-action" style="cursor:pointer; padding: 8px 16px; font-size: 14px; background: #4f46e5; color: white; border: none; border-radius: 4px;">✉️ Email Notice</button>
                     <button id="btn-print-action" style="cursor:pointer; padding: 8px 16px; font-size: 14px; background: #3b82f6; color: white; border: none; border-radius: 4px;">🖨️ Print Notice</button>
                 </div>
 
@@ -823,6 +921,9 @@ const NoticeModule = {
             // Attach Events
             document.getElementById('btn-close-preview').onclick = () => overlay.remove();
             document.getElementById('btn-print-action').onclick = () => this.printNotice(noticeBody);
+            document.getElementById('btn-email-action').onclick = () => {
+                this.sendNoticeEmail(shopNo, document.getElementById('btn-email-action'));
+            };
 
         } catch (e) {
             alert('Notice Generation Error: ' + e.message);

@@ -923,27 +923,15 @@ const Store = {
 
 
         for (const tenant of tenants) {
-            if (!tenant.email) continue; // Skip if no email
+            if (!tenant.email || tenant.status === 'Terminated') continue;
 
-            // 1. Check if paid
-            const payments = this.cache.payments.filter(p =>
-                this.idsMatch(p.shopNo, tenant.shopNo) &&
-                p.paymentForMonth === currentMonthStr
-            );
-
-            if (payments.length > 0) continue; // Already paid
-
-            // 2. Check Due Date
-            const dueDay = parseInt(tenant.paymentDay) || 5;
-
-            if (today.getDate() > dueDay) {
-                // Calculate Total Outstanding
-                const outstanding = this.calculateOutstandingDues(tenant);
-
+            const dues = this.calculateOutstandingDues(tenant, today);
+            if (dues.totalAmount > 0) {
                 // Send Warning
                 try {
-                    const subject = `Urgent: Rent Overdue for Shop ${tenant.shopNo}`;
-                    const text = `Dear ${tenant.applicantName},\n\nThis is a reminder that your rent for ${currentMonthStr} was due on the ${dueDay}th.\n\nWe have not received your payment yet. Please pay immediately.\n\nTotal Outstanding Due: ₹${outstanding.totalAmount.toFixed(2)}\n\nIgnore this if you have already paid today.\n\nSincerely,\nVice Chairman SUDA`;
+                    const subject = `Urgent: Pending Rent Payments for Shop ${tenant.shopNo}`;
+                    const monthsText = dues.details.map(d => d.month).join(', ');
+                    const text = `Dear ${tenant.applicantName},\n\nOur records show that you have outstanding rent for the following months: ${monthsText}.\n\nTotal Outstanding Balance: ₹${dues.totalAmount.toFixed(2)}\n\nPlease pay immediately to avoid penalty and further action.\n\nIgnore this if you have already paid today.\n\nSincerely,\nVice Chairman SUDA`;
 
                     await this.sendEmail(tenant.email, subject, text);
                     sentCount++;
