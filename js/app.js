@@ -684,7 +684,7 @@ const Store = {
     },
 
     // --- NOTIFICATIONS ---
-    async sendEmail(to, subject, text, html = null) {
+    async sendEmail(to, subject, text, html = null, shopNo = 'na') {
         if (!to) return;
 
 
@@ -700,10 +700,26 @@ const Store = {
 
             if (error) throw error;
 
-            this.logAction('SEND_EMAIL', 'system', 'na', `Sent email to ${to}: ${subject}`);
+            this.logAction('SEND_EMAIL', 'system', shopNo, `Sent email to ${to}: ${subject}`);
         } catch (e) {
             console.error("Email Sending Failed:", e);
             // Don't alert user - notifications should fail silently
+        }
+    },
+
+    async getNoticeLogs() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('audit_logs')
+                .select('record_id, created_at')
+                .eq('action', 'SEND_EMAIL')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.error("Failed to fetch notice logs:", e);
+            return [];
         }
     },
 
@@ -937,7 +953,7 @@ const Store = {
                     const settings = this.getSettings();
                     const html = typeof NoticeModule !== 'undefined' ? NoticeModule.getNoticeHTMLForEmail(tenant, dues, settings) : null;
 
-                    await this.sendEmail(tenant.email, subject, text, html);
+                    await this.sendEmail(tenant.email, subject, text, html, tenant.shopNo);
                     sentCount++;
                 } catch (e) {
                     console.error(`Failed to warn ${tenant.shopNo}`, e);

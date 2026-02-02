@@ -504,10 +504,11 @@ const NoticeModule = {
                                 <th>Penalty Due</th>
                                 <th>Total Outstanding</th>
                                 <th>Action</th>
+                                <th>Email Communication</th>
                             </tr>
                         </thead>
                         <tbody id="notice-list-body">
-                             <tr><td colspan="8" style="text-align:center;">Click "Scan" to identify defaulters.</td></tr>
+                             <tr><td colspan="10" style="text-align:center;">Click "Scan" to identify defaulters.</td></tr>
                         </tbody>
                      </table>
                 </div>
@@ -546,13 +547,31 @@ const NoticeModule = {
         });
     },
 
-    scanDefaulters() {
+    formatDateDMY(date) {
+        if (!date) return '-';
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`;
+    },
+
+    async scanDefaulters() {
         const applicants = Store.getApplicants();
         const tbody = document.getElementById('notice-list-body');
         const settings = Store.getSettings();
         const penaltyRate = parseFloat(settings.penaltyRate) || 15;
         const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
         const today = new Date();
+
+        // Fetch logs for communication date
+        const logs = await Store.getNoticeLogs();
+        const lastSentMap = {};
+        logs.forEach(log => {
+            if (!lastSentMap[log.record_id]) {
+                lastSentMap[log.record_id] = this.formatDateDMY(log.created_at);
+            }
+        });
 
         // Helper to check dues
         let serial = 1;
@@ -588,12 +607,15 @@ const NoticeModule = {
                                 ✉️ Email
                             </button>
                         </td>
+                        <td id="comm-${app.shopNo}" style="font-size: 0.85rem; color: #64748b;">
+                            ${lastSentMap[app.shopNo] || 'N/A'}
+                        </td>
                     </tr>
                 `;
             }
         });
 
-        tbody.innerHTML = html || '<tr><td colspan="9" style="text-align:center; color:green;">No defaulters found!</td></tr>';
+        tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center; color:green;">No defaulters found!</td></tr>';
 
         // Attach Events
         const buttons = tbody.querySelectorAll('.btn-gen-notice');
@@ -636,7 +658,7 @@ const NoticeModule = {
             const subject = `Notice: Rent Outstanding for Shop ${app.shopNo}`;
             const text = `Dear ${app.applicantName},\n\nPlease find the attached rent outstanding notice for Shop ${app.shopNo}.\nTotal Amount Due: ₹${dues.totalAmount.toFixed(2)}`;
 
-            await Store.sendEmail(app.email, subject, text, noticeHtml);
+            await Store.sendEmail(app.email, subject, text, noticeHtml, app.shopNo);
 
             if (btn) {
                 btn.textContent = 'Sent ✅';
@@ -646,6 +668,13 @@ const NoticeModule = {
                     btn.textContent = '✉️ Email';
                     btn.style.background = '#4f46e5';
                 }, 3000);
+            }
+
+            // Update UI Communication Date
+            const commCell = document.getElementById(`comm-${shopNo}`);
+            if (commCell) {
+                commCell.textContent = this.formatDateDMY(new Date());
+                commCell.style.color = '#059669'; // Green highlight
             }
 
             alert('Notice Message sent successfully');
@@ -692,7 +721,7 @@ const NoticeModule = {
                 ${headerHtml}
                 <div style="padding: 25px; line-height: 1.6;">
                     <div style="text-align: right; margin-bottom: 15px; font-weight: bold; color: #64748b; font-size: 13px;">
-                        Date: ${new Date().toLocaleDateString('en-GB')}
+                        Date: ${this.formatDateDMY(new Date())}
                     </div>
 
                     <div style="margin-bottom: 20px;">

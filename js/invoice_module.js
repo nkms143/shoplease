@@ -262,7 +262,7 @@ const InvoiceModule = {
         const subject = `Invoice: Rent for Shop ${inv.shopNo} - ${monthName}`;
         const html = this.generateHTML(inv);
 
-        await Store.sendEmail(inv.email, subject, `Please find attached the invoice for Shop ${inv.shopNo}.`, html);
+        await Store.sendEmail(inv.email, subject, `Please find attached the invoice for Shop ${inv.shopNo}.`, html, inv.shopNo);
 
         if (btn) { btn.textContent = 'Sent'; }
         if (status) {
