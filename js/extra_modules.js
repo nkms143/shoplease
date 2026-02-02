@@ -477,7 +477,7 @@ const SettingsModule = {
 // ==========================================
 const NoticeModule = {
     normalizeID(id) {
-        return String(id).trim().replace(/^0+/, '') || '0';
+        return Store.normalizeID(id);
     },
 
     render(container) {
@@ -854,7 +854,8 @@ const NoticeModule = {
 
     async sendNoticeEmail(shopNo, btn = null, customHtml = null) {
         try {
-            const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+            const normTarget = this.normalizeID(shopNo);
+            const app = Store.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
             if (!app || !app.email) {
                 alert('Error: Applicant or Email not found.');
                 return;
@@ -1080,7 +1081,8 @@ const NoticeModule = {
 
     async generateNotice(shopNo) {
         try {
-            const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+            const normTarget = this.normalizeID(shopNo);
+            const app = Store.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
             if (!app) {
                 alert('Error: Applicant not found for shop ' + shopNo);
                 return;
@@ -2391,7 +2393,8 @@ const LeaseStatusModule = {
     },
 
     openRenewalModal(shopNo) {
-        const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+        const normTarget = Store.normalizeID(shopNo);
+        const app = Store.getApplicants().find(a => Store.normalizeID(a.shopNo) === normTarget);
         if (!app) return;
 
         const modal = document.getElementById('renewal-modal');
@@ -2947,7 +2950,8 @@ const ReportModule = {
     },
 
     generateStatement(shopNo) {
-        const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+        const normTarget = Store.normalizeID(shopNo);
+        const app = Store.getApplicants().find(a => Store.normalizeID(a.shopNo) === normTarget);
         if (!app) return;
 
         // Use the Single Source of Truth

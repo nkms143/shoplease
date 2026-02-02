@@ -326,6 +326,12 @@ const Store = {
     HISTORY_KEY: 'suda_shop_history',
     PENALTY_HISTORY_KEY: 'suda_penalty_history',
 
+    // --- HELPERS ---
+    normalizeID(id) {
+        if (id === null || id === undefined) return '';
+        return String(id).trim().replace(/^0+/, '') || '0';
+    },
+
     // --- CACHE & INIT ---
     cache: {
         shops: [],
@@ -684,7 +690,7 @@ const Store = {
     },
 
     // --- NOTIFICATIONS ---
-    async sendEmail(to, subject, text, html = null, shopNo = 'na') {
+    async sendEmail(to, subject, text, html = null, shopNo = 'N/A') {
         if (!to) return;
 
 
@@ -732,8 +738,10 @@ const Store = {
 
             // Try all possible String and Number variants to handle DB type safely
             const idVariants = [sVal, String(iVal), pVal2, pVal3];
-            if (!isNaN(iVal)) idVariants.push(iVal); // Add raw number
+            if (!isNaN(iVal)) idVariants.push(iVal);
             const ids = [...new Set(idVariants)];
+
+            console.log(`Store: Attempting to clear notice logs for Shop ${shopNo}. Targeting IDs:`, ids);
 
             const { error } = await supabaseClient
                 .from('audit_logs')
@@ -742,6 +750,7 @@ const Store = {
                 .in('record_id', ids);
 
             if (error) throw error;
+            console.log(`Store: Successfully cleared history for Shop ${shopNo}.`);
             return true;
         } catch (e) {
             console.error("Failed to clear notice logs:", e);
@@ -1206,7 +1215,7 @@ const Store = {
                 try {
                     const subject = `Welcome to SUDA Shop Lease - Shop ${dbApp.shop_no}`;
                     const text = `Dear ${dbApp.applicant_name},\n\nWelcome! You have been successfully registered as the tenant in SUDA for Shop No: ${dbApp.shop_no}.\n\nLease Start Date: ${dbApp.lease_date}\nRent Amount: ₹${dbApp.rent_total}\nPayment Due Day: ${dbApp.payment_day}th of every month.\n\nWe look forward to a great partnership.\n\nSincerely,\nShop Lease Manager`;
-                    this.sendEmail(dbApp.email, subject, text);
+                    this.sendEmail(dbApp.email, subject, text, null, dbApp.shop_no);
                 } catch (err) {
                     console.warn("Welcome email failed:", err);
                 }
@@ -1293,7 +1302,7 @@ const Store = {
                     const text = `Dear ${tenant.applicantName},\n\nWe have received your payment of ₹${dbPay.amount_total} for Shop ${dbPay.shop_no} for the month of ${dbPay.payment_for_month}.\n\nReceipt No: ${dbPay.receipt_no}\nDate: ${dbPay.payment_date}\n\nThank you,\nShop Lease Manager`;
 
                     // Fire and forget email
-                    this.sendEmail(tenant.email, subject, text);
+                    this.sendEmail(tenant.email, subject, text, null, tenant.shopNo);
                 }
             } catch (err) {
                 console.warn("Auto-email logic failed:", err);
@@ -2863,8 +2872,8 @@ const ApplicantModule = {
     },
 
     loadApplicantForEdit(shopNo) {
-
-        const app = Store.getApplicants().find(a => a.shopNo === shopNo);
+        const normTarget = this.normalizeID(shopNo);
+        const app = this.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
         if (!app) { console.error("App not found"); return; }
 
         this.showForm();
@@ -3230,7 +3239,8 @@ const RentModule = {
             }
 
             const applicants = Store.getApplicants();
-            currentApplicant = applicants.find(a => a.shopNo === shopNo);
+            const normTarget = this.normalizeID(shopNo);
+            currentApplicant = applicants.find(a => this.normalizeID(a.shopNo) === normTarget);
 
             if (currentApplicant) {
                 if (document.getElementById('disp-shop-no')) document.getElementById('disp-shop-no').value = currentApplicant.shopNo;
