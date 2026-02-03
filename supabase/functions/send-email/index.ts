@@ -15,8 +15,12 @@ Deno.serve(async (req) => {
     const { to, subject, html, text } = await req.json();
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
-    if (!RESEND_API_KEY) {
-      throw new Error('Missing RESEND_API_KEY');
+    if (!RESEND_API_KEY || RESEND_API_KEY.trim() === '') {
+      console.error('CRITICAL: RESEND_API_KEY is not set in Supabase Secrets.');
+      return new Response(JSON.stringify({ error: 'System Configuration Error: RESEND_API_KEY is missing in Cloud Secrets.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const res = await fetch('https://api.resend.com/emails', {
@@ -26,8 +30,8 @@ Deno.serve(async (req) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`
       },
       body: JSON.stringify({
-        from: 'Siddipet Urban Development Authority <onboarding@resend.dev>', // Custom Display Name
-        to: to, // Only works for YOUR email until you verify domain
+        from: 'Siddipet Urban Development Authority <onboarding@resend.dev>',
+        to: to,
         subject: subject,
         html: html,
         text: text
@@ -37,9 +41,9 @@ Deno.serve(async (req) => {
     const data = await res.json()
 
     if (!res.ok) {
-      console.error('Resend API Error:', data);
+      console.error('Resend API Error Response:', data);
       return new Response(JSON.stringify({ error: data }), {
-        status: 400,
+        status: res.status, // Pass through the actual status (401, 403, etc)
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
@@ -49,6 +53,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
+    console.error('Edge Function Exception:', error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
