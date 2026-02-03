@@ -695,7 +695,6 @@ const Store = {
 
 
         try {
-            console.log(`Store: Calling send-email function for ${to}...`);
             const { data, error } = await supabaseClient.functions.invoke('send-email', {
                 body: {
                     to: to,
@@ -705,26 +704,11 @@ const Store = {
                 }
             });
 
-            if (error) {
-                console.error("Supabase Function Error Details:", error);
+            if (error) throw error;
 
-                // Try to extract the JSON error message we sent from the function
-                if (error.context && typeof error.context.json === 'function') {
-                    try {
-                        const errorBody = await error.context.json();
-                        console.error("Detail from Function:", errorBody);
-                        alert(`Email failed: ${errorBody.error || error.message}`);
-                    } catch (e) {
-                        console.error("Could not parse error JSON body");
-                    }
-                }
-                throw error;
-            }
-
-            console.log("Supabase Function Response:", data);
             this.logAction(actionType, 'system', shopNo, `Sent email to ${to}: ${subject}`);
         } catch (e) {
-            console.error("Email Sending Failed Exception:", e);
+            console.error("Email Sending Failed:", e);
         }
     },
 

@@ -927,18 +927,17 @@ const NoticeModule = {
             if (btn) {
                 btn.textContent = 'Sent ✅';
                 btn.style.background = '#059669';
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.textContent = '✉️ Email';
-                    btn.style.background = '#4f46e5';
-                }, 3000);
+                btn.disabled = true;
+                btn.title = "Notice sent successfully today";
             }
 
-            // Update UI Communication Date
+            // Update UI Communication Date and Status cell immediately
             const commCell = document.getElementById(`comm-${shopNo}`);
             if (commCell) {
-                commCell.textContent = this.formatDateDMY(new Date());
-                commCell.style.color = '#059669'; // Green highlight
+                commCell.innerHTML = `
+                    <span style="display: block; font-weight: bold; color: #059669;">Notice Sent Today</span>
+                    <span style="color: #64748b;">On: ${this.formatDateDMY(new Date())}</span>
+                `;
             }
 
             alert('Notice Message sent successfully');
