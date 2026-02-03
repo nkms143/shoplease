@@ -739,6 +739,9 @@ const Store = {
             const ids = [...new Set([sVal, String(iVal), pVal2, pVal3])];
 
             console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
+            //debug Output
+            console.log("clearNoticeLogs called with shop:",shopNo);
+            console.log("Variant Generated for deletion:", ids);
 
             // DELETE targeting either the specific action types OR the 'system' communication area
             const { error, count } = await supabaseClient
