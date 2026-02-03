@@ -811,25 +811,29 @@ const Store = {
 
             console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
 
-            // DEBUG: Let's see exactly what the DB has for these IDs before deleting
-            const { data: checkData } = await supabaseClient
+            // 1. First, find which rows match our criteria (Notices only)
+            const { data: rowsFound } = await supabaseClient
                 .from('audit_logs')
-                .select('id, action_type, record_id, description')
-                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL', 'SEND_EMAIL'])
-                .in('record_id', ids);
-
-            console.log(`Store Debug: Found ${checkData?.length || 0} matching rows in DB:`, checkData);
-
-            // DELETE targeting strictly NOTICE history only
-            // This preserves Invoices (SEND_INVOICE/SEND_EMAIL) and Receipts (SEND_RECEIPT)
-            const { error, count } = await supabaseClient
-                .from('audit_logs')
-                .delete({ count: 'exact' })
+                .select('id, action_type')
                 .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL'])
                 .in('record_id', ids);
 
+            if (!rowsFound || rowsFound.length === 0) {
+                console.log(`Store: No notice logs found for Shop ${shopNo} to delete.`);
+                return true;
+            }
+
+            const targetIds = rowsFound.map(r => r.id);
+            console.log(`Store: Target UUIDs for deletion:`, targetIds);
+
+            // 2. Delete specifically by UUID (most reliable match)
+            const { error, count } = await supabaseClient
+                .from('audit_logs')
+                .delete({ count: 'exact' })
+                .in('id', targetIds);
+
             if (error) throw error;
-            console.log(`Store: Successfully deleted ${count ?? 0} notice logs from DB.`);
+            console.log(`Store: Successfully deleted ${count ?? 0} notice logs for Shop ${shopNo}.`);
             return true;
         } catch (e) {
             console.error("Failed to clear notice logs:", e.message);
