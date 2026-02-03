@@ -811,23 +811,25 @@ const Store = {
 
             console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
 
-            // DELETE targeting NOTICE-SPECIFIC action types
-            // This ensures Invoice logs (SEND_INVOICE) and Receipts (SEND_RECEIPT) are NOT deleted
+            // DEBUG: Let's see exactly what the DB has for these IDs before deleting
+            const { data: checkData } = await supabaseClient
+                .from('audit_logs')
+                .select('id, action_type, record_id, description')
+                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL', 'SEND_EMAIL'])
+                .in('record_id', ids);
+
+            console.log(`Store Debug: Found ${checkData?.length || 0} matching rows in DB:`, checkData);
+
+            // DELETE targeting strictly NOTICE history only
+            // This preserves Invoices (SEND_INVOICE/SEND_EMAIL) and Receipts (SEND_RECEIPT)
             const { error, count } = await supabaseClient
                 .from('audit_logs')
                 .delete({ count: 'exact' })
-                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL', 'SEND_EMAIL']) // include old generic 'SEND_EMAIL' for legacy clearing
+                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL'])
                 .in('record_id', ids);
 
-            //Step2: Delete
-            //const {error, count} = await supabaseClient
-            //  .from('audit_logs')
-            //.delete()
-            //.eq('table_name', 'system')
-            //.eq('record_id', ids);
-
             if (error) throw error;
-            console.log(`Store: Successfully deleted ${count} logs from DB.`);
+            console.log(`Store: Successfully deleted ${count ?? 0} notice logs from DB.`);
             return true;
         } catch (e) {
             console.error("Failed to clear notice logs:", e.message);

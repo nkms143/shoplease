@@ -705,9 +705,20 @@ const NoticeModule = {
         const today = new Date();
 
         // Fetch logs for communication date
-        const logs = await Store.getNoticeLogs();
+        const allLogs = await Store.getNoticeLogs();
+
+        // ONLY count actual Notices for the status/escalation logic
+        // We exclude Invoices and Receipts even if they use the old 'SEND_EMAIL' tag
+        const noticeLogs = allLogs.filter(l => {
+            const isActuallyNotice = l.action_type === 'SEND_NOTICE' || l.action_type === 'SERVE_PHYSICAL';
+            const isLegacyNotice = l.action_type === 'SEND_EMAIL' &&
+                !String(l.description).includes('Invoice') &&
+                !String(l.description).includes('Receipt');
+            return isActuallyNotice || isLegacyNotice;
+        });
+
         const lastSentMap = {};
-        logs.forEach(log => {
+        noticeLogs.forEach(log => {
             const normSNo = this.normalizeID(log.record_id);
             if (!lastSentMap[normSNo]) {
                 lastSentMap[normSNo] = this.formatDateDMY(log.created_at);
@@ -722,7 +733,7 @@ const NoticeModule = {
             const dues = this.calculateApplicantDues(app, penaltyRate, implementationDate, today);
 
             if (dues.totalAmount > 0) {
-                const esc = this.getEscalationInfo(app.shopNo, logs, dues);
+                const esc = this.getEscalationInfo(app.shopNo, noticeLogs, dues);
                 const lastSentDate = lastSentMap[app.shopNo] || '-';
 
                 // Count previous-lease months (if any)
