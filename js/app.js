@@ -695,6 +695,7 @@ const Store = {
 
 
         try {
+            console.log(`Store: Calling send-email function for ${to}...`);
             const { data, error } = await supabaseClient.functions.invoke('send-email', {
                 body: {
                     to: to,
@@ -704,11 +705,15 @@ const Store = {
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error("Supabase Function Error Details:", error);
+                throw error;
+            }
 
+            console.log("Supabase Function Response:", data);
             this.logAction(actionType, 'system', shopNo, `Sent email to ${to}: ${subject}`);
         } catch (e) {
-            console.error("Email Sending Failed:", e);
+            console.error("Email Sending Failed Exception:", e);
         }
     },
 
@@ -809,33 +814,25 @@ const Store = {
                 return false;
             }
 
-            console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
-
             // 1. First, find which rows match our criteria (Notices only)
             const { data: rowsFound } = await supabaseClient
                 .from('audit_logs')
-                .select('id, action_type')
+                .select('id')
                 .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL'])
                 .in('record_id', ids);
 
-            if (!rowsFound || rowsFound.length === 0) {
-                console.log(`Store: No notice logs found for Shop ${shopNo} to delete.`);
-                return true;
-            }
+            if (!rowsFound || rowsFound.length === 0) return true;
 
             const targetIds = rowsFound.map(r => r.id);
-            console.log(`Store: Target UUIDs for deletion:`, targetIds);
 
             // 2. Delete specifically by UUID (most reliable match)
-            // We also include action_type to satisfy RLS policies that might require it
             const { error, count } = await supabaseClient
                 .from('audit_logs')
                 .delete({ count: 'exact' })
-                .in('id', targetIds)
-                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL']);
+                .in('id', targetIds);
 
             if (error) throw error;
-            console.log(`Store: Successfully deleted ${count ?? 0} notice logs for Shop ${shopNo}.`);
+            console.log(`Store: Successfully cleared notice history for Shop ${shopNo}.`);
             return true;
         } catch (e) {
             console.error("Failed to clear notice logs:", e.message);
