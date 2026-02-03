@@ -654,11 +654,23 @@ const NoticeModule = {
     getEscalationInfo(shopNo, logs, dues) {
         // Standardize comparison for shops like "01" vs "1"
         const normTarget = this.normalizeID(shopNo);
-        const shopLogs = logs.filter(l => this.normalizeID(l.record_id) === normTarget);
+
+        // --- FIXED: Only count actual NOTICES (filter out Invoices, Receipts, etc) ---
+        const shopNoticeLogs = logs.filter(l => {
+            if (this.normalizeID(l.record_id) !== normTarget) return false;
+
+            const isActuallyNotice = l.action_type === 'SEND_NOTICE' || l.action_type === 'SERVE_PHYSICAL';
+            const isLegacyNotice = l.action_type === 'SEND_EMAIL' &&
+                !String(l.description).includes('Invoice') &&
+                !String(l.description).includes('Receipt');
+
+            return isActuallyNotice || isLegacyNotice;
+        });
+
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const recentLogs = shopLogs.filter(l => new Date(l.created_at) >= thirtyDaysAgo);
+        const recentLogs = shopNoticeLogs.filter(l => new Date(l.created_at) >= thirtyDaysAgo);
         const count = recentLogs.length;
 
         const sevenDaysAgo = new Date();
@@ -733,7 +745,7 @@ const NoticeModule = {
             const dues = this.calculateApplicantDues(app, penaltyRate, implementationDate, today);
 
             if (dues.totalAmount > 0) {
-                const esc = this.getEscalationInfo(app.shopNo, noticeLogs, dues);
+                const esc = this.getEscalationInfo(app.shopNo, allLogs, dues);
                 const lastSentDate = lastSentMap[this.normalizeID(app.shopNo)] || '-';
 
                 // Count previous-lease months (if any)
