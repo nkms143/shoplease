@@ -734,7 +734,7 @@ const Store = {
             //Step 1: Debug - show rows  before delete
             const { data: rows, error:selectError} = await supabaseClient
                 .from('audit_logs')
-                .select(*)
+                .select('*')
                 .eq('table_name', 'system')
                 .eq('record_id', ShopId);
             Console.log("Rows found before delete:", rows);
