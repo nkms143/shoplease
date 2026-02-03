@@ -707,6 +707,17 @@ const Store = {
 
             if (error) {
                 console.error("Supabase Function Error Details:", error);
+
+                // Try to extract the JSON error message we sent from the function
+                if (error.context && typeof error.context.json === 'function') {
+                    try {
+                        const errorBody = await error.context.json();
+                        console.error("Detail from Function:", errorBody);
+                        alert(`Email failed: ${errorBody.error || error.message}`);
+                    } catch (e) {
+                        console.error("Could not parse error JSON body");
+                    }
+                }
                 throw error;
             }
 
