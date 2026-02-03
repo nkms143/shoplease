@@ -741,35 +741,35 @@ const Store = {
             // FORCE ALL TO STRINGS to be safe with Supabase Text column matching
             const ids = [...new Set([sVal, String(iVal), pVal2, pVal3])];
 
-            //console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
+            console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
             //debug Output
-            //console.log("clearNoticeLogs called with shop:",shopNo);
-            //console.log("Variant Generated for deletion:", ids);
+            console.log("clearNoticeLogs called with shop:",shopNo);
+            console.log("Variant Generated for deletion:", ids);
 
-            // DELETE targeting either the specific action types OR the 'system' communication area
-            //const { error, count } = await supabaseClient
-            //    .from('audit_logs')
-            //    .delete({ count: 'exact' })
-            //    .eq('table_name', 'system')
-            //    .in('record_id', ids);
+            DELETE targeting either the specific action types OR the 'system' communication area
+            const { error, count } = await supabaseClient
+                .from('audit_logs')
+                .delete({ count: 'exact' })
+                .eq('table_name', 'system')
+                .in('record_id', ids);
 
 
             //Step 1: Debug - show rows  before delete
-            const { data: rows, error:selectError} = await supabaseClient
-                .from('audit_logs')
-                .select('*')
-                .eq('table_name', 'system')
-                .eq('record_id', ids);
-            Console.log("Rows found before delete:", rows);
+            //const { data: rows, error:selectError} = await supabaseClient
+             //   .from('audit_logs')
+               // .select('*')
+               // .eq('table_name', 'system')
+               // .eq('record_id', ids);
+            //Console.log("Rows found before delete:", rows);
 
-            if (selectError) throw selectError;
+            //if (selectError) throw selectError;
 
             //Step2: Delete
-            const {error, count} = await supabaseClient
-                .from('audit_logs')
-                .delete()
-                .eq('table_name', 'system')
-                .eq('record_id', ids);
+            //const {error, count} = await supabaseClient
+              //  .from('audit_logs')
+                //.delete()
+                //.eq('table_name', 'system')
+                //.eq('record_id', ids);
 
             if (error) throw error;
             console.log(`Store: Successfully deleted ${count} logs from DB.`);
