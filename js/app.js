@@ -827,10 +827,12 @@ const Store = {
             console.log(`Store: Target UUIDs for deletion:`, targetIds);
 
             // 2. Delete specifically by UUID (most reliable match)
+            // We also include action_type to satisfy RLS policies that might require it
             const { error, count } = await supabaseClient
                 .from('audit_logs')
                 .delete({ count: 'exact' })
-                .in('id', targetIds);
+                .in('id', targetIds)
+                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL']);
 
             if (error) throw error;
             console.log(`Store: Successfully deleted ${count ?? 0} notice logs for Shop ${shopNo}.`);

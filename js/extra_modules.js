@@ -734,7 +734,7 @@ const NoticeModule = {
 
             if (dues.totalAmount > 0) {
                 const esc = this.getEscalationInfo(app.shopNo, noticeLogs, dues);
-                const lastSentDate = lastSentMap[app.shopNo] || '-';
+                const lastSentDate = lastSentMap[this.normalizeID(app.shopNo)] || '-';
 
                 // Count previous-lease months (if any)
                 const prevCount = dues.details.filter(d => d.source === 'history').length;
