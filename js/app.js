@@ -790,40 +790,34 @@ const Store = {
 
     async clearNoticeLogs(shopNo) {
         try {
-            //const shopId = String(shopNo).padstart(2,'0'); //01
-
-
             const sVal = String(shopNo).trim();
             const iVal = parseInt(sVal);
-            const pVal2 = String(iVal).padStart(2, '0');
-            const pVal3 = String(iVal).padStart(3, '0');
 
-            // FORCE ALL TO STRINGS to be safe with Supabase Text column matching
-            const ids = [...new Set([sVal, String(iVal), pVal2, pVal3])];
+            // Defensively generate ID variants (Strictly Strings for Text column)
+            const variants = new Set();
+            if (sVal.length > 0) variants.add(sVal);
+
+            if (!Number.isNaN(iVal)) {
+                variants.add(String(iVal));
+                variants.add(String(iVal).padStart(2, '0'));
+                variants.add(String(iVal).padStart(3, '0'));
+            }
+
+            const ids = Array.from(variants);
+            if (ids.length === 0) {
+                console.warn('No valid record_id variants generated for shopNo:', shopNo);
+                return false;
+            }
 
             console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
-            //debug Output
-            console.log("clearNoticeLogs called with shop:", shopNo);
-            console.log("Variant Generated for deletion:", ids);
 
             // DELETE targeting NOTICE-SPECIFIC action types
-            // This ensures Invoice logs (SEND_INVOICE) are NOT deleted
+            // This ensures Invoice logs (SEND_INVOICE) and Receipts (SEND_RECEIPT) are NOT deleted
             const { error, count } = await supabaseClient
                 .from('audit_logs')
                 .delete({ count: 'exact' })
-                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL'])
+                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL', 'SEND_EMAIL']) // include old generic 'SEND_EMAIL' for legacy clearing
                 .in('record_id', ids);
-
-
-            //Step 1: Debug - show rows  before delete
-            //const { data: rows, error:selectError} = await supabaseClient
-            //   .from('audit_logs')
-            // .select('*')
-            // .eq('table_name', 'system')
-            // .eq('record_id', ids);
-            //Console.log("Rows found before delete:", rows);
-
-            //if (selectError) throw selectError;
 
             //Step2: Delete
             //const {error, count} = await supabaseClient
