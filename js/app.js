@@ -690,7 +690,7 @@ const Store = {
     },
 
     // --- NOTIFICATIONS ---
-    async sendEmail(to, subject, text, html = null, shopNo = 'N/A') {
+    async sendEmail(to, subject, text, html = null, shopNo = 'N/A', actionType = 'SEND_EMAIL') {
         if (!to) return;
 
 
@@ -706,10 +706,70 @@ const Store = {
 
             if (error) throw error;
 
-            this.logAction('SEND_EMAIL', 'system', shopNo, `Sent email to ${to}: ${subject}`);
+            this.logAction(actionType, 'system', shopNo, `Sent email to ${to}: ${subject}`);
         } catch (e) {
             console.error("Email Sending Failed:", e);
         }
+    },
+
+    getReceiptHTML(tenant, dbPay) {
+        const dateStr = new Date(dbPay.payment_date).toLocaleDateString('en-IN');
+        return `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <div style="background: #059669; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</h2>
+                    <p style="margin: 5px 0 0;">Official Payment Receipt</p>
+                </div>
+                <div style="padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <div>
+                            <strong>From:</strong><br>
+                            ${tenant.applicantName}<br>
+                            Shop No: ${tenant.shopNo}<br>
+                            ${tenant.mobileNo || ''}
+                        </div>
+                        <div style="text-align: right;">
+                            <strong>Receipt No:</strong> ${dbPay.receipt_no}<br>
+                            <strong>Date:</strong> ${dateStr}
+                        </div>
+                    </div>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 10px; text-align: left;">Description</th>
+                            <th style="padding: 10px; text-align: right;">Amount</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px;">Rent for ${dbPay.payment_for_month}</td>
+                            <td style="padding: 10px; text-align: right;">₹${dbPay.amount_base.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px;">GST (18%)</td>
+                            <td style="padding: 10px; text-align: right;">₹${dbPay.amount_gst.toFixed(2)}</td>
+                        </tr>
+                        ${dbPay.amount_penalty > 0 ? `
+                        <tr>
+                            <td style="padding: 10px;">Penalty / Late Fees</td>
+                            <td style="padding: 10px; text-align: right;">₹${dbPay.amount_penalty.toFixed(2)}</td>
+                        </tr>` : ''}
+                        <tr style="font-weight: bold; background: #f1f5f9; border-top: 2px solid #e2e8f0;">
+                            <td style="padding: 10px;">Total Received</td>
+                            <td style="padding: 10px; text-align: right;">₹${dbPay.amount_total.toFixed(2)}</td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-bottom: 20px; font-size: 0.9rem;">
+                        <strong>Payment Method:</strong> ${String(dbPay.payment_method).toUpperCase()}<br>
+                        ${dbPay.transaction_no ? `<strong>Transaction ID:</strong> ${dbPay.transaction_no}<br>` : ''}
+                        ${dbPay.dd_cheque_no ? `<strong>Instrument No:</strong> ${dbPay.dd_cheque_no}<br>` : ''}
+                    </div>
+
+                    <div style="background: #f0fdf4; border: 1px solid #dcfce7; padding: 15px; border-radius: 6px; color: #166534; font-size: 0.9rem; text-align: center;">
+                        This is an automated confirmation of your payment. Thank you!
+                    </div>
+                </div>
+            </div>
+        `;
     },
 
     async getNoticeLogs() {
@@ -717,7 +777,7 @@ const Store = {
             const { data, error } = await supabaseClient
                 .from('audit_logs')
                 .select('record_id, created_at, action_type')
-                .in('action_type', ['SEND_EMAIL', 'SERVE_PHYSICAL'])
+                .in('action_type', ['SEND_EMAIL', 'SEND_NOTICE', 'SEND_INVOICE', 'SEND_RECEIPT', 'SEND_WELCOME', 'SERVE_PHYSICAL'])
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -731,8 +791,8 @@ const Store = {
     async clearNoticeLogs(shopNo) {
         try {
             //const shopId = String(shopNo).padstart(2,'0'); //01
-            
-            
+
+
             const sVal = String(shopNo).trim();
             const iVal = parseInt(sVal);
             const pVal2 = String(iVal).padStart(2, '0');
@@ -743,33 +803,34 @@ const Store = {
 
             console.log(`Store: Attempting to clear DB communication logs for Shop ${shopNo}. Targeting record_id list:`, ids);
             //debug Output
-            console.log("clearNoticeLogs called with shop:",shopNo);
+            console.log("clearNoticeLogs called with shop:", shopNo);
             console.log("Variant Generated for deletion:", ids);
 
-            //DELETE targeting either the specific action types OR the 'system' communication area
+            // DELETE targeting NOTICE-SPECIFIC action types
+            // This ensures Invoice logs (SEND_INVOICE) are NOT deleted
             const { error, count } = await supabaseClient
                 .from('audit_logs')
                 .delete({ count: 'exact' })
-                .eq('table_name', 'system')
+                .in('action_type', ['SEND_NOTICE', 'SERVE_PHYSICAL'])
                 .in('record_id', ids);
 
 
             //Step 1: Debug - show rows  before delete
             //const { data: rows, error:selectError} = await supabaseClient
-             //   .from('audit_logs')
-               // .select('*')
-               // .eq('table_name', 'system')
-               // .eq('record_id', ids);
+            //   .from('audit_logs')
+            // .select('*')
+            // .eq('table_name', 'system')
+            // .eq('record_id', ids);
             //Console.log("Rows found before delete:", rows);
 
             //if (selectError) throw selectError;
 
             //Step2: Delete
             //const {error, count} = await supabaseClient
-              //  .from('audit_logs')
-                //.delete()
-                //.eq('table_name', 'system')
-                //.eq('record_id', ids);
+            //  .from('audit_logs')
+            //.delete()
+            //.eq('table_name', 'system')
+            //.eq('record_id', ids);
 
             if (error) throw error;
             console.log(`Store: Successfully deleted ${count} logs from DB.`);
@@ -1044,7 +1105,7 @@ const Store = {
                     const settings = this.getSettings();
                     const html = typeof NoticeModule !== 'undefined' ? NoticeModule.getNoticeHTMLForEmail(tenant, dues, settings, warningType) : null;
 
-                    await this.sendEmail(tenant.email, subject, text, html, tenant.shopNo);
+                    await this.sendEmail(tenant.email, subject, text, html, tenant.shopNo, 'SEND_NOTICE');
                     sentCount++;
                 } catch (e) {
                     console.error(`Failed to warn ${tenant.shopNo}`, e);
@@ -1237,7 +1298,7 @@ const Store = {
                 try {
                     const subject = `Welcome to SUDA Shop Lease - Shop ${dbApp.shop_no}`;
                     const text = `Dear ${dbApp.applicant_name},\n\nWelcome! You have been successfully registered as the tenant in SUDA for Shop No: ${dbApp.shop_no}.\n\nLease Start Date: ${dbApp.lease_date}\nRent Amount: ₹${dbApp.rent_total}\nPayment Due Day: ${dbApp.payment_day}th of every month.\n\nWe look forward to a great partnership.\n\nSincerely,\nShop Lease Manager`;
-                    this.sendEmail(dbApp.email, subject, text, null, dbApp.shop_no);
+                    this.sendEmail(dbApp.email, subject, text, null, dbApp.shop_no, 'SEND_WELCOME');
                 } catch (err) {
                     console.warn("Welcome email failed:", err);
                 }
@@ -1318,13 +1379,17 @@ const Store = {
 
             // --- AUTOMATED EMAIL RECEIPT ---
             try {
-                const tenant = this.cache.applicants.find(a => a.shopNo === dbPay.shop_no);
+                // Use normalizeID for reliable matching
+                const normShop = this.normalizeID(dbPay.shop_no);
+                const tenant = this.cache.applicants.find(a => this.normalizeID(a.shopNo) === normShop);
+
                 if (tenant && tenant.email) {
                     const subject = `Payment Receipt: ${dbPay.shop_no} - ${dbPay.payment_for_month}`;
-                    const text = `Dear ${tenant.applicantName},\n\nWe have received your payment of ₹${dbPay.amount_total} for Shop ${dbPay.shop_no} for the month of ${dbPay.payment_for_month}.\n\nReceipt No: ${dbPay.receipt_no}\nDate: ${dbPay.payment_date}\n\nThank you,\nShop Lease Manager`;
+                    const html = this.getReceiptHTML(tenant, dbPay);
+                    const text = `Dear ${tenant.applicantName},\n\nWe have received your payment for Shop ${dbPay.shop_no}.\nPlease find the attached receipt details.\n\nThank you,\nSUDA Shop Lease Manager`;
 
-                    // Fire and forget email
-                    this.sendEmail(tenant.email, subject, text, null, tenant.shopNo);
+                    // Send with specific action type for tracking
+                    this.sendEmail(tenant.email, subject, text, html, tenant.shopNo, 'SEND_RECEIPT');
                 }
             } catch (err) {
                 console.warn("Auto-email logic failed:", err);
@@ -3261,8 +3326,8 @@ const RentModule = {
             }
 
             const applicants = Store.getApplicants();
-            const normTarget = this.normalizeID(shopNo);
-            currentApplicant = applicants.find(a => this.normalizeID(a.shopNo) === normTarget);
+            const normTarget = Store.normalizeID(shopNo);
+            currentApplicant = applicants.find(a => Store.normalizeID(a.shopNo) === normTarget);
 
             if (currentApplicant) {
                 if (document.getElementById('disp-shop-no')) document.getElementById('disp-shop-no').value = currentApplicant.shopNo;

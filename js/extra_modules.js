@@ -798,11 +798,30 @@ const NoticeModule = {
 
         let rows = '';
         shopLogs.forEach(log => {
-            const isPhysical = log.action_type === 'SERVE_PHYSICAL';
+            let label = 'Email Sent';
+            let color = '#6366f1'; // Default Indigo
+
+            if (log.action_type === 'SERVE_PHYSICAL') {
+                label = 'Physical Notice Served';
+                color = '#10b981'; // Emerald
+            } else if (log.action_type === 'SEND_NOTICE') {
+                label = 'Email Notice Sent';
+                color = '#4f46e5';
+            } else if (log.action_type === 'SEND_RECEIPT') {
+                label = 'Payment Receipt Sent';
+                color = '#22c55e'; // Green
+            } else if (log.action_type === 'SEND_WELCOME') {
+                label = 'Welcome Email Sent';
+                color = '#f59e0b'; // Amber
+            } else if (log.action_type === 'SEND_INVOICE') {
+                label = 'Monthly Invoice Sent';
+                color = '#0ea5e9'; // Sky
+            }
+
             rows += `
                 <div style="border-left: 2px solid #e2e8f0; margin-left: 10px; padding-left: 15px; padding-bottom: 20px; position: relative;">
-                    <span style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; background: ${isPhysical ? '#10b981' : '#6366f1'}; border-radius: 50%;"></span>
-                    <strong style="display: block; font-size: 0.9rem;">${isPhysical ? 'Physical Notice Served' : 'Email Notice Sent'}</strong>
+                    <span style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; background: ${color}; border-radius: 50%;"></span>
+                    <strong style="display: block; font-size: 0.9rem;">${label}</strong>
                     <span style="font-size: 0.8rem; color: #64748b;">${this.formatDateDMY(log.created_at)}</span>
                 </div>
             `;
@@ -892,7 +911,7 @@ const NoticeModule = {
             const noticeHtml = customHtml || this.getNoticeHTMLForEmail(app, dues, settings, warningType);
             const text = `Dear ${app.applicantName},\n\nThis is the ${warningType} regarding your outstanding rent for Shop ${app.shopNo}.\nTotal Amount Due: ₹${dues.totalAmount.toFixed(2)}`;
 
-            await Store.sendEmail(app.email, subject, text, noticeHtml, app.shopNo);
+            await Store.sendEmail(app.email, subject, text, noticeHtml, app.shopNo, 'SEND_NOTICE');
 
             if (btn) {
                 btn.textContent = 'Sent ✅';
