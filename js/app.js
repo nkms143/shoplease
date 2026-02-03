@@ -746,7 +746,7 @@ const Store = {
             console.log("clearNoticeLogs called with shop:",shopNo);
             console.log("Variant Generated for deletion:", ids);
 
-            DELETE targeting either the specific action types OR the 'system' communication area
+            //DELETE targeting either the specific action types OR the 'system' communication area
             const { error, count } = await supabaseClient
                 .from('audit_logs')
                 .delete({ count: 'exact' })
