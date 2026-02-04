@@ -7,7 +7,10 @@
 const config = window.CONFIG || { SUPABASE_URL: '', SUPABASE_KEY: '' };
 if (!config.SUPABASE_URL) {
     console.error("CRITICAL: Missing js/config.js. Please rename js/config.example.js and add your keys.");
-    alert("Configuration Missing! Application may not work.");
+    setTimeout(() => {
+        if (typeof AppUI !== 'undefined') AppUI.error("Configuration Missing! Application may not work.");
+        else AppUI.error("Configuration Missing! Application may not work.");
+    }, 100);
 }
 
 const SUPABASE_URL = config.SUPABASE_URL;
@@ -150,7 +153,7 @@ const AuthModule = {
         const rawApps = localStorage.getItem('suda_shop_applicants');
 
         if (!rawApps) {
-            alert("No legacy data found in LocalStorage to repair from!");
+            AppUI.warn("No legacy data found in LocalStorage to repair from!");
             return;
         }
 
@@ -207,7 +210,7 @@ const AuthModule = {
             }
         }
 
-        alert(`Repair Complete!\nFixed: ${successCount}\nFailed: ${failCount}\n\nPlease Refresh the Page.`);
+        AppUI.success(`Repair Complete!\nFixed: ${successCount}\nFailed: ${failCount}\n\nPlease Refresh the Page.`);
     }
 };
 // Expose for Console Use & HTML Inline Access
@@ -234,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sendResetBtn.addEventListener('click', async () => {
             const email = resetEmailInput.value.trim();
             if (!email) {
-                alert('Please enter your email address.');
+                AppUI.warn('Please enter your email address.');
                 return;
             }
 
@@ -248,11 +251,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             sendResetBtn.disabled = false;
 
             if (result.success) {
-                alert(`Password reset link sent to ${email}. Please check your inbox.`);
+                AppUI.success(`Password reset link sent to ${email}. Please check your inbox.`);
                 forgotModal.style.display = 'none';
                 resetEmailInput.value = '';
             } else {
-                alert('Error: ' + (result.error || 'Failed to send reset link.'));
+                AppUI.error('Error: ' + (result.error || 'Failed to send reset link.'));
             }
         });
     } else {
@@ -314,6 +317,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 // ==========================================
+// APP UI HELPERS (Professional Notifications)
+// ==========================================
+const AppUI = {
+    notify(message, type = 'info', duration = 4000) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+
+        let icon = 'ℹ️';
+        if (type === 'success') icon = '✅';
+        if (type === 'error') icon = '❌';
+        if (type === 'warning') icon = '⚠️';
+
+        toast.innerHTML = `
+            <div class="toast-icon">${icon}</div>
+            <div class="toast-content">${message}</div>
+            <div class="toast-progress" style="animation-duration: ${duration}ms"></div>
+        `;
+
+        container.appendChild(toast);
+
+        // Auto remove
+        setTimeout(() => {
+            toast.style.animation = 'slideOutRight 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    },
+
+    // Quick aliases
+    success(msg) { this.notify(msg, 'success'); },
+    error(msg) { this.notify(msg, 'error'); },
+    warn(msg) { this.notify(msg, 'warning'); },
+    info(msg) { this.notify(msg, 'info'); }
+};
+
+// ==========================================
 // STORE (Data Persistence)
 // ==========================================
 const Store = {
@@ -327,9 +368,17 @@ const Store = {
     PENALTY_HISTORY_KEY: 'suda_penalty_history',
 
     // --- HELPERS ---
-    normalizeID(id) {
+    formatShopID(id) {
         if (id === null || id === undefined) return '';
-        return String(id).trim().replace(/^0+/, '') || '0';
+        const clean = String(id).trim().replace(/^0+/, '');
+        if (!clean) return '00';
+        // Pad numbers to 2 digits, leave alphanumeric as is
+        return /^\d+$/.test(clean) ? clean.padStart(2, '0') : clean;
+    },
+
+    normalizeID(id) {
+        // Now using formatShopID as the base for all ID operations
+        return this.formatShopID(id);
     },
 
     // --- CACHE & INIT ---
@@ -508,7 +557,7 @@ const Store = {
             // console.log("Store: Data Loaded", this.cache);
         } catch (e) {
             console.error("Store Init Failed:", e);
-            alert("Failed to load data from Cloud. Using Offline/Empty state.");
+            AppUI.error("Failed to load data from Cloud. Using Offline/Empty state.");
         }
     },
 
@@ -659,7 +708,7 @@ const Store = {
             // console.log("Settings synced to cloud");
         } catch (e) {
             console.error("Settings Sync Failed:", e);
-            alert("Warning: Settings updated locally but failed to sync to Cloud.");
+            AppUI.warn("Warning: Settings updated locally but failed to sync to Cloud.");
         }
     },
 
@@ -673,7 +722,7 @@ const Store = {
                 user_email: userEmail,
                 action_type: actionType,
                 table_name: tableName,
-                record_id: String(recordId), // Ensure ID is always a string for DB consistency
+                record_id: this.formatShopID(recordId), // Standardized 2-digit padding
                 description: description,
                 metadata: metadata,
                 created_at: new Date().toISOString()
@@ -704,11 +753,18 @@ const Store = {
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error("Email Invocation Error:", error);
+                if (error.status === 401) {
+                    AppUI.error("Email Failed: Unauthorized (401). Please try logging out and back in.");
+                }
+                throw error;
+            }
 
             this.logAction(actionType, 'system', shopNo, `Sent email to ${to}: ${subject}`);
         } catch (e) {
             console.error("Email Sending Failed:", e);
+            AppUI.error("Failed to send email. Check console for details.");
         }
     },
 
@@ -1130,7 +1186,7 @@ const Store = {
             if (error) throw error;
         } catch (e) {
             console.error("Settings Sync Failed:", e);
-            alert("Settings saved locally but Cloud Sync failed.");
+            AppUI.warn("Settings saved locally but Cloud Sync failed.");
         }
     },
 
@@ -1220,7 +1276,7 @@ const Store = {
             if (error) { throw error; }
         } catch (e) {
             console.error("Save Shop Failed:", e);
-            alert("Saved locally, but Cloud Sync failed!");
+            AppUI.warn("Saved locally, but Cloud Sync failed!");
         }
     },
 
@@ -1249,7 +1305,7 @@ const Store = {
 
         // 2. Cloud Sync
         const dbApp = {
-            shop_no: applicant.shopNo,
+            shop_no: this.formatShopID(applicant.shopNo),
             applicant_name: applicant.applicantName,
             proprietor_name: applicant.proprietorShopName || applicant.proprietorName,
             contact_no: applicant.mobileNo || applicant.contactNo,
@@ -1324,7 +1380,7 @@ const Store = {
             await this.markShopOccupied(applicant.shopNo);
         } catch (e) {
             console.error("Save Applicant Failed:", e);
-            alert("Saved locally, but Cloud Sync failed! " + (e.message || ""));
+            AppUI.warn("Saved locally, but Cloud Sync failed! " + (e.message || ""));
         }
     },
 
@@ -1334,10 +1390,12 @@ const Store = {
     },
 
     async savePayment(payment) {
+        // Standardize Shop ID
+        payment.shopNo = this.formatShopID(payment.shopNo);
         // Check duplicate
         const exists = this.cache.payments.find(p => p.shopNo === payment.shopNo && p.paymentForMonth === payment.paymentForMonth);
         if (exists) {
-            alert(`Payment for ${payment.shopNo} for ${payment.paymentForMonth} already exists!`);
+            AppUI.warn(`Payment for ${payment.shopNo} for ${payment.paymentForMonth} already exists!`);
             return;
         }
 
@@ -1391,7 +1449,7 @@ const Store = {
 
         } catch (e) {
             console.error("Save Payment Failed:", e);
-            alert("Payment saved locally but Cloud Sync failed.");
+            AppUI.warn("Payment saved locally but Cloud Sync failed.");
         }
     },
 
@@ -1517,6 +1575,7 @@ const Store = {
 
     // --- DELETE/UPDATE METHODS ---
     async deleteApplicant(shopNo) {
+        shopNo = this.formatShopID(shopNo);
         try {
 
 
@@ -1600,15 +1659,15 @@ const Store = {
             await supabaseClient.from('shops').update({ status: 'Available' }).eq('shop_no', shopNo);
 
 
-            alert(`Applicant deleted and Shop ${shopNo} is now Available.`);
-
+            AppUI.success(`Applicant deleted and Shop ${shopNo} is now Available.`);
         } catch (e) {
             console.error("Delete Applicant Failed:", e);
-            alert("Error: Deleted locally, but Cloud Sync failed! Check console for details.");
+            AppUI.error("Error: Deleted locally, but Cloud Sync failed! Check console for details.");
         }
     },
 
     async deleteShop(shopNo) {
+        shopNo = this.formatShopID(shopNo);
         // 1. Local Cache
         let shops = this.getShops();
         shops = shops.filter(s => !this.idsMatch(s.shopNo, shopNo));
@@ -1634,10 +1693,10 @@ const Store = {
             if (error) throw error;
 
 
-            alert(`Shop ${shopNo} deleted permanently.`);
+            AppUI.success(`Shop ${shopNo} deleted permanently.`);
         } catch (e) {
             console.error("Delete Shop Failed Check:", e);
-            alert("Shop deleted locally, but Cloud Sync failed. It may reappear on refresh.");
+            AppUI.warn("Shop deleted locally, but Cloud Sync failed. It may reappear on refresh.");
         }
     },
 
@@ -1653,6 +1712,7 @@ const Store = {
     },
 
     async terminateApplicant(shopNo, terminationRecord) {
+        shopNo = this.formatShopID(shopNo);
         let applicants = this.getApplicants();
         // Use idsMatch
         const app = applicants.find(a => this.idsMatch(a.shopNo, shopNo));
@@ -1670,11 +1730,12 @@ const Store = {
             // Use the ROBUST deleteApplicant to handle Cloud Sync/Cleanup
             await this.deleteApplicant(shopNo);
         } else {
-            alert("Applicant not found for termination.");
+            AppUI.warn("Applicant not found for termination.");
         }
     },
 
-    markShopAvailable(shopNo) {
+    async markShopAvailable(shopNo) {
+        shopNo = this.formatShopID(shopNo);
         const shops = this.getShops();
         const shop = shops.find(s => s.shopNo === shopNo);
         if (shop) {
@@ -1706,15 +1767,15 @@ const Store = {
 
                 if (error) throw error;
 
-                alert("Transaction deleted successfully.");
+                AppUI.success("Transaction deleted successfully.");
             } catch (e) {
                 console.error("Delete Payment Cloud Failed:", e);
-                alert("Deleted locally, but Cloud Sync failed.");
+                AppUI.error("Deleted locally, but Cloud Sync failed.");
             }
         } else {
             // If no receipt identifier, it might be a very old payment or local-only
             console.warn("Deleted payment had no receipt identifier, skipping Cloud delete (might be local only?)");
-            alert("Transaction deleted locally (no cloud sync available).");
+            AppUI.info("Transaction deleted locally (no cloud sync available).");
         }
     },
 
@@ -1835,7 +1896,7 @@ const Store = {
             console.warn(`   Cloud failed: ${cloudFailed}`);
         }
 
-        alert(`Migration Complete!\n\nUpdated: ${updatedCount} payments\nSkipped: ${skippedCount} (already updated)\nCloud synced: ${cloudUpdated}${cloudFailed > 0 ? `\nFailed: ${cloudFailed}` : ''}`);
+        AppUI.success(`Migration Complete!\n\nUpdated: ${updatedCount} payments\nSkipped: ${skippedCount} (already updated).`);
 
         return { updatedCount, skippedCount, cloudUpdated, cloudFailed };
     }
@@ -2512,13 +2573,13 @@ const ShopModule = {
 
             try {
                 Store.saveShop(data);
-                alert('Shop added!');
+                AppUI.success('Shop added!');
                 form.reset();
                 formContainer.style.display = 'none';
                 document.getElementById('btn-add-shop').style.display = 'block';
                 this.renderList();
             } catch (err) {
-                alert(err.message);
+                AppUI.error(err.message);
             }
         });
 
@@ -2567,6 +2628,9 @@ const ShopModule = {
 // APPLICANT MODULE
 // ==========================================
 const ApplicantModule = {
+    normalizeID(id) {
+        return Store.normalizeID(id);
+    },
     render(container) {
         container.innerHTML = `
     <div class="glass-panel">
@@ -2887,19 +2951,19 @@ const ApplicantModule = {
                     if (Array.isArray(history)) {
                         data.leaseHistory = history;
                     } else {
-                        alert('Invalid History format: Must be an array [].');
+                        AppUI.error('Invalid History format: Must be an array [].');
                         return;
                     }
                     delete data.rentHistoryJSON;
                 }
             } catch (e) {
-                alert('Invalid JSON in History field: ' + e.message);
+                AppUI.error('Invalid JSON in History field: ' + e.message);
                 return;
             }
         }
 
         if (data.aadhar && !/^\d{12}$/.test(data.aadhar)) {
-            alert('Aadhar number must be exactly 12 digits.');
+            AppUI.warn('Aadhar number must be exactly 12 digits.');
             return;
         }
 
@@ -2922,7 +2986,7 @@ const ApplicantModule = {
                 Store.saveApplicant(data);
 
                 // Success Response
-                alert('Applicant saved successfully!');
+                AppUI.success('Applicant saved successfully!');
 
                 // Close Form
                 const container = document.getElementById('applicant-form-container');
@@ -2945,7 +3009,7 @@ const ApplicantModule = {
 
             } catch (err) {
                 console.error(err);
-                alert('Save Failed: ' + (err.message || 'Unknown error'));
+                AppUI.error('Save Failed: ' + (err.message || 'Unknown error'));
             }
         };
 
@@ -3266,7 +3330,7 @@ const RentModule = {
             if (window.ReceiptModule) {
                 window.ReceiptModule.printReceipt(target, app);
             } else {
-                alert('Receipt Module not loaded yet.');
+                AppUI.warn('Receipt Module not loaded yet.');
             }
         }
     },
@@ -3377,7 +3441,7 @@ const RentModule = {
 
             const checkedBoxes = Array.from(monthContainer.querySelectorAll('input[type="checkbox"]:checked'));
             if (checkedBoxes.length === 0) {
-                alert('Please select at least one month to pay.');
+                AppUI.warn('Please select at least one month to pay.');
                 return;
             }
 
@@ -3414,27 +3478,27 @@ const RentModule = {
             // Validate payment method
             const paymentMethod = paymentMethodSelect.value;
             if (!paymentMethod) {
-                alert('Please select a Payment Method.');
+                AppUI.warn('Please select a Payment Method.');
                 return;
             }
 
             // Validate payment method specific fields
             if (paymentMethod === 'cash' && !document.getElementById('receipt-no').value.trim()) {
-                alert('Please enter SUDA Receipt No. for Cash payment.');
+                AppUI.warn('Please enter SUDA Receipt No. for Cash payment.');
                 return;
             }
             if (paymentMethod === 'dd-cheque') {
                 if (!document.getElementById('dd-cheque-no').value.trim()) {
-                    alert('Please enter DD/Cheque No.');
+                    AppUI.warn('Please enter DD/Cheque No.');
                     return;
                 }
                 if (!document.getElementById('dd-cheque-date').value) {
-                    alert('Please enter DD/Cheque Date.');
+                    AppUI.warn('Please enter DD/Cheque Date.');
                     return;
                 }
             }
             if (paymentMethod === 'online' && !document.getElementById('transaction-no').value.trim()) {
-                alert('Please enter Online Transaction No.');
+                AppUI.warn('Please enter Online Transaction No.');
                 return;
             }
 
@@ -3547,14 +3611,14 @@ const RentModule = {
 
             } catch (err) {
                 console.error("Payment Save Error:", err);
-                alert("Error saving payment. Check internet connection.");
+                AppUI.error("Error saving payment. Check internet connection.");
             } finally {
                 btnCollect.textContent = originalText;
                 btnCollect.disabled = false;
             }
 
             if (successCount > 0) {
-                alert(`Successfully recorded payments for ${successCount} months!`);
+                AppUI.success(`Successfully recorded payments for ${successCount} months!`);
 
                 // Reset UI
                 select.value = '';

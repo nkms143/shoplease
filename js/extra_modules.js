@@ -194,7 +194,7 @@ const SettingsModule = {
                 // but if we wanted to batch save: Store.savePenaltyHistory(SettingsModule.penaltyHistory);
                 // Here we assume immediate save for list items. 
 
-                alert("Settings Saved Successfully!");
+                AppUI.success("Settings Saved Successfully!");
             });
         }
 
@@ -248,7 +248,7 @@ const SettingsModule = {
                 if (!file) return;
 
                 if (file.size > 500 * 1024) { // 500KB limit
-                    alert("File too large! Max 500KB.");
+                    AppUI.warn("File too large! Max 500KB.");
                     e.target.value = '';
                     return;
                 }
@@ -314,7 +314,7 @@ const SettingsModule = {
         const mode = document.getElementById('new-penalty-mode').value;
 
         if (!date || isNaN(rate)) {
-            alert("Please enter valid Date and Rate.");
+            AppUI.warn("Please enter valid Date and Rate.");
             return;
         }
 
@@ -369,7 +369,7 @@ const SettingsModule = {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             } catch (err) {
-                alert('Backup Failed: ' + err.message);
+                AppUI.error('Backup Failed: ' + err.message);
                 console.error(err);
             }
         });
@@ -383,10 +383,10 @@ const SettingsModule = {
                     btn.disabled = true;
                     btn.innerHTML = '<span>⏳</span> Syncing...';
                     await Store.createCloudBackup();
-                    alert("Cloud Backup Sync Successful!");
+                    AppUI.success("Cloud Backup Sync Successful!");
                 } catch (e) {
                     console.error(e);
-                    alert("Cloud Backup Failed: " + (e.message || "Unknown Error"));
+                    AppUI.error("Cloud Backup Failed: " + (e.message || "Unknown Error"));
                 } finally {
                     btn.disabled = false;
                     btn.innerHTML = origText;
@@ -414,10 +414,10 @@ const SettingsModule = {
                     try {
                         const data = JSON.parse(ev.target.result);
                         Store.restoreData(data);
-                        alert('✅ Data restored successfully! The application will now reload.');
+                        AppUI.success('Data restored successfully! The application will now reload.');
                         location.reload();
                     } catch (err) {
-                        alert('❌ Restore Failed: ' + err.message);
+                        AppUI.error('Restore Failed: ' + err.message);
                         console.error(err);
                     }
                 };
@@ -446,7 +446,7 @@ const SettingsModule = {
     addGstEntry() {
         const d = document.getElementById('new-gst-date').value;
         const r = document.getElementById('new-gst-rate').value;
-        if (!d || !r) { alert("Enter date and rate"); return; }
+        if (!d || !r) { AppUI.warn("Enter date and rate"); return; }
 
         this.gstHistory.push({ date: d, rate: parseFloat(r) });
         this.renderGstList();
@@ -549,7 +549,7 @@ const NoticeModule = {
             }
 
             if (candidates.length === 0) {
-                alert("No late payment candidates found.");
+                AppUI.info("No late payment candidates found.");
                 return;
             }
 
@@ -612,7 +612,7 @@ const NoticeModule = {
             overlay.querySelector('#btn-bulk-confirm').onclick = async () => {
                 const checks = overlay.querySelectorAll('.bulk-check:checked');
                 if (checks.length === 0) {
-                    alert("No tenants selected.");
+                    AppUI.warn("No tenants selected.");
                     return;
                 }
 
@@ -635,7 +635,7 @@ const NoticeModule = {
                     }
                 }
 
-                alert(`Bulk Batch Completed: ${sentCount} warnings sent.`);
+                AppUI.success(`Bulk Batch Completed: ${sentCount} warnings sent.`);
                 overlay.remove();
                 this.scanDefaulters();
             };
@@ -882,11 +882,11 @@ const NoticeModule = {
                 clearBtn.textContent = 'Clearing...';
                 const success = await Store.clearNoticeLogs(shopNo);
                 if (success) {
-                    alert('History cleared successfully. Please scan again to see changes.');
+                    AppUI.success('History cleared successfully. Please scan again to see changes.');
                     overlay.remove();
                     this.scanDefaulters();
                 } else {
-                    alert('Failed to clear history.');
+                    AppUI.error('Failed to clear history.');
                     clearBtn.disabled = false;
                     clearBtn.textContent = 'Clear All Communication Logs';
                 }
@@ -899,7 +899,7 @@ const NoticeModule = {
             const normTarget = this.normalizeID(shopNo);
             const app = Store.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
             if (!app || !app.email) {
-                alert('Error: Applicant or Email not found.');
+                AppUI.error('Error: Applicant or Email not found.');
                 return;
             }
 
@@ -952,10 +952,10 @@ const NoticeModule = {
                 `;
             }
 
-            alert('Notice Message sent successfully');
+            AppUI.success('Notice Message sent successfully');
         } catch (e) {
             console.error(e);
-            alert('Failed to send email: ' + e.message);
+            AppUI.error('Failed to send email: ' + e.message);
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = '✉️ Email';
@@ -1125,7 +1125,7 @@ const NoticeModule = {
             const normTarget = this.normalizeID(shopNo);
             const app = Store.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
             if (!app) {
-                alert('Error: Applicant not found for shop ' + shopNo);
+                AppUI.error('Error: Applicant not found for shop ' + shopNo);
                 return;
             }
 
@@ -1338,12 +1338,12 @@ const NoticeModule = {
                     physicalBtn.textContent = 'Saving...';
                     const ok = await Store.logPhysicalNotice(shopNo);
                     if (ok) {
-                        alert("Physical service recorded successfully.");
+                        AppUI.success("Physical service recorded successfully.");
                         physicalBtn.textContent = 'Recorded 🖨️';
                         physicalBtn.style.background = '#94a3b8';
                         this.scanDefaulters(); // Refresh list
                     } else {
-                        alert("Failed to record service.");
+                        AppUI.error("Failed to record service.");
                         physicalBtn.disabled = false;
                         physicalBtn.textContent = '🖨️ Record Physical Service';
                     }
@@ -1381,7 +1381,7 @@ const NoticeModule = {
             };
 
         } catch (e) {
-            alert('Notice Generation Error: ' + e.message);
+            AppUI.error('Notice Generation Error: ' + e.message);
             console.error(e);
         }
     }
@@ -2062,7 +2062,7 @@ const GstRemittanceModule = {
             const notes = document.getElementById('remit-notes').value;
 
             if (amount <= 0) {
-                alert('Please enter a valid amount.');
+                AppUI.warn('Please enter a valid amount.');
                 return;
             }
 
@@ -2100,7 +2100,7 @@ const GstRemittanceModule = {
             };
 
             Store.saveRemittance(record);
-            alert('Remittance recorded successfully!');
+            AppUI.success('Remittance recorded successfully!');
 
             form.reset();
             // Refresh stats and current filter view
@@ -2247,7 +2247,7 @@ const LeaseStatusModule = {
 
             <!-- RENEWAL MODAL -->
             <div id="renewal-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-                <div class="glass-panel" style="background: white; width: 500px; max-width: 90%;">
+                <div class="glass-panel" style="background: white; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto;">
                     <h3 style="margin-bottom: 1rem;">Renew Lease Agreement</h3>
                     <form id="renewal-form">
                         <input type="hidden" name="shopNo" id="renew-shop-no">
@@ -2468,7 +2468,7 @@ const LeaseStatusModule = {
         if (reason !== null) { // If not cancelled
             const date = new Date().toISOString().split('T')[0];
             Store.terminateApplicant(shopNo, { date, reason: reason || 'Not Specified' });
-            alert('Agreement Terminated. Moved to History.');
+            AppUI.success('Agreement Terminated. Moved to History.');
             this.renderActiveList();
         }
     },
@@ -2567,13 +2567,13 @@ const LeaseStatusModule = {
                 // SAVE using Store.saveApplicant to ensure Cloud Sync
                 await Store.saveApplicant(applicants[index]);
 
-                alert('Lease Renewed & Synced Successfully!');
+                AppUI.success('Lease Renewed & Synced Successfully!');
                 document.getElementById('renewal-modal').style.display = 'none';
                 this.renderActiveList();
 
             } catch (e) {
                 console.error(e);
-                alert('Error updating lease: ' + e.message);
+                AppUI.error('Error updating lease: ' + e.message);
             }
         };
 
@@ -2701,7 +2701,7 @@ const ReportModule = {
                     msg += `${row.Month}: ${row.Days} ${unitLabel} overdue -> ₹${row.Penalty}\n`;
                 }
             });
-            alert(msg || "No Arrear Penalty found for this shop.");
+            AppUI.info(msg || "No Arrear Penalty found for this shop.");
             window.dcbDebugTarget = null;
         };
     },
@@ -2734,7 +2734,7 @@ const ReportModule = {
         const fyVal = document.getElementById('rep-dcb-fy').value;
 
         if (!fyVal) {
-            alert('Please select a Financial Year');
+            AppUI.warn('Please select a Financial Year');
             return;
         }
 
@@ -3321,7 +3321,7 @@ const ReportModule = {
 
     exportDCB() {
         if (!this.lastDcbResults || !Array.isArray(this.lastDcbResults.rows)) {
-            alert('Please generate the DCB report first before exporting.');
+            AppUI.warn('Please generate the DCB report first before exporting.');
             return;
         }
 
@@ -3534,7 +3534,7 @@ const ReportModule = {
         `;
 
         const w = window.open('', '_blank');
-        if (!w) { alert('Unable to open print window. Please allow popups for this site.'); return; }
+        if (!w) { AppUI.warn('Unable to open print window. Please allow popups for this site.'); return; }
         w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DCB Report</title>${style}</head><body>${contentHtml}<script>window.onload=function(){setTimeout(()=>{window.print();},200);};</script></body></html>`);
         w.document.close();
     }
@@ -3620,7 +3620,7 @@ const ShopLedgerModule = {
             printBtn.addEventListener('click', () => {
                 const content = document.getElementById('print-stmt-area').innerHTML;
                 const w = window.open('', '_blank');
-                if (!w) { alert('Please allow popups'); return; }
+                if (!w) { AppUI.warn('Please allow popups'); return; }
                 w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Shop Ledger</title><style>body{font-family:Arial;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #000;padding:8px;}</style></head><body>${content}<script>window.onload=function(){setTimeout(()=>{window.print();},200);};</script></body></html>`);
                 w.document.close();
             });
@@ -3685,7 +3685,7 @@ const ShopLedgerModule = {
 
         const app = Store.getApplicants().find(a => a.shopNo === shop.shopNo);
         if (!app) {
-            alert('No tenant found for this shop');
+            AppUI.error('No tenant found for this shop');
             return;
         }
 
@@ -4255,7 +4255,7 @@ const GstMonthwiseReportModule = {
         const yearVar = document.getElementById('gst-report-year').value;
 
         if (!monthVar || !yearVar) {
-            alert("Please select both Month and Year to generate Form-58.");
+            AppUI.warn("Please select both Month and Year to generate Form-58.");
             return;
         }
 
@@ -4714,7 +4714,7 @@ const GstMonthwiseReportModule = {
             w.document.write(html);
             w.document.close();
         } else {
-            alert("Please allow popups to generate the print window.");
+            AppUI.warn("Please allow popups to generate the print window.");
         }
     }
 };
@@ -5305,7 +5305,7 @@ const WaiverModule = {
         const reason = document.getElementById('waiver-reason').value;
 
         if (!shopNo || !monthVal) {
-            alert("Please select Shop and Month");
+            AppUI.warn("Please select Shop and Month");
             return;
         }
 
@@ -5327,12 +5327,12 @@ const WaiverModule = {
 
         try {
             await Store.saveWaiver(record);
-            alert("Waiver Recorded Successfully!");
+            AppUI.success("Waiver Recorded Successfully!");
             document.getElementById('waiver-form').reset();
             this.renderHistory();
         } catch (e) {
             console.error(e);
-            alert("Failed to save waiver.");
+            AppUI.error("Failed to save waiver.");
         } finally {
             btn.textContent = origText;
             btn.disabled = false;

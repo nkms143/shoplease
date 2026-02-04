@@ -99,7 +99,7 @@ const InvoiceModule = {
         const year = parseInt(document.getElementById('inv-year').value);
 
         if (!month || !year) {
-            alert("Please select Month and Year");
+            AppUI.warn("Please select Month and Year");
             return;
         }
 
@@ -283,7 +283,7 @@ const InvoiceModule = {
             // Small delay
             await new Promise(r => setTimeout(r, 500));
         }
-        alert("Batch sending completed!");
+        AppUI.success("Batch sending completed!");
     },
 
     printAll() {
