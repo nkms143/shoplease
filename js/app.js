@@ -741,12 +741,13 @@ const Store = {
     // --- NOTIFICATIONS ---
     async sendEmail(to, subject, text, html = null, shopNo = 'N/A', actionType = 'SEND_EMAIL') {
         if (!to) return;
+        const recipient = String(to).trim();
 
 
         try {
             const { data, error } = await supabaseClient.functions.invoke('send-email', {
                 body: {
-                    to: to,
+                    to: recipient,
                     subject: subject,
                     text: text,
                     html: html || `<p>${text}</p>`
