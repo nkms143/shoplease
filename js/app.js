@@ -394,28 +394,22 @@ const Store = {
     },
 
     async initData() {
+        const loader = document.getElementById('data-loading-overlay');
+        if (loader) {
+            loader.style.display = 'flex';
+            loader.style.opacity = '1';
+        }
+
         try {
             // console.log("Store: Initializing Data from Cloud...");
-            const [s, t, p] = await Promise.all([
+            const [s, t, p, w, r, settingsDB] = await Promise.all([
                 supabaseClient.from('shops').select('*'),
                 supabaseClient.from('tenants').select('*'),
-                supabaseClient.from('payments').select('*')
+                supabaseClient.from('payments').select('*'),
+                supabaseClient.from('waivers').select('*'),
+                supabaseClient.from('remittances').select('*'),
+                supabaseClient.from('settings').select('*').eq('key', 'global_settings')
             ]);
-
-            // Try fetch extra tables safely
-            let w = { data: [] }, r = { data: [] }, settingsDB = { data: [] };
-            try {
-                const extra = await Promise.all([
-                    supabaseClient.from('waivers').select('*'),
-                    supabaseClient.from('remittances').select('*'),
-                    supabaseClient.from('settings').select('*').eq('key', 'global_settings')
-                ]);
-                w = extra[0];
-                r = extra[1];
-                settingsDB = extra[2];
-            } catch (err) {
-                console.warn("Optional tables (waivers/remittances/settings) fetch failed:", err);
-            }
 
             // 1. Map Shops
             this.cache.shops = (s.data || []).map(row => ({
@@ -558,6 +552,32 @@ const Store = {
         } catch (e) {
             console.error("Store Init Failed:", e);
             AppUI.error("Failed to load data from Cloud. Using Offline/Empty state.");
+        } finally {
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => { loader.style.display = 'none'; }, 500);
+            }
+        }
+    },
+
+    /**
+     * Future-proofing: Fetch payments for a specific date range.
+     * Use this when the database grows beyond a few thousand records
+     * and a full initData() fetch becomes too heavy.
+     */
+    async fetchPaymentsRange(startDate, endDate) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('payments')
+                .select('*')
+                .gte('payment_date', startDate)
+                .lte('payment_date', endDate);
+
+            if (error) throw error;
+            return data;
+        } catch (e) {
+            console.error("Range Fetch Failed:", e);
+            return [];
         }
     },
 
@@ -2203,7 +2223,7 @@ const DashboardModule = {
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
                             <h4 style="color: rgba(255,255,255,0.8); font-size: 0.85rem; text-transform: uppercase;">Total Revenue (FY)</h4>
-                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-revenue">0</span></div>
+                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-revenue" class="skeleton-text" style="display:inline-block; width:80px;">&nbsp;</span></div>
                         </div>
                         <span style="font-size: 1.5rem;">💰</span>
                     </div>
@@ -2214,7 +2234,7 @@ const DashboardModule = {
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
                             <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;" id="kpi-efficiency-title">Collection Efficiency</h4>
-                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #1e293b;"><span id="kpi-efficiency">0</span>%</div>
+                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #1e293b;"><span id="kpi-efficiency" class="skeleton-text" style="display:inline-block; width:40px;">&nbsp;</span>%</div>
                             <small id="kpi-efficiency-sub" style="color: #94a3b8; font-size: 0.8rem;">Target: 100%</small>
                         </div>
                         <div style="height: 40px; width: 40px; border-radius: 50%; border: 3px solid #10b981; display:flex; align-items:center; justify-content:center; color:#10b981; font-weight:bold;">%</div>
@@ -2226,7 +2246,7 @@ const DashboardModule = {
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
                             <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Critical Defaulters</h4>
-                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #ef4444;"><span id="kpi-defaulters">0</span></div>
+                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #ef4444;"><span id="kpi-defaulters" class="skeleton-text" style="display:inline-block; width:30px;">&nbsp;</span></div>
                             <small style="color: #94a3b8; font-size: 0.8rem;">> 2 Months Pending</small>
                         </div>
                         <span style="font-size: 1.5rem;">⚠️</span>
@@ -2342,7 +2362,9 @@ const DashboardModule = {
                 totalRev += amt;
             }
         });
-        document.getElementById('kpi-revenue').textContent = totalRev.toLocaleString('en-IN'); // Format
+        const kpiRevenue = document.getElementById('kpi-revenue');
+        kpiRevenue.textContent = totalRev.toLocaleString('en-IN');
+        kpiRevenue.classList.remove('skeleton-text');
 
         // --- KPI 4: Occupancy ---
         const total = shops.length;
@@ -2394,13 +2416,14 @@ const DashboardModule = {
         });
 
         const efficiency = totalFyDemand > 0 ? ((totalFyCollection / totalFyDemand) * 100) : 0;
-        document.getElementById('kpi-efficiency-title').textContent = `Collection Efficiency (F.Y - ${fyYear}-${String(fyYear + 1).slice(-2)})`;
-        document.getElementById('kpi-efficiency').textContent = Math.min(100, efficiency).toFixed(0);
-        document.getElementById('kpi-efficiency-sub').textContent = `Collected: ₹${totalFyCollection.toLocaleString('en-IN')} / ₹${totalFyDemand.toLocaleString('en-IN')}`;
-
-
         // Defaulters Count
-        document.getElementById('kpi-defaulters').textContent = defaulters.length;
+        const kpiDefaulters = document.getElementById('kpi-defaulters');
+        kpiDefaulters.textContent = defaulters.length;
+        kpiDefaulters.classList.remove('skeleton-text');
+
+        const kpiEfficiency = document.getElementById('kpi-efficiency');
+        kpiEfficiency.textContent = Math.min(100, efficiency).toFixed(0);
+        kpiEfficiency.classList.remove('skeleton-text');
 
         // --- TOP DEFAULTERS TABLE ---
         defaulters.sort((a, b) => b.dues - a.dues); // Descending

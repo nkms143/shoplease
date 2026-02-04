@@ -3182,19 +3182,17 @@ const ReportModule = {
                         const diffDays = Math.ceil((prevFyEnd - countStart) / (1000 * 60 * 60 * 24));
 
                         if (diffDays > 0) {
-                            // SPLIT LOGIC
-                            if (dueDate < policyDate) {
-                                // Legacy
-                                penaltyForMonth = diffDays * legacyRate;
+                            // Unified Logic using Store SOT
+                            const params = Store.getPenaltyParams(dueDate);
+                            const pMode = params.mode || 'MONTHLY';
+                            const pRate = parseFloat(params.rate) || 500;
+
+                            if (pMode === 'MONTHLY') {
+                                const months = Math.floor(diffDays / 30);
+                                penaltyForMonth = months * pRate;
                             } else {
-                                // New Policy
-                                if (mode === 'MONTHLY') {
-                                    const months = Math.floor(diffDays / 30);
-                                    penaltyForMonth = months * newRate;
-                                } else {
-                                    // Daily New
-                                    penaltyForMonth = diffDays * newRate;
-                                }
+                                // Daily logic
+                                penaltyForMonth = diffDays * pRate;
                             }
                         }
                     }
