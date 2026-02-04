@@ -3272,8 +3272,8 @@ const RentModule = {
                     </div>
                 </div>
             </div>
-                </div >
-            </div >
+                </div>
+            </div>
 
             <div id="payment-history-area" style="display: none; margin-top: 2rem; max-width: 800px;">
                 <div class="glass-panel">
@@ -3318,7 +3318,7 @@ const RentModule = {
         }
 
         let html = `
-    < table class="data-table" style = "font-size: 0.9rem;" >
+    <table class="data-table" style="font-size: 0.9rem;">
                 <thead>
                     <tr>
                         <th>Time</th>
