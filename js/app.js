@@ -755,8 +755,16 @@ const Store = {
 
             if (error) {
                 console.error("Email Invocation Error:", error);
-                if (error.status === 401) {
-                    AppUI.error("Email Failed: Unauthorized (401). Please try logging out and back in.");
+
+                // Try to extract the body if it's a FunctionsHttpError
+                if (error.context && error.context.json) {
+                    console.error("Error Detail Body:", error.context.json);
+                    const detail = error.context.json.message || JSON.stringify(error.context.json);
+                    AppUI.error(`Email Failed: ${detail}`);
+                } else if (error.status === 401) {
+                    AppUI.error("Email Failed: Unauthorized (401). Check Resend API Key.");
+                } else {
+                    AppUI.error(`Email Failed (Status ${error.status})`);
                 }
                 throw error;
             }
@@ -3018,7 +3026,7 @@ const ApplicantModule = {
 
     loadApplicantForEdit(shopNo) {
         const normTarget = this.normalizeID(shopNo);
-        const app = this.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
+        const app = Store.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
         if (!app) { console.error("App not found"); return; }
 
         this.showForm();
