@@ -2211,13 +2211,10 @@ function handleRoute(route) {
 const DashboardModule = {
     render(container) {
         container.innerHTML = `
-            <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <div style="margin-bottom: 1rem;">
                 <div>
                     <h3 style="margin-bottom: 0.25rem; font-size: 1.2rem;">Analytics Overview</h3>
                     <p style="color: var(--text-muted); font-size: 0.8rem;">Real-time financial pulse and tenant performance.</p>
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); background: rgba(0,0,0,0.03); padding: 4px 12px; border-radius: 20px;">
-                    Last Updated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
             </div>
 
@@ -2591,7 +2588,7 @@ const ShopModule = {
         });
 
         // Delete Logic (Event Delegation)
-        document.getElementById('shop-list-body').addEventListener('click', (e) => {
+        document.getElementById('shop-list-body').addEventListener('click', async (e) => {
             const target = e.target;
 
             // DELETE
@@ -2599,7 +2596,7 @@ const ShopModule = {
                 const btn = target.closest('.btn-delete-shop');
                 const shopNo = btn.dataset.shop;
                 if (confirm(`Are you sure you want to delete Shop ${shopNo}? This cannot be undone.`)) {
-                    Store.deleteShop(shopNo);
+                    await Store.deleteShop(shopNo);
                     this.renderList();
                 }
             }
