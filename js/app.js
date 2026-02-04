@@ -756,11 +756,16 @@ const Store = {
             if (error) {
                 console.error("Email Invocation Error:", error);
 
-                // Try to extract the body if it's a FunctionsHttpError
-                if (error.context && error.context.json) {
-                    console.error("Error Detail Body:", error.context.json);
-                    const detail = error.context.json.message || JSON.stringify(error.context.json);
-                    AppUI.error(`Email Failed: ${detail}`);
+                // Try to extract the body if it's a FunctionsHttpError (context is a Response object)
+                if (error.context && typeof error.context.json === 'function') {
+                    try {
+                        const errorData = await error.context.json();
+                        console.error("Error Detail Body:", errorData);
+                        const detail = errorData.message || errorData.error || JSON.stringify(errorData);
+                        AppUI.error(`Email Failed: ${detail}`);
+                    } catch (parseErr) {
+                        AppUI.error(`Email Failed: Status ${error.status}`);
+                    }
                 } else if (error.status === 401) {
                     AppUI.error("Email Failed: Unauthorized (401). Check Resend API Key.");
                 } else {
