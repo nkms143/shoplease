@@ -2211,77 +2211,82 @@ function handleRoute(route) {
 const DashboardModule = {
     render(container) {
         container.innerHTML = `
-            <div style="margin-bottom: 2rem;">
-                <h3 style="margin-bottom: 0.5rem;">Analytics Overview</h3>
-                <p style="color: var(--text-muted);">Real-time financial pulse and tenant performance.</p>
+            <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin-bottom: 0.25rem; font-size: 1.2rem;">Analytics Overview</h3>
+                    <p style="color: var(--text-muted); font-size: 0.8rem;">Real-time financial pulse and tenant performance.</p>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); background: rgba(0,0,0,0.03); padding: 4px 12px; border-radius: 20px;">
+                    Last Updated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
             </div>
 
             <!-- KEY METRICS GRID -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                 <!-- 1. Gross Revenue (FY) -->
-                <div class="glass-panel" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white;">
+                <div class="glass-panel" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 1rem;">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
-                            <h4 style="color: rgba(255,255,255,0.8); font-size: 0.85rem; text-transform: uppercase;">Total Revenue (FY)</h4>
-                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem;">₹<span id="kpi-revenue" class="skeleton-text" style="display:inline-block; width:80px;">&nbsp;</span></div>
+                            <h4 style="color: rgba(255,255,255,0.8); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Total Revenue (FY)</h4>
+                            <div style="font-size: 1.5rem; font-weight: bold; margin-top: 0.25rem;">₹<span id="kpi-revenue" class="skeleton-text" style="display:inline-block; width:80px;">&nbsp;</span></div>
                         </div>
-                        <span style="font-size: 1.5rem;">💰</span>
+                        <span style="font-size: 1.25rem; opacity: 0.9;">💰</span>
                     </div>
                 </div>
 
                 <!-- 2. Collection Efficiency -->
-                <div class="glass-panel" style="background: white; border-left: 4px solid #10b981;">
+                <div class="glass-panel" style="background: white; border-top: 3px solid #10b981; padding: 1rem;">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
-                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;" id="kpi-efficiency-title">Collection Efficiency</h4>
-                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #1e293b;"><span id="kpi-efficiency" class="skeleton-text" style="display:inline-block; width:40px;">&nbsp;</span>%</div>
-                            <small id="kpi-efficiency-sub" style="color: #94a3b8; font-size: 0.8rem;">Target: 100%</small>
+                            <h4 style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;" id="kpi-efficiency-title">Collection Efficiency</h4>
+                            <div style="font-size: 1.5rem; font-weight: bold; margin-top: 0.25rem; color: #1e293b;"><span id="kpi-efficiency" class="skeleton-text" style="display:inline-block; width:40px;">&nbsp;</span>%</div>
+                            <small id="kpi-efficiency-sub" style="color: #94a3b8; font-size: 0.7rem;">Target: 100%</small>
                         </div>
-                        <div style="height: 40px; width: 40px; border-radius: 50%; border: 3px solid #10b981; display:flex; align-items:center; justify-content:center; color:#10b981; font-weight:bold;">%</div>
+                        <div style="height: 32px; width: 32px; border-radius: 50%; border: 2.5px solid #10b981; display:flex; align-items:center; justify-content:center; color:#10b981; font-weight:bold; font-size: 0.8rem;">%</div>
                     </div>
                 </div>
 
                 <!-- 3. Critical Defaulters -->
-                <div class="glass-panel" style="background: white; border-left: 4px solid #ef4444;">
+                <div class="glass-panel" style="background: white; border-top: 3px solid #ef4444; padding: 1rem;">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
-                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Critical Defaulters</h4>
-                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #ef4444;"><span id="kpi-defaulters" class="skeleton-text" style="display:inline-block; width:30px;">&nbsp;</span></div>
-                            <small style="color: #94a3b8; font-size: 0.8rem;">> 2 Months Pending</small>
+                            <h4 style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Critical Defaulters</h4>
+                            <div style="font-size: 1.5rem; font-weight: bold; margin-top: 0.25rem; color: #ef4444;"><span id="kpi-defaulters" class="skeleton-text" style="display:inline-block; width:30px;">&nbsp;</span></div>
+                            <small style="color: #94a3b8; font-size: 0.7rem;">> 2 Months Pending</small>
                         </div>
-                        <span style="font-size: 1.5rem;">⚠️</span>
+                        <span style="font-size: 1.25rem;">⚠️</span>
                     </div>
                 </div>
 
                 <!-- 4. Occupancy -->
-                <div class="glass-panel" style="background: white; border-left: 4px solid #3b82f6;">
+                <div class="glass-panel" style="background: white; border-top: 3px solid #3b82f6; padding: 1rem;">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
-                            <h4 style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Occupancy</h4>
-                            <div style="font-size: 1.8rem; font-weight: bold; margin-top: 0.5rem; color: #1e293b;"><span id="kpi-occupied">0</span>/<span id="kpi-total">0</span></div>
-                            <small style="color: #94a3b8; font-size: 0.8rem;">Shops Occupied</small>
+                            <h4 style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Occupancy</h4>
+                            <div style="font-size: 1.5rem; font-weight: bold; margin-top: 0.25rem; color: #1e293b;"><span id="kpi-occupied">0</span>/<span id="kpi-total">0</span></div>
+                            <small style="color: #94a3b8; font-size: 0.7rem;">Shops Occupied</small>
                         </div>
-                        <span style="font-size: 1.5rem;">🏪</span>
+                        <span style="font-size: 1.25rem;">🏪</span>
                     </div>
                 </div>
             </div>
 
             <!-- CHARTS SECTION -->
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;" class="charts-container">
-                <div class="glass-panel">
-                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Monthly Revenue Trend</h4>
-                    <div style="height: 300px; position: relative;">
+            <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 1rem; margin-bottom: 1.5rem;" class="charts-container">
+                <div class="glass-panel" style="padding: 1rem;">
+                    <h4 style="margin-bottom: 0.75rem; font-size: 0.9rem; color: var(--text-color);">Monthly Revenue Trend</h4>
+                    <div style="height: 220px; position: relative;">
                         <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
                 <!-- REPLACED PAYMENT MODES WITH RECENT TRANSACTIONS -->
-                <div class="glass-panel">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                        <h4 style="color: var(--text-color);">Last 5 Payments</h4>
-                        <button class="btn-primary" onclick="handleRoute('report')" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
+                <div class="glass-panel" style="padding: 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+                        <h4 style="font-size: 0.9rem; color: var(--text-color);">Last 5 Payments</h4>
+                        <button class="btn-primary" onclick="handleRoute('report')" style="padding: 3px 8px; font-size: 0.7rem;">View All</button>
                     </div>
-                    <div class="table-container" style="max-height: 250px; overflow-y: auto;">
-                        <table class="data-table">
+                    <div class="table-container" style="max-height: 220px; overflow-y: auto;">
+                        <table class="data-table" style="font-size: 0.85rem;">
                             <thead>
                                 <tr>
                                     <th>Shop</th>
@@ -2296,20 +2301,20 @@ const DashboardModule = {
             </div>
 
             <!-- BOTTOM SECTION: TOP DEFAULTERS & EXPIRING LEASES -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <!-- Top Defaulters -->
-                <div class="glass-panel">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                        <h4 style="color: var(--text-color);">Top Defaulters</h4>
-                        <button class="btn-primary" onclick="handleRoute('dcb-report')" style="padding: 4px 10px; font-size: 0.75rem;">View All</button>
+                <div class="glass-panel" style="padding: 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+                        <h4 style="font-size: 0.9rem; color: var(--text-color);">Top Defaulters</h4>
+                        <button class="btn-primary" onclick="handleRoute('dcb-report')" style="padding: 3px 8px; font-size: 0.7rem;">View All</button>
                     </div>
-                    <div class="table-container">
-                        <table class="data-table">
+                    <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                        <table class="data-table" style="font-size: 0.85rem;">
                             <thead>
                                 <tr>
                                     <th>Shop</th>
                                     <th>Name</th>
-                                    <th style="text-align:right;">Pending Due</th>
+                                    <th style="text-align:right;">Due</th>
                                 </tr>
                             </thead>
                             <tbody id="dash-defaulters-list"></tbody>
@@ -2318,15 +2323,15 @@ const DashboardModule = {
                 </div>
                 
                 <!-- Expiring Leases -->
-                 <div class="glass-panel">
-                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Leases Expiring Soon (< 30 Days)</h4>
-                    <div class="table-container">
-                         <table class="data-table">
+                 <div class="glass-panel" style="padding: 1rem;">
+                    <h4 style="margin-bottom: 0.75rem; font-size: 0.9rem; color: var(--text-color);">Leases Expiring Soon (< 30 Days)</h4>
+                    <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                         <table class="data-table" style="font-size: 0.85rem;">
                             <thead>
                                 <tr>
                                     <th>Shop</th>
-                                    <th>Expiry Date</th>
-                                    <th>Action</th>
+                                    <th>Expiry</th>
+                                    <th style="text-align:right;">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="dash-expiry-list"></tbody>
@@ -2335,7 +2340,6 @@ const DashboardModule = {
                 </div>
             </div>
         `;
-
         this.loadAnalytics();
     },
 
@@ -2343,117 +2347,119 @@ const DashboardModule = {
         const shops = Store.getShops();
         const payments = Store.getPayments();
         const applicants = Store.getApplicants();
+        const today = new Date();
 
         // 1. Current FY Logic
-        const today = new Date();
         const curMonth = today.getMonth();
         const startYear = curMonth >= 3 ? today.getFullYear() : today.getFullYear() - 1;
-        const fyYear = startYear; // FY year for calculations
+        const fyYear = startYear;
         const fyStart = new Date(startYear, 3, 1);
         const fyEnd = new Date(startYear + 1, 2, 31);
 
-        // --- KPI 1: Revenue ---
-        let totalRev = 0;
-
-        payments.forEach(p => {
-            const pDate = new Date(p.paymentDate || p.timestamp);
-            if (pDate >= fyStart && pDate <= fyEnd) {
-                const amt = parseFloat(p.grandTotal || 0);
-                totalRev += amt;
-            }
-        });
-        const kpiRevenue = document.getElementById('kpi-revenue');
-        kpiRevenue.textContent = totalRev.toLocaleString('en-IN');
-        kpiRevenue.classList.remove('skeleton-text');
-
-        // --- KPI 4: Occupancy ---
-        const total = shops.length;
-        const occ = shops.filter(s => s.status === 'Occupied').length;
-        document.getElementById('kpi-total').textContent = total;
-        document.getElementById('kpi-occupied').textContent = occ;
-
-        // --- KPI 2 & 3: Efficiency & Defaulters ---
-        // We need 'Expected Monthly Collection' vs 'Actual'.
-        // Simple heuristic: Sum of Rent+GST for all Active Tenants = Monthly Demand.
-        let monthlyDemand = 0;
-        let defaulters = [];
-        let totalDues = 0;
-
-        applicants.forEach(app => {
-            // Determine monthly rent
-            const rent = parseFloat(app.rentTotal || 0);
-            monthlyDemand += rent;
-
-            // Check details for defaulters using Unified Logic
-            const dues = Store.calculateOutstandingDues(app); // Uses dynamic GST info now
-            if (dues.totalAmount > 100) { // Tolerance
-                // Check month count
-                if (dues.monthsCount > 2) {
-                    defaulters.push({ ...app, dues: dues.totalAmount, months: dues.monthsCount });
-                }
-            }
-        });
-
-        // Collection Efficiency (Financial Year)
-        // Calculate Total Demand and Total Collection for FY (aligned with DCB logic)
+        // --- OPTIMIZED SINGLE-PASS ANALYTICS ---
+        let totalRevFy = 0;
         let totalFyDemand = 0;
         let totalFyCollection = 0;
+        const defaulters = [];
+        const expiring = [];
 
-        // Get settings for penalty calculation
+        // Global Settings for Efficiency calculation
         const settings = Store.getSettings();
         const penaltyRate = settings.penaltyRate || 15;
         const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : new Date('2018-01-01');
 
-        // Define FY dates
-        const fromDate = new Date(fyYear, 3, 1); // April 1st
-        const toDate = new Date(fyYear + 1, 2, 31); // March 31st
-
-        applicants.forEach(app => {
-            // Use ReportModule.calculateDCBForApplicant for same logic as DCB report
-            const dcb = ReportModule.calculateDCBForApplicant(app, fromDate, toDate, payments, penaltyRate, implementationDate);
-            totalFyDemand += dcb.totalDemand;
-            totalFyCollection += dcb.totalCollection;
+        // Pass 1: Payments (Revenue Trend & FY Total)
+        payments.forEach(p => {
+            const pDate = new Date(p.paymentDate || p.timestamp);
+            if (pDate >= fyStart && pDate <= fyEnd) {
+                totalRevFy += parseFloat(p.grandTotal || 0);
+            }
         });
 
-        const efficiency = totalFyDemand > 0 ? ((totalFyCollection / totalFyDemand) * 100) : 0;
-        // Defaulters Count
+        // Pass 2: Applicants (Defaulters, Expiry, Efficiency)
+        applicants.forEach(app => {
+            // A. Check for Expiry (< 30 Days)
+            if (app.expiryDate) {
+                const exp = new Date(app.expiryDate);
+                const diff = (exp - today) / (1000 * 60 * 60 * 24);
+                if (diff > 0 && diff < 30) expiring.push(app);
+            }
+
+            // B. Efficiency calculation (Reuse Report Logic)
+            const dcb = ReportModule.calculateDCBForApplicant(app, fyStart, fyEnd, payments, penaltyRate, implementationDate);
+            totalFyDemand += dcb.totalDemand;
+            totalFyCollection += dcb.totalCollection;
+
+            // C. Critical Defaulters (> 2 Months)
+            const dues = Store.calculateOutstandingDues(app);
+            if (dues.totalAmount > 100 && dues.monthsCount > 2) {
+                defaulters.push({ ...app, dues: dues.totalAmount, months: dues.monthsCount });
+            }
+        });
+
+        // --- UPDATE KPI UI ---
+        const kpiRevenue = document.getElementById('kpi-revenue');
+        kpiRevenue.textContent = totalRevFy.toLocaleString('en-IN');
+        kpiRevenue.classList.remove('skeleton-text');
+
         const kpiDefaulters = document.getElementById('kpi-defaulters');
         kpiDefaulters.textContent = defaulters.length;
         kpiDefaulters.classList.remove('skeleton-text');
 
+        const efficiency = totalFyDemand > 0 ? ((totalFyCollection / totalFyDemand) * 100) : 0;
         const kpiEfficiency = document.getElementById('kpi-efficiency');
         kpiEfficiency.textContent = Math.min(100, efficiency).toFixed(0);
         kpiEfficiency.classList.remove('skeleton-text');
 
-        // --- TOP DEFAULTERS TABLE ---
-        defaulters.sort((a, b) => b.dues - a.dues); // Descending
-        const top5 = defaulters.slice(0, 5);
-        document.getElementById('dash-defaulters-list').innerHTML = top5.map(d => `
+        const effTitle = document.getElementById('kpi-efficiency-title');
+        if (effTitle) effTitle.textContent = `Efficiency (FY ${fyYear}-${String(fyYear + 1).slice(-2)})`;
+        const effSub = document.getElementById('kpi-efficiency-sub');
+        if (effSub) effSub.textContent = `₹${totalFyCollection.toLocaleString('en-IN')} / ₹${totalFyDemand.toLocaleString('en-IN')}`;
+
+        document.getElementById('kpi-total').textContent = shops.length;
+        document.getElementById('kpi-occupied').textContent = shops.filter(s => s.status === 'Occupied').length;
+
+        // --- UPDATE TABLES ---
+        // 1. Top Defaulters
+        defaulters.sort((a, b) => b.dues - a.dues);
+        document.getElementById('dash-defaulters-list').innerHTML = defaulters.slice(0, 5).map(d => `
             <tr>
                 <td><strong>${d.shopNo}</strong></td>
-                <td>${d.applicantName}</td>
-                <td style="text-align:right; color:#ef4444; font-weight:bold;">₹${d.dues.toLocaleString('en-IN')}</td>
+                <td style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;">${d.applicantName}</td>
+                <td style="text-align:right; color:#ef4444; font-weight:bold;">₹${Math.round(d.dues).toLocaleString('en-IN')}</td>
             </tr>
-        `).join('') || '<tr><td colspan="3" style="text-align:center; color:green;">No critical defaulters.</td></tr>';
+        `).join('') || '<tr><td colspan="3" style="text-align:center; color:#10b981; font-size:0.8rem;">No critical defaulters.</td></tr>';
 
-
-        // --- EXPIRING SOON ---
-        const expiring = applicants.filter(app => {
-            if (!app.expiryDate) return false;
-            const exp = new Date(app.expiryDate);
-            const diff = (exp - today) / (1000 * 60 * 60 * 24);
-            return diff > 0 && diff < 30;
-        });
+        // 2. Expiring Soon
         document.getElementById('dash-expiry-list').innerHTML = expiring.map(d => `
             <tr>
-                <td>${d.shopNo}</td>
+                <td><strong>${d.shopNo}</strong></td>
                 <td>${d.expiryDate}</td>
-                <td><button class="btn-primary" style="padding:2px 8px; font-size:0.7rem;">Renew</button></td>
+                <td style="text-align:right;">
+                    <button class="btn-primary" style="padding:2px 6px; font-size:0.65rem;" onclick="handleRoute('applicant-module'); ApplicantModule.loadApplicantForEdit('${d.shopNo}')">Renew</button>
+                </td>
             </tr>
-        `).join('') || '<tr><td colspan="3" style="text-align:center; color:#94a3b8;">No leases expiring soon.</td></tr>';
+        `).join('') || '<tr><td colspan="3" style="text-align:center; color:#94a3b8; font-size:0.8rem;">No leases expiring soon.</td></tr>';
 
+        // 3. Recent Payments
+        const sortedPayments = [...payments].sort((a, b) => {
+            const dateA = new Date(a.paymentDate || a.timestamp || 0);
+            const dateB = new Date(b.paymentDate || b.timestamp || 0);
+            return dateB - dateA;
+        }).slice(0, 5);
 
-        // --- CHART 1: REVENUE TREND (Last 6 Months) ---
+        document.getElementById('dash-recent-list').innerHTML = sortedPayments.map(p => {
+            let dateDisplay = p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
+            return `
+                <tr>
+                    <td style="font-weight:500;">Shop ${p.shopNo || 'N/A'}</td>
+                    <td style="text-align:right; color:#166534; font-weight:600;">₹${parseFloat(p.grandTotal || 0).toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; font-size:0.8rem; color:#64748b;">${dateDisplay}</td>
+                </tr>
+            `;
+        }).join('') || '<tr><td colspan="3" style="text-align:center; color:#94a3b8; font-size:0.8rem;">No recent payments.</td></tr>';
+
+        // --- CHART: REVENUE TREND (Last 6 Months) ---
         const ctxRev = document.getElementById('revenueChart');
         if (ctxRev && window.Chart) {
             const labels = [];
@@ -2462,8 +2468,6 @@ const DashboardModule = {
                 const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
                 const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 labels.push(d.toLocaleString('default', { month: 'short' }));
-
-                // Sum payments made in this month (Cash Flow)
                 const monthTotal = payments
                     .filter(p => p.paymentDate && p.paymentDate.startsWith(mStr))
                     .reduce((sum, p) => sum + (parseFloat(p.grandTotal || 0)), 0);
@@ -2475,57 +2479,23 @@ const DashboardModule = {
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Cash Flow (₹)',
+                        label: 'Cash Flow',
                         data: data,
-                        backgroundColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.85)',
+                        borderRadius: 4,
+                        maxBarThickness: 30
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
                 }
             });
-        }
-
-        // --- 3. RECENT TRANSACTIONS LIST (Last 5) ---
-        // Sort ALL payments by date descending (Global, not just FY)
-        // Create a copy to avoid mutating the original store array if it's a direct reference
-        const allPayments = [...payments];
-
-        const sortedPayments = allPayments.sort((a, b) => {
-            const dateA = new Date(a.paymentDate || a.timestamp || 0);
-            const dateB = new Date(b.paymentDate || b.timestamp || 0);
-            return dateB - dateA;
-        }).slice(0, 5);
-
-        const listBody = document.getElementById('dash-recent-list');
-        if (listBody) {
-            if (sortedPayments.length === 0) {
-                listBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8;">No recent payments.</td></tr>';
-            } else {
-                listBody.innerHTML = sortedPayments.map(p => {
-                    let dStr = p.paymentDate || p.timestamp;
-                    let dateDisplay = '-';
-                    if (dStr) {
-                        const d = new Date(dStr);
-                        if (!isNaN(d.getTime())) {
-                            dateDisplay = d.toLocaleDateString('en-GB');
-                        }
-                    }
-                    const shop = shops.find(s => s.id === p.shopId);
-                    // PRIORITIZE p.shopNo from record, fallback to lookup
-                    const shopNo = p.shopNo || (shop ? shop.shopNo : 'N/A');
-                    const amt = parseFloat(p.grandTotal || 0).toFixed(2);
-
-                    return `
-                        <tr>
-                            <td style="font-weight: 500;">Shop No. ${shopNo}</td>
-                            <td style="text-align:right; color: #166534; font-weight: 600;">₹${amt}</td>
-                            <td style="text-align:right; font-size: 0.9rem; color: #64748b;">${dateDisplay}</td>
-                        </tr>
-                    `;
-                }).join('');
-            }
         }
     }
 };
@@ -3120,7 +3090,7 @@ const ApplicantModule = {
         const linkDiv = document.getElementById('current-agreement-link');
         if (linkDiv) {
             if (app.agreementUrl) {
-                linkDiv.innerHTML = `< a href = "${app.agreementUrl}" target = "_blank" style = "color: #2563eb; text-decoration: underline;" >📄 View Current Agreement</a > `;
+                linkDiv.innerHTML = `<a href="${app.agreementUrl}" target="_blank" style="color: #2563eb; text-decoration: underline;">📄 View Current Agreement</a>`;
             } else {
                 linkDiv.innerHTML = '';
             }
