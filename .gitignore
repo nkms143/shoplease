@@ -1,13 +1,35 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Dependencies
-node_modules/
+node_modules
+dist
+dist-ssr
+*.local
 
-# Secrets
-# IMPORTANT: For GitHub Pages deployment, config.js MUST be committed.
-# This means your API keys will be PUBLIC in your repository.
-# For production apps, use a backend or environment variables.
-# js/config.js  # Uncommented to allow deployment
-
-# System
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Agentic Architecture
+.tmp/
+.env
+credentials.json
+token.json
+
+# Vite Scaffold residuals
+.gitignore.vite
+temp_scaffold/
