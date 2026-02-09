@@ -29,7 +29,6 @@ dist-ssr
 .env
 credentials.json
 token.json
-js/config.js
 
 # Vite Scaffold residuals
 .gitignore.vite
