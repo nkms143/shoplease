@@ -29,7 +29,11 @@ dist-ssr
 .env
 credentials.json
 token.json
+AGENTS_REFERENCE.md
 
 # Vite Scaffold residuals
 .gitignore.vite
 temp_scaffold/
+
+#documents
+docs/

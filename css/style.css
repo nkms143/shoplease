@@ -593,8 +593,8 @@ body {
 }
 
 .emblem-img {
-    height: 56px;
-    width: 56px;
+    height: 72px;
+    width: 72px;
     border-radius: 50%;
     object-fit: cover;
     padding: 4px;
@@ -651,10 +651,10 @@ body {
 }
 
 .suda-brand-logo img {
-    height: 32px;
+    height: 48px;
     width: auto;
     border-radius: 4px;
-    opacity: 0.8;
+    opacity: 0.9;
 }
 
 /* Announcement Bar */
@@ -713,7 +713,7 @@ body {
 .hero-viewport {
     flex: 1;
     position: relative;
-    padding: 4rem 2rem;
+    padding: 1.5rem 2rem;
     display: flex;
     align-items: center;
 }
@@ -793,30 +793,10 @@ body {
     margin-bottom: 1.5rem;
 }
 
-.hero-heading {
-    font-family: var(--font-heading);
-    font-size: 4rem;
-    line-height: 1.1;
-    font-weight: 800;
-    color: var(--brand-deep);
-    margin-bottom: 1.5rem;
-}
-
-.hero-heading .highlight {
-    color: var(--brand-primary);
-    position: relative;
-}
-
-.hero-subheading {
-    font-size: 1.1rem;
-    color: var(--text-muted);
-    max-width: 500px;
-    margin-bottom: 3rem;
-}
-
 .hero-illustration {
     position: relative;
-    max-width: 480px;
+    max-width: 420px;
+    margin: 1rem 0;
 }
 
 .hero-illustration img {
@@ -833,7 +813,7 @@ body {
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-xl);
     box-shadow: var(--glass-shadow);
-    padding: 2.5rem;
+    padding: 1.75rem 2rem;
     position: relative;
     animation: slide-up-fade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
