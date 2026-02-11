@@ -5,39 +5,43 @@
 }
 
 :root {
-    --primary-color: #6366f1;
-    --primary-hover: #4f46e5;
-    --secondary-color: #ec4899;
+    /* Brand Design System */
+    --brand-deep: #0f172a;
+    --brand-primary: #6366f1;
+    --brand-primary-soft: rgba(99, 102, 241, 0.15);
+    --brand-secondary: #8b5cf6;
+    --brand-accent: #10b981;
+    --brand-glass: rgba(255, 255, 255, 0.7);
+    --brand-glass-dark: rgba(15, 23, 42, 0.8);
+
+    /* Functional Tokens */
+    --primary-color: var(--brand-primary);
+    --primary-hover: var(--brand-secondary);
+    --secondary-color: var(--brand-secondary);
     --text-main: #1e293b;
     --text-muted: #64748b;
-    --bg-gradient: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
-    --glass-bg: rgba(255, 255, 255, 0.65);
+    --text-light: #94a3b8;
+
+    /* Design Utilities */
+    --glass-bg: var(--brand-glass);
     --glass-border: rgba(255, 255, 255, 0.4);
-    --glass-shadow: 0 4px 20px -2px rgba(31, 38, 135, 0.08);
+    --glass-shadow: 0 12px 40px -4px rgba(0, 0, 0, 0.12);
+    --radius-xl: 14px;
     --radius-lg: 12px;
     --radius-md: 8px;
-    --font-main: 'Inter', sans-serif;
 
-    /* Govt Portal Colors (for landing page only) */
-    --govt-blue: #0d6efd;
-    --govt-pink: #d63384;
-    --govt-nav-bg: #1e3a8a;
+    /* Typography */
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
 }
 
 body {
-    font-family: var(--font-main);
-    background: #e0e7ff;
-    background-image:
-        radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
-        radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
-        radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%),
-        url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+    font-family: var(--font-body);
+    background: #f8fafc;
     color: var(--text-main);
     min-height: 100vh;
     overflow-x: hidden;
+    line-height: 1.6;
 }
 
 .app-container {
@@ -546,6 +550,535 @@ body {
     background: #b91c1c;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* ==========================================
+   PREMIUM SERVICE PORTAL (LANDING)
+   ========================================== */
+
+.premium-landing {
+    background: #f1f5f9;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Header & Nav */
+.main-portal-header {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 0.75rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.brand-block {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.emblem-img {
+    height: 56px;
+    width: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    padding: 4px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.govt-label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    color: var(--brand-primary);
+    margin-bottom: 2px;
+}
+
+.portal-title {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--brand-deep);
+    margin: 0;
+    line-height: 1.1;
+}
+
+.accent-dot {
+    color: var(--brand-accent);
+}
+
+.dept-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.portal-nav {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.nav-item {
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    transition: color 0.2s;
+}
+
+.nav-item:hover,
+.nav-item.active {
+    color: var(--brand-primary);
+}
+
+.suda-brand-logo img {
+    height: 32px;
+    width: auto;
+    border-radius: 4px;
+    opacity: 0.8;
+}
+
+/* Announcement Bar */
+.announcement-bar {
+    background: var(--brand-deep);
+    color: white;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.announcement-tag {
+    background: var(--brand-primary);
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 0 1rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    letter-spacing: 1px;
+}
+
+.announcement-scroll {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.announcement-content {
+    display: inline-block;
+    white-space: nowrap;
+    padding-left: 100%;
+    animation: portal-marquee 30s linear infinite;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.announcement-content .sep {
+    margin: 0 2rem;
+    opacity: 0.3;
+}
+
+@keyframes portal-marquee {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    100% {
+        transform: translate(-100%, 0);
+    }
+}
+
+/* Hero Viewport */
+.hero-viewport {
+    flex: 1;
+    position: relative;
+    padding: 4rem 2rem;
+    display: flex;
+    align-items: center;
+}
+
+.hero-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    position: relative;
+}
+
+.hero-blobs {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+    animation: blob-float 20s infinite alternate;
+}
+
+.blob-1 {
+    width: 400px;
+    height: 400px;
+    background: var(--brand-primary);
+    top: -10%;
+    right: 10%;
+}
+
+.blob-2 {
+    width: 500px;
+    height: 500px;
+    background: var(--brand-secondary);
+    bottom: -20%;
+    left: -5%;
+    animation-delay: -5s;
+}
+
+@keyframes blob-float {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(40px, -60px) scale(1.1);
+    }
+}
+
+.hero-split {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 4rem;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.visual-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    background: var(--brand-primary-soft);
+    color: var(--brand-primary);
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1.5rem;
+}
+
+.hero-heading {
+    font-family: var(--font-heading);
+    font-size: 4rem;
+    line-height: 1.1;
+    font-weight: 800;
+    color: var(--brand-deep);
+    margin-bottom: 1.5rem;
+}
+
+.hero-heading .highlight {
+    color: var(--brand-primary);
+    position: relative;
+}
+
+.hero-subheading {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 500px;
+    margin-bottom: 3rem;
+}
+
+.hero-illustration {
+    position: relative;
+    max-width: 480px;
+}
+
+.hero-illustration img {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.1));
+}
+
+/* Glass Login Card */
+.glass-login-card {
+    background: var(--brand-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow);
+    padding: 2.5rem;
+    position: relative;
+    animation: slide-up-fade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slide-up-fade {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.icon-box {
+    width: 56px;
+    height: 56px;
+    background: white;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin: 0 auto 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-header h3 {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--brand-deep);
+    margin-bottom: 4px;
+}
+
+.card-header p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.form-input-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-input-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.input-wrapper input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.input-wrapper input:focus {
+    outline: none;
+    background: white;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 4px var(--brand-primary-soft);
+}
+
+.btn-submit-premium {
+    width: 100%;
+    background: var(--brand-deep);
+    color: white;
+    border: none;
+    padding: 1.1rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.2s;
+    margin-top: 1rem;
+}
+
+.btn-submit-premium svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.2s;
+}
+
+.btn-submit-premium:hover {
+    background: var(--brand-primary);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+
+.btn-submit-premium:hover svg {
+    transform: translateX(4px);
+}
+
+.card-footer {
+    margin-top: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.card-footer a {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--brand-primary);
+    text-decoration: none;
+}
+
+.card-footer .bullet {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-light);
+}
+
+.login-feedback-error {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #fee2e2;
+    color: #b91c1c;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    display: none;
+}
+
+/* Footer Section */
+.portal-footer {
+    padding: 2rem;
+    background: white;
+}
+
+.footer-bottom {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.dev-credits {
+    color: var(--text-muted);
+}
+
+/* Responsive Overrides */
+@media (max-width: 1100px) {
+    .hero-heading {
+        font-size: 3rem;
+    }
+}
+
+@media (max-width: 900px) {
+    .hero-split {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+        text-align: center;
+    }
+
+    .hero-branding {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .hero-subheading {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+
+    /* Mobile Header Optimizations */
+    .header-content {
+        padding: 0 1rem;
+    }
+
+    .emblem-img {
+        height: 44px;
+        width: 44px;
+    }
+
+    .portal-title {
+        font-size: 1.1rem;
+    }
+
+    .govt-label {
+        font-size: 0.6rem;
+        letter-spacing: 1px;
+    }
+
+    .dept-label {
+        font-size: 0.65rem;
+    }
+
+    .portal-nav {
+        gap: 1rem;
+    }
+
+    .nav-item {
+        font-size: 0.8rem;
+    }
+
+    .suda-brand-logo img {
+        display: none;
+        /* Hide secondary logo on mobile to save space */
+    }
+}
+
+/* Preserve legacy styles for the App State after login */
+/* (Keeping some core app vars if they differ) */
+.glass-panel {
+    background: var(--brand-glass);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glass-shadow);
 }
 
 /* ==========================================
