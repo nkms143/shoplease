@@ -7,33 +7,36 @@ You operate within a 3-layer architecture that separates concerns to maximize re
 ## The 3-Layer Architecture
 
 **Layer 1: Directive (What to do)**  
-- Basically just SOPs written in Markdown, live in `directives/`  
-- Define the goals, inputs, tools/scripts to use, outputs, and edge cases  
-- Natural language instructions, like you'd give a mid-level employee
+- SOPs written in Markdown, live in `directives/`  
+- Define workflows, business rules, edge cases, and expected outputs  
+- Natural language instructions that guide AI orchestration  
+- Examples: `penalty_calculation.md`, `rent_collection.md`, `waiver_processing.md`
 
 **Layer 2: Orchestration (Decision making)**  
 - This is you. Your job: intelligent routing.  
-- Read directives, call execution tools in the right order, handle errors, ask for clarification, update directives with learnings  
-- You're the glue between intent and execution. E.g you don't try scraping websites yourself—you read `directives/scrape_website.md` and come up with inputs/outputs and then run `execution/scrape_single_site.py`
+- Read directives, call core modules in the right order, handle errors, ask for clarification  
+- Update directives with learnings from production use  
+- You're the glue between intent and execution. Example: Read `directives/penalty_calculation.md` to understand the policy, then call `PenaltiesCore.calculatePenalty()` from `js/core/penalties.js`
 
 **Layer 3: Execution (Doing the work)**  
-- Deterministic Python scripts in `execution/`  
-- Environment variables, api tokens, etc are stored in `.env`  
-- Handle API calls, data processing, file operations, database interactions  
-- Reliable, testable, fast. Use scripts instead of manual work. Commented well.
+- Deterministic JavaScript modules in `js/core/` and `js/utils/`  
+- Handle business logic, calculations, data transformations, validation  
+- Pure functions with no side effects - reliable, testable, fast  
+- Examples: `penalties.js`, `dues.js`, `payments.js`, `reports.js`, `validators.js`  
+- Well-commented, reusable across UI modules
 
 **Why this works:** if you do everything yourself, errors compound. 90% accuracy per step = 59% success over 5 steps. The solution is push complexity into deterministic code. That way you just focus on decision-making.
 
 ## Operating Principles
 
 **1. Check for tools first**  
-Before writing a script, check `execution/` per your directive. Only create new scripts if none exist.
+Before writing logic, check `js/core/` and `js/utils/` per your directive. Only create new modules if none exist. Reuse existing core functions.
 
 **2. Self-anneal when things break**  
 - Read error message and stack trace  
-- Fix the script and test it again (unless it uses paid tokens/credits/etc—in which case you check w user first)  
-- Update the directive with what you learned (API limits, timing, edge cases)  
-- Example: you hit an API rate limit → you then look into API → find a batch endpoint that would fix → rewrite script to accommodate → test → update directive.
+- Fix the module/function and test it again  
+- Update the directive with what you learned (edge cases, validation requirements, formula changes)  
+- Example: Penalty calculation produces wrong values → investigate → find Math.floor should be Math.ceil → fix `penalties.js` → update `directives/penalty_calculation.md` with the correct formula.
 
 **3. Update directives as you learn**  
 Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
@@ -50,17 +53,21 @@ Errors are learning opportunities. When something breaks:
 ## File Organization
 
 **Deliverables vs Intermediates:**  
-- **Deliverables**: Google Sheets, Google Slides, or other cloud-based outputs that the user can access  
-- **Intermediates**: Temporary files needed during processing
+- **Deliverables**: Cloud-based data in Supabase (payments, waivers, applicants, settings)
+- **Intermediates**: Temporary files needed during processing  
+- **UI**: HTML/CSS/JS files served to users
 
 **Directory structure:**  
-- `.tmp/` - All intermediate files (dossiers, scraped data, temp exports). Never commit, always regenerated.  
-- `execution/` - Python scripts (the deterministic tools)  
-- `directives/` - SOPs in Markdown (the instruction set)  
-- `.env` - Environment variables and API keys  
-- `credentials.json`, `token.json` - Google OAuth credentials (required files, in `.gitignore`)
+- `directives/` - SOPs in Markdown (workflow documentation)  
+- `js/core/` - Deterministic business logic modules (penalties, dues, payments, reports)  
+- `js/utils/` - Reusable utilities (validators, formatters)  
+- `js/` - UI modules (`app.js`, `extra_modules.js`)  
+- `css/` - Stylesheets  
+- `supabase/` - Database migrations and RLS policies  
+- `.tmp/` - Temporary/intermediate files (safe to delete and regenerate)  
+- `.env` - Environment variables and API keys
 
-**Key principle:** Local files are only for processing. Deliverables live in cloud services (Google Sheets, Slides, etc.) where the user can access them. Everything in `.tmp/` can be deleted and regenerated.
+**Key principle:** Business logic lives in `js/core/`. UI logic stays in `js/app.js` and `js/extra_modules.js`. Data lives in Supabase. Directives guide AI on how to use core modules correctly.
 
 ## Summary
 
