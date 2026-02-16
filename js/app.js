@@ -1046,10 +1046,10 @@ const Store = {
 
                     if (todayMidnight > startCounting && diffDays > 0) {
                         if (penaltyMode === 'MONTHLY') {
-                            // Monthly Logic: Rate per month (or part thereof? Used Math.floor before, sticking to it for consistency)
-                            // Correction: Previous code used Math.floor(diffDays / 30).
-                            // Let's stick to that to avoid changing logic for existing 500 records.
-                            const monthsOverdue = Math.floor(diffDays / 30);
+                            // Monthly Logic: Strict penalty enforcement
+                            // Any payment after due date = minimum 1 month penalty
+                            // Changed from Math.floor to Math.max(1, Math.ceil) to match Rent Collection module
+                            const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
                             p = monthsOverdue * penaltyRate;
                         } else {
                             // DAILY Mode
