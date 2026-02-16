@@ -3188,7 +3188,8 @@ const ReportModule = {
                             const pRate = parseFloat(params.rate) || 500;
 
                             if (pMode === 'MONTHLY') {
-                                const months = Math.floor(diffDays / 30);
+                                // Strict penalty: minimum 1 month for any delay
+                                const months = Math.max(1, Math.ceil(diffDays / 30));
                                 penaltyForMonth = months * pRate;
                             } else {
                                 // Daily logic
@@ -5410,8 +5411,8 @@ const WaiverModule = {
         } else {
             // New Policy
             if (mode === 'MONTHLY') {
-                // Approx months
-                const months = Math.floor(diffDays / 30);
+                // Strict penalty: minimum 1 month for any delay
+                const months = Math.max(1, Math.ceil(diffDays / 30));
                 penaltyAmount = months * newRate;
             } else {
                 // Daily New
