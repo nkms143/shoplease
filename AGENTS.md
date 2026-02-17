@@ -69,6 +69,29 @@ Errors are learning opportunities. When something breaks:
 
 **Key principle:** Business logic lives in `js/core/`. UI logic stays in `js/app.js` and `js/extra_modules.js`. Data lives in Supabase. Directives guide AI on how to use core modules correctly.
 
+## Domain Knowledge References
+
+Understanding the business domain is critical for correct implementation. Key domain concepts are documented in the `.brain/` artifacts from past conversations:
+
+**Invoice vs Shop Ledger Behavior**  
+- **Invoice**: Generated on 1st of each month, frozen snapshot showing arrears (as of previous month-end) + current month bill  
+- **Shop Ledger**: Real-time account statement showing all outstanding dues as of today  
+- **Why different**: Invoice is a billing statement (prospective). Ledger is current balance (live).  
+- **Example**: Feb 1 invoice shows ₹181,628 (arrears through Jan 31 + Feb bill). Feb 16 ledger shows ₹180,128 (all dues as of Feb 16 with Feb now overdue).  
+- Both are correct for their purposes. Do not try to "fix" one to match the other.
+
+**Penalty Calculation Policy**  
+- **Strict monthly policy**: Any payment after due date incurs minimum 1 month penalty  
+- **Formula**: `Math.max(1, Math.ceil(diffDays / 30)) * penaltyRate`  
+- **Modes**: MONTHLY (₹500/month default) or DAILY (₹15/day)  
+- **Applied uniformly**: Dashboard, Rent Collection, DCB Report, Waiver Module, Shop Ledger all use same logic  
+- See `directives/penalty_calculation.md` for full policy
+
+**Data Sources**  
+- **Supabase tables**: `payments`, `waivers`, `applicants`, `settings`, `notice_logs`  
+- **Local calculations**: Penalties calculated on-the-fly based on due dates, never stored  
+- **Configuration**: Penalty rates, GST rates, payment day stored in `settings` table
+
 ## Summary
 
 You sit between human intent (directives) and deterministic execution (Python scripts). Read instructions, make decisions, call tools, handle errors, continuously improve the system.
