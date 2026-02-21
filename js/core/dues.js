@@ -66,7 +66,18 @@ const DuesCore = {
 
                 // --- PENALTY LOGIC (HISTORY AWARE) ---
                 const dueDay = parseInt(applicant.paymentDay) || 5;
-                const dueDate = new Date(y, cur.getMonth(), Math.min(dueDay, 28));
+                let dueDate = new Date(y, cur.getMonth(), Math.min(dueDay, 28));
+
+                // 2026-02-21: Adjustment for first month penalty
+                // If occupancy starts AFTER the due date of that month, penalty shouldn't start until next month's due date.
+                const leaseStart = period.start;
+                if (leaseStart.getFullYear() === y && leaseStart.getMonth() === cur.getMonth()) {
+                    if (leaseStart > dueDate) {
+                        // User Scenario: 19th Feb start, 5th Feb due date. 
+                        // Penalty should only start after 5th March.
+                        dueDate = new Date(y, cur.getMonth() + 1, Math.min(dueDay, 28));
+                    }
+                }
 
                 // Get Config from History for this specific due date
                 const penaltyParams = this.getPenaltyParams(settings, dueDate);
