@@ -1078,46 +1078,8 @@ const NoticeModule = {
     },
 
     printNotice(htmlContent) {
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0px';
-        iframe.style.height = '0px';
-        iframe.style.border = 'none';
-        document.body.appendChild(iframe);
-
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(`
-            <html>
-                <head>
-                    <title>Print Notice</title>
-                    <style>
-                        @media print {
-                            @page { size: A4 portrait; margin: 10mm; }
-                            html, body { height: auto !important; overflow: visible !important; }
-                            body { margin: 0; padding: 0; font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; color: black; box-sizing: border-box; width: 100%; }
-                            .notice-content { width: 100%; max-width: 100%; box-sizing: border-box; }
-                            img { max-width: 100% !important; }
-                        }
-                        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; }
-                        .notice-content { width: 100%; }
-                    </style>
-                </head>
-                <body>
-                    ${htmlContent}
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            // Optional: Remove iframe after print dialog closes (approximate)
-                            setTimeout(() => { 
-                                // window.frameElement.remove(); // Can cause issues if removed too early
-                            }, 1000);
-                        };
-                    </script>
-                </body>
-            </html>
-        `);
-        doc.close();
+        if (!htmlContent) return;
+        window.Printer.print(htmlContent, 'Lease Notice - SUDA');
     },
 
     async generateNotice(shopNo) {
@@ -2929,23 +2891,8 @@ const ReportModule = {
 
         document.getElementById('btn-stmt-print').addEventListener('click', () => {
             const content = document.getElementById('print-stmt-area').innerHTML;
-            const w = window.open('', '_blank');
-            w.document.write(`
-                <html>
-                <head>
-                    <title>Statement - ${document.getElementById('stmt-shop-no').textContent}</title>
-                    <style>
-                        body { font-family: 'Times New Roman', serif; padding: 20px; }
-                        table { width: 100%; border-collapse: collapse; }
-                        th, td { padding: 8px; border-bottom: 1px solid #ddd; }
-                        @media print { .no-print { display: none; } }
-                    </style>
-                </head>
-                <body>${content}</body>
-                </html>
-            `);
-            w.document.close();
-            w.print();
+            const shopNo = document.getElementById('stmt-shop-no').textContent;
+            window.Printer.print(content, `Shop Statement - ${shopNo}`);
         });
     },
 
@@ -3361,17 +3308,21 @@ const ReportModule = {
     printDCB() {
         // Use last generated results if available for a clean print layout
         const results = this.lastDcbResults;
-        let contentHtml = '';
 
-        if (results && Array.isArray(results.rows)) {
-            const totals = results.totals || {};
-            const periodText = (results.period && results.period.fy)
-                ? `For the Financial Year : ${results.period.fy}`
-                : (results.period ? `Period: ${results.period.fromDate} to ${results.period.toDate}` : '');
-            const todayStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+        if (!results || !Array.isArray(results.rows)) {
+            AppUI.warn('Please generate the DCB report first before printing.');
+            return;
+        }
 
-            // Build table header
-            const header = `
+        const totals = results.totals || {};
+        const periodText = (results.period && results.period.fy)
+            ? `For the Financial Year : ${results.period.fy}`
+            : (results.period ? `Period: ${results.period.fromDate} to ${results.period.toDate}` : '');
+        const todayStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        // Build table header
+        const header = `
+            <thead>
                 <tr>
                     <th>Sl No</th>
                     <th>Shop No</th>
@@ -3391,110 +3342,92 @@ const ReportModule = {
                     <th>Total Balance</th>
                     <th>% Collection</th>
                 </tr>
-            `;
-
-            // Build rows
-            const rowsHtml = results.rows.map((r, idx) => {
-                const res = r.result;
-                const pct = res.totalDemand > 0 ? ((res.totalCollection / res.totalDemand) * 100).toFixed(2) : '0.00';
-                return `
-                    <tr>
-                        <td>${idx + 1}</td>
-                        <td>${r.shop}</td>
-                        <td>${r.shopName}${res.hasWaiverApplied ? ' <span style="font-size:9px;color:red;">(Waiver)</span>' : ''}</td>
-                        <td style="text-align:right;">₹${res.currentDemandBase.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.currentDemandGst.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.arrearDemandBase.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.arrearDemandGst.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.arrearDemandPenalty.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.totalDemand.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${(res.currentCollection - (res.currentCollectionPenalty || 0)).toFixed(2)}</td>
-                        <td style="text-align:right;">₹${(res.currentCollectionPenalty || 0).toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.arrearCollection.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.totalCollection.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.currentBalance.toFixed(2)}</td>
-                        <td style="text-align:right;">₹${res.arrearBalance.toFixed(2)}</td>
-                        <td style="text-align:right; font-weight:700;">₹${res.totalBalance.toFixed(2)}</td>
-                        <td style="text-align:right;">${pct}%</td>
-                    </tr>
-                `;
-            }).join('');
-
-            // Totals row
-            const totalsHtml = `
-                <tr style="font-weight:700; background:#f1f5f9;">
-                    <td colspan="3" style="text-align:right;">TOTAL</td>
-                    <td style="text-align:right;">₹${(totals.totalCurrentDemandBase || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalCurrentDemandGst || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalArrearDemandBase || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalArrearDemandGst || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalArrearDemandPenalty || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalTotalDemand || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${((totals.totalCurrentCollection || 0) - (totals.totalCurrentCollectionPenalty || 0)).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalCurrentCollectionPenalty || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalArrearCollection || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalTotalCollection || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalCurrentBalance || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalArrearBalance || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${(totals.totalTotalBalance || 0).toFixed(2)}</td>
-                    <td style="text-align:right;">${(totals.totalPct || 0).toFixed(2)}%</td>
-
-                </tr>
-            `;
-
-            contentHtml = `
-                <div style="margin: 0 8px;">
-                    <h2 style="text-align:center; margin-bottom:0.2rem;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</h2>
-                    <div style="text-align:center; margin-bottom:0.8rem; font-weight:600;">Statement showing the Demand, Collection & Balance (DCB) Report of SUDA Commercial Shops</div>
-                    <div style="text-align:center; margin-bottom:0.2rem;">${periodText}</div>
-                    <div style="text-align:center; margin-bottom:1rem; font-size: 11px;">As on  ${todayStr}</div>
-                    <table style="width:100%; border-collapse: collapse; font-size: 11px;">
-                        <thead>${header}</thead>
-                        <tbody>${rowsHtml}</tbody>
-                        <tfoot>${totalsHtml}</tfoot>
-                    </table>
-                    <div style="height: 50px;"></div> <!-- Signature Space -->
-                    <div style="text-align:right; margin-top:1.2rem; margin-right:3rem; font-size:12px;">
-                        ____________________
-                    </div>
-                    <div style="text-align:right; margin-top:1.2rem; margin-right:3rem; font-size:12px;">
-                        Authorized Signatory
-                    </div>
-                    <div style="height:200px;"></div>
-                    <div style="text-align:left; 
-                                margin-top:1rem; 
-                                margin-left:3rem;
-                                font-family:Courier New, sans-serif; 
-                                font-size:11px;
-                                font-weight:600;
-                                font-style:italic;">
-                                Report Generated via ShopLease Manager
-                    </div>
-                   <div id="timestamp" style="font-size:11px;margin-top:0.3rem; margin-left:3rem;
-                            font-family:Courier New, sans-serif;
-                            font-weight:600;
-                            font-style:italic;">Timestamp: ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-') + ' ' + new Date().toLocaleTimeString()}</div>
-                </div>
-            `;
-        } else {
-            contentHtml = `<div style="padding:1rem;">No DCB data available. Generate report first.</div>`;
-        }
-
-        const style = `
-            <style>
-                @page { size: A4 landscape; margin: 10mm }
-                body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid #cbd5e1; padding: 6px; }
-                thead th { background: #f1f5f9; }
-                tfoot td { font-weight: 700; }
-            </style>
+            </thead>
         `;
 
-        const w = window.open('', '_blank');
-        if (!w) { AppUI.warn('Unable to open print window. Please allow popups for this site.'); return; }
-        w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DCB Report</title>${style}</head><body>${contentHtml}<script>window.onload=function(){setTimeout(()=>{window.print();},200);};</script></body></html>`);
-        w.document.close();
+        // Build rows
+        const rowsHtml = results.rows.map((r, idx) => {
+            const res = r.result;
+            const pct = res.totalDemand > 0 ? ((res.totalCollection / res.totalDemand) * 100).toFixed(2) : '0.00';
+            return `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${r.shop}</td>
+                    <td>${r.shopName}${res.hasWaiverApplied ? ' <span style="font-size:9px;color:red;">(Waiver)</span>' : ''}</td>
+                    <td class="text-right">₹${res.currentDemandBase.toFixed(2)}</td>
+                    <td class="text-right">₹${res.currentDemandGst.toFixed(2)}</td>
+                    <td class="text-right">₹${res.arrearDemandBase.toFixed(2)}</td>
+                    <td class="text-right">₹${res.arrearDemandGst.toFixed(2)}</td>
+                    <td class="text-right">₹${res.arrearDemandPenalty.toFixed(2)}</td>
+                    <td class="text-right">₹${res.totalDemand.toFixed(2)}</td>
+                    <td class="text-right">₹${(res.currentCollection - (res.currentCollectionPenalty || 0)).toFixed(2)}</td>
+                    <td class="text-right">₹${(res.currentCollectionPenalty || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${res.arrearCollection.toFixed(2)}</td>
+                    <td class="text-right">₹${res.totalCollection.toFixed(2)}</td>
+                    <td class="text-right">₹${res.currentBalance.toFixed(2)}</td>
+                    <td class="text-right">₹${res.arrearBalance.toFixed(2)}</td>
+                    <td class="text-right font-bold">₹${res.totalBalance.toFixed(2)}</td>
+                    <td class="text-right">${pct}%</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Totals row
+        const totalsHtml = `
+            <tfoot>
+                <tr style="font-weight:700; background:#f1f5f9;">
+                    <td colspan="3" class="text-right">TOTAL</td>
+                    <td class="text-right">₹${(totals.totalCurrentDemandBase || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalCurrentDemandGst || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalArrearDemandBase || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalArrearDemandGst || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalArrearDemandPenalty || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalTotalDemand || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${((totals.totalCurrentCollection || 0) - (totals.totalCurrentCollectionPenalty || 0)).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalCurrentCollectionPenalty || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalArrearCollection || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalTotalCollection || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalCurrentBalance || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalArrearBalance || 0).toFixed(2)}</td>
+                    <td class="text-right">₹${(totals.totalTotalBalance || 0).toFixed(2)}</td>
+                    <td class="text-right">${(totals.totalPct || 0).toFixed(2)}%</td>
+                </tr>
+            </tfoot>
+        `;
+
+        const contentHtml = `
+            <div style="text-align:center; margin-bottom:20px;">
+                <h3 style="margin:0; text-transform:uppercase; font-size: 1.1rem;">Demand, Collection & Balance (DCB) Report</h3>
+                <div style="margin-top:5px; font-weight:600;">${periodText}</div>
+                <div style="margin-top:5px; font-size: 0.9rem;">As on ${todayStr}</div>
+            </div>
+            
+            <table style="font-size: 11px;">
+                ${header}
+                <tbody>${rowsHtml}</tbody>
+                ${totalsHtml}
+            </table>
+            
+            <div style="margin-top: 50px; display: flex; justify-content: flex-end;">
+                <div style="text-align: center; border-top: 1px solid #000; padding-top: 10px; width: 200px;">
+                    Authorized Signatory
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; font-family: Courier New, monospace; font-size: 10px; font-style: italic; color: #64748b;">
+                Report Generated via ShopLease Manager<br>
+                Timestamp: ${new Date().toLocaleString('en-IN')}
+            </div>
+        `;
+
+        window.Printer.print(contentHtml, `DCB Report - ${results.period?.fy || todayStr}`, {
+            additionalStyles: `
+                @page { size: A4 landscape; margin: 10mm; }
+                table { font-size: 11px; }
+                th { padding: 8px 4px; }
+                td { padding: 6px 4px; }
+            `
+        });
     }
 
 };
@@ -3580,10 +3513,7 @@ const ShopLedgerModule = {
         if (printBtn) {
             printBtn.addEventListener('click', () => {
                 const content = document.getElementById('print-stmt-area').innerHTML;
-                const w = window.open('', '_blank');
-                if (!w) { AppUI.warn('Please allow popups'); return; }
-                w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Shop Ledger</title><style>body{font-family:Arial;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #000;padding:8px;}</style></head><body>${content}<script>window.onload=function(){setTimeout(()=>{window.print();},200);};</script></body></html>`);
-                w.document.close();
+                window.Printer.print(content, 'Shop Ledger', { isBatch: false });
             });
         }
     },
@@ -4160,75 +4090,48 @@ const GstMonthwiseReportModule = {
 
         const monthName = month ? new Date(2025, parseInt(month) - 1).toLocaleString('default', { month: 'long' }) : 'All';
 
-        const htmlContent = `
-            <html>
-            <head>
-                <title>GST Report</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
-                    .header { text-align: center; margin-bottom: 20px; }
-                    .header h1 { margin: 5px 0; font-size: 14px; font-weight: bold; }
-                    .header p { margin: 5px 0; font-size: 12px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                    th { border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; background: #f0f0f0; }
-                    td { border: 1px solid #000; padding: 8px; font-size: 11px; }
-                    .total-row { background: #f0f0f0; font-weight: bold; }
-                    @media print { body { margin: 0; padding: 10mm; } }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1>SIDDIPET URBAN DEVELOPMENT AUTHORITY</h1>
-                    <p>STATEMENT SHOWING THE RENT PARTICULARS FROM THE SUDA SHOPS</p>
-                    <p>FOR THE MONTH OF ${monthName.toUpperCase()} - ${year || new Date().getFullYear()}</p>
-                </div>
+        const reportHtml = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="margin: 5px 0; font-size: 16px; font-weight: bold; text-transform: uppercase;">Siddipet Urban Development Authority</h1>
+                <p style="margin: 5px 0; font-size: 14px; font-weight: bold;">STATEMENT SHOWING THE RENT PARTICULARS FROM THE SUDA SHOPS</p>
+                <p style="margin: 5px 0; font-size: 13px;">FOR THE MONTH OF ${monthName.toUpperCase()} - ${year || new Date().getFullYear()}</p>
+            </div>
 
-                <table>
-                    <thead>
-                        <tr style="border: 1px solid #000;">
-                            <th style="border: 1px solid #000;">Sl No</th>
-                            <th style="border: 1px solid #000;">Date</th>
-                            <th style="border: 1px solid #000;">Shop No</th>
-                            <th style="border: 1px solid #000;">Name of the Lessee</th>
-                            <th style="border: 1px solid #000;">Payment Method</th>
-                            <th style="border: 1px solid #000;">Cheque / Receipt / Online No</th>
-                            <th style="border: 1px solid #000;">GST No</th>
-                            <th style="border: 1px solid #000;">Shop Rent</th>
-                            <th style="border: 1px solid #000;">GST @ 18%</th>
-                            <th style="border: 1px solid #000;">Penalty for late payment</th>
-                            <th style="border: 1px solid #000;">Total Collection</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                        <tr class="total-row">
-                            <td colspan="7" style="border: 1px solid #000; text-align: right;">Total:-</td>
-                            <td style="border: 1px solid #000; text-align: right;">${totalRent.toFixed(2)}</td>
-                            <td style="border: 1px solid #000; text-align: right;">${totalGST.toFixed(2)}</td>
-                            <td style="border: 1px solid #000; text-align: right;">${totalPenalty.toFixed(2)}</td>
-                            <td style="border: 1px solid #000; text-align: right;">${totalCollection.toFixed(2)}</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px; background: #f8fafc;">Sl No</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px; background: #f8fafc;">Date</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px; background: #f8fafc;">Shop No</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: left; font-size: 11px; background: #f8fafc;">Name of the Lessee</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: left; font-size: 11px; background: #f8fafc;">Payment Method</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: left; font-size: 11px; background: #f8fafc;">Cheque / Receipt / Online No</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: left; font-size: 11px; background: #f8fafc;">GST No</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: right; font-size: 11px; background: #f8fafc;">Shop Rent</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: right; font-size: 11px; background: #f8fafc;">GST @ 18%</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: right; font-size: 11px; background: #f8fafc;">Penalty</th>
+                        <th style="border: 1px solid #000; padding: 6px; text-align: right; font-size: 11px; background: #f8fafc;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                    <tr style="background: #f1f5f9; font-weight: bold;">
+                        <td colspan="7" style="border: 1px solid #000; padding: 8px; text-align: right; font-size: 12px;">Total:-</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: right; font-size: 12px;">${totalRent.toFixed(2)}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: right; font-size: 12px;">${totalGST.toFixed(2)}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: right; font-size: 12px;">${totalPenalty.toFixed(2)}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: right; font-size: 12px;">${totalCollection.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <div style="margin-top: 40px; text-align: right; padding-right: 50px;">
-                    <p>Vice Chairman</p>
-                    <p>SUDA, Siddipet</p>
-                </div>
+            <div style="margin-top: 40px; text-align: right; padding-right: 50px;">
+                <p style="margin: 0; font-weight: bold;">Vice Chairman</p>
+                <p style="margin: 0;">SUDA, Siddipet</p>
+            </div>
+        `;
 
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(() => { window.close(); }, 500);
-                    };
-                </script>
-            </body>
-            </html>
-    `;
-
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const newWindow = window.open(url, '_blank');
+        window.Printer.print(reportHtml, `GST Report - ${monthName} ${year || ''}`, { isA4Landscape: true });
     },
 
     generateForm58() {
@@ -4348,13 +4251,6 @@ const GstMonthwiseReportModule = {
         `;
 
         const html = `
-            <html>
-            <head>
-                <title>TSTC Form-58 - ${periodStr}</title>
-                ${styles}
-            </head>
-            <body>
-            
             <!-- FRONT PAGE -->
             <div class="page-box" style="margin-top: 70px;">
                 <!-- Vertical Text -->
@@ -4681,23 +4577,10 @@ const GstMonthwiseReportModule = {
                     <div style="height: 50px;"></div> 
                  </div>
             </div>
-
-            <script>
-                window.onload = function() {
-                    window.print();
-                };
-            </script>
-            </body>
-            </html>
         `;
 
-        const w = window.open('', '_blank');
-        if (w) {
-            w.document.write(html);
-            w.document.close();
-        } else {
-            AppUI.warn("Please allow popups to generate the print window.");
-        }
+        // 4. Print
+        window.Printer.print(html, `TSTC Form-58 - ${periodStr}`, { isBatch: false, customCSS: styles });
     }
 };
 
@@ -4795,25 +4678,7 @@ const ReceiptModule = {
         `;
 
         // 3. Print Window
-        const w = window.open('', '_blank');
-        w.document.write(`
-            <!doctype html>
-            <html>
-            <head>
-                <title>Print Receipt - ${receiptNo}</title>
-                <style>
-                    body { font-family: 'Times New Roman', serif; color: #000; padding: 20px; }
-                    @page { size: A4; margin: 10mm; }
-                    @media print { body { -webkit-print-color-adjust: exact; } }
-                </style>
-            </head>
-            <body>
-                ${content}
-                <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); };<\/script>
-            </body>
-            </html>
-        `);
-        w.document.close();
+        window.Printer.print(content, `Print Receipt - ${receiptNo}`, { isBatch: false });
     },
 
     getRefDetails(p) {
@@ -5142,59 +5007,20 @@ const PaymentReportModule = {
             }
         });
 
-        // Basic styling for the print window to match the current theme
-        const content = `
-            <!doctype html>
-            <html>
-            <head>
-                <title>Print - ${title}</title>
-                <style>
-                    body { 
-                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
-                        padding: 20px; 
-                        color: #1e293b; 
-                        background: #fff;
-                    }
-                    h2 { text-align: center; color: #0f172a; margin-bottom: 20px; }
-                    /* Table Styles */
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; font-size: 13px; }
-                    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-                    th { font-weight: 600; color: #475569; background-color: #f8fafc; border-bottom: 2px solid #cbd5e1; }
-                    /* Summary Styles */
-                    #report-summary { margin-top: 2rem; text-align: right; }
-                    #report-summary div { margin-bottom: 8px; }
-                    hr { border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0; }
-                    /* Utility */
-                    strong { font-weight: 600; }
-                    small { display: block; margin-top: 4px; color: #64748b !important; }
-                    @page { size: A4 landscape; margin: 10mm; }
-                    @media print { 
-                        body { -webkit-print-color-adjust: exact; padding: 0; } 
-                    }
-                </style>
-            </head>
-            <body>
-                <h2>${title}</h2>
-                ${tableClone.outerHTML}
-                <div id="report-summary">${summaryContainer.innerHTML}</div>
-                <script>
-                    window.onload = () => { 
-                        window.print(); 
-                        window.onafterprint = () => window.close(); 
-                    };
-                </script>
-            </body>
-            </html>
+        const reportHtml = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="margin: 5px 0; font-size: 16px; font-weight: bold; text-transform: uppercase;">Siddipet Urban Development Authority</h1>
+                <h2 style="margin: 5px 0; font-size: 14px; font-weight: bold; color: #0f172a;">${title}</h2>
+            </div>
+            
+            ${tableClone.outerHTML}
+            
+            <div id="report-summary" style="margin-top: 2rem; text-align: right;">
+                ${summaryContainer.innerHTML}
+            </div>
         `;
 
-        const w = window.open('', '_blank', 'width=1000,height=800');
-        if (!w) {
-            alert('Popup blocked! Please allow popups to print the report.');
-            return;
-        }
-        w.document.open();
-        w.document.write(content);
-        w.document.close();
+        window.Printer.print(reportHtml, `Print - ${title}`, { isBatch: false, isA4Landscape: true });
     },
 
 
@@ -5230,10 +5056,10 @@ const PaymentReportModule = {
                 if (!p.paymentMethod) return '-';
                 if (p.paymentMethod === 'cash') return 'Cash';
                 if (p.paymentMethod === 'dd-cheque') {
-                    return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
+                    return `DD / Cheque < br > <small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
                 }
                 if (p.paymentMethod === 'online') {
-                    return `Online<br><small style="color: #475569;">${p.transactionNo || ''}</small>`;
+                    return `Online < br > <small style="color: #475569;">${p.transactionNo || ''}</small>`;
                 }
                 return '-';
             };
@@ -5260,7 +5086,7 @@ const PaymentReportModule = {
                 totalPenalty += penalty;
 
                 return `
-                    <tr>
+    < tr >
                         <td><strong>${p.paymentForMonth || '-'}</strong></td>
                         <td>${p.paymentDate || '-'}</td>
                         <td><strong>${p.shopNo}</strong></td>
@@ -5273,20 +5099,20 @@ const PaymentReportModule = {
                         <td>
                             <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
                         </td>
-                    </tr>
-                `;
+                    </tr >
+    `;
             }).join('');
         }
 
         summary.innerHTML = `
-            <div style="font-size: 1.1rem; line-height: 1.6;">
+    < div style = "font-size: 1.1rem; line-height: 1.6;" >
                 <div>Total Base Rent: <strong>${Utils.formatCurrency(totalBaseRent)}</strong></div>
                 <div>Total GST Collected: <strong>${Utils.formatCurrency(totalGST)}</strong></div>
                 <div>Total Penalties: <span style="color: #ef4444;">${Utils.formatCurrency(totalPenalty)}</span></div>
                 <hr style="margin: 0.5rem 0; opacity: 0.3;">
                 <div style="font-size: 1.3rem;">Grand Total: <span style="color: #047857;">${Utils.formatCurrency(totalCollected)}</span></div>
             </div>
-        `;
+`;
     }
 };
 
@@ -5298,7 +5124,7 @@ window.PaymentReportModule = PaymentReportModule;
 const WaiverModule = {
     render(container) {
         container.innerHTML = `
-            <div class="glass-panel">
+    < div class="glass-panel" >
                 <h3>Penalty Waiver Management</h3>
                 <div style="margin-top: 1.5rem; display: flex; gap: 2rem;">
                     <!-- LEFT: Form -->
@@ -5351,8 +5177,8 @@ const WaiverModule = {
                         </table>
                     </div>
                 </div>
-            </div>
-        `;
+            </div >
+    `;
 
         this.populateShops();
         this.renderHistory();
@@ -5391,7 +5217,7 @@ const WaiverModule = {
         applicants.forEach(app => {
             const opt = document.createElement('option');
             opt.value = app.shopNo;
-            opt.textContent = `${app.shopNo} - ${app.applicantName}`;
+            opt.textContent = `${app.shopNo} - ${app.applicantName} `;
             select.appendChild(opt);
         });
     },
@@ -5449,7 +5275,7 @@ const WaiverModule = {
         }
 
         tbody.innerHTML = waivers.map(w => `
-            <tr>
+    < tr >
                 <td><strong>${w.shopNo}</strong></td>
                 <td>${w.month}</td>
                 <td>${w.authorizedBy}</td>
@@ -5459,8 +5285,8 @@ const WaiverModule = {
                 <td>
                     <button class="btn-delete-waiver" data-id="${w.id}" style="color:red;border:none;background:none;cursor:pointer;">🗑️</button>
                 </td>
-            </tr>
-        `).join('');
+            </tr >
+    `).join('');
 
         // Attach Delete Listeners
         tbody.querySelectorAll('.btn-delete-waiver').forEach(btn => {

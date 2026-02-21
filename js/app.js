@@ -943,145 +943,16 @@ const Store = {
      */
     calculateOutstandingDues(app, referenceDate = new Date()) {
         const settings = this.getSettings();
-        const penaltyRate = parseFloat(settings.penaltyRate) || 15;
+        const payments = this.getShopPayments(app.shopNo) || [];
+        const waivers = this.getWaivers() || [];
 
-        const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
-        const today = referenceDate || new Date();
-
-        // 1. Identify Lease Periods
-        const periods = [];
-        const pushPeriod = (start, end, meta) => {
-            if (!start) return;
-            periods.push({
-                start: new Date(start),
-                end: end ? new Date(end) : today,
-                meta: meta
-            });
-        };
-
-        const history = app.leaseHistory || [];
-        if (Array.isArray(history) && history.length > 0) {
-            history.forEach(h => {
-                const s = h.leaseDate || h.rentStartDate || h.startDate;
-                const e = h.expiryDate || h.leaseEndDate || h.endDate;
-                pushPeriod(s, e, { source: 'history', entry: h });
-            });
+        if (window.DuesCore) {
+            return window.DuesCore.calculateOutstandingDues(app, payments, waivers, settings, referenceDate);
         }
 
-        const activeStart = app.rentStartDate || app.leaseDate || null;
-        pushPeriod(activeStart, null, { source: 'active' });
-
-        // 2. Identify Paid Months
-        const payments = this.getShopPayments(app.shopNo) || [];
-        const paidMonths = new Set(payments.map(p => String(p.paymentForMonth)));
-        const addedMonthKeys = new Set();
-
-        let totalBase = 0;
-        let totalGST = 0;
-        let totalPenalty = 0;
-        const pendingMonths = [];
-
-        periods.forEach(period => {
-            const cur = new Date(period.start);
-            while (cur <= period.end) {
-                const y = cur.getFullYear();
-                const mNum = cur.getMonth() + 1;
-                const m = String(mNum).padStart(2, '0');
-                const monthStr = `${y}-${m}`;
-
-                if (addedMonthKeys.has(monthStr) || paidMonths.has(monthStr)) {
-                    cur.setMonth(cur.getMonth() + 1);
-                    continue;
-                }
-                addedMonthKeys.add(monthStr);
-
-                // --- PENALTY LOGIC (HISTORY AWARE) ---
-                const dueDay = parseInt(app.paymentDay) || 5;
-                const dueDate = new Date(y, cur.getMonth(), Math.min(dueDay, 28));
-
-                // Get Config from History for this specific due date
-                const penaltyParams = this.getPenaltyParams(dueDate);
-                const penaltyMode = penaltyParams.mode || 'MONTHLY';
-                const penaltyRate = parseFloat(penaltyParams.rate) || 500;
-
-                // Normalize today to start of day for accurate comparison
-                const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-                // If not due yet, skip
-                if (todayMidnight <= dueDate) {
-                    cur.setMonth(cur.getMonth() + 1);
-                    continue;
-                }
-
-                let p = 0;
-                if (today > dueDate) {
-                    const settings = this.getSettings();
-                    const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
-
-                    // Delegate to pure core logic
-                    p = window.PenaltiesCore.calculatePenaltyWithGrace(dueDate, today, penaltyRate, penaltyMode, impDate);
-                }
-
-                // Rent Logic
-                let rentBase = parseFloat(app.rentBase || app.baseRent || app.rentAmount || 0) || 0;
-                let gstAmt = 0;
-
-                // --- GST AMENDMENT LOGIC (MULTI-HISTORY) ---
-                const curDate = new Date(cur.getFullYear(), cur.getMonth(), 1); // Start of the current month
-                const applicableRate = window.GSTCore.getApplicableRate(curDate, this.getSettings());
-
-                if (period.meta && period.meta.entry) {
-                    const e = period.meta.entry;
-                    rentBase = parseFloat(e.rentBase || e.baseRent || e.rentAmount || rentBase) || rentBase;
-
-                    // Use historical GST if explicitly saved (frozen history)
-                    if (e.gstAmount !== undefined && e.gstAmount !== null) {
-                        gstAmt = parseFloat(e.gstAmount);
-                    } else {
-                        // No saved GST? Calculate using the rate applicable for THAT period
-                        gstAmt = window.GSTCore.calculateGST(rentBase) * (applicableRate / 0.18); // handle variable rates cleanly or just keep rentBase * rate
-                    }
-                } else {
-                    // Active Period: Use the rate applicable for this month
-                    gstAmt = window.GSTCore.calculateGST(rentBase) * (applicableRate / 0.18);
-                }
-
-                const rentTotal = rentBase + gstAmt;
-
-                // --- WAIVER CHECK (Centralized) ---
-                // Apply waiver BEFORE adding to totals
-                const allWaivers = this.getWaivers() || [];
-                // Use current processing month for waiver check (YYYY-MM)
-                const mStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`;
-                const hasWaiver = allWaivers.some(w => String(w.shopNo) === String(app.shopNo) && w.month === mStr);
-
-                if (hasWaiver) {
-                    p = 0;
-                }
-
-                totalBase += rentBase;
-                totalGST += gstAmt;
-                totalPenalty += p;
-
-                pendingMonths.push({
-                    month: cur.toLocaleString('default', { month: 'short', year: 'numeric' }),
-                    rent: rentTotal,
-                    penalty: p,
-                    source: period.meta && period.meta.source === 'history' ? 'history' : 'active'
-                });
-
-            }
-        });
-
-        return {
-            totalAmount: totalBase + totalGST + totalPenalty,
-            breakdown: { base: totalBase, gst: totalGST, penalty: totalPenalty },
-            details: pendingMonths,
-            monthsCount: pendingMonths.length,
-            baseRent: totalBase,
-            gst: totalGST,
-            penalty: totalPenalty
-        };
+        // Fallback (should ideally never be reached if core modules are loaded correctly)
+        console.warn("DuesCore missing! Proceeding with zero dues.");
+        return { totalAmount: 0, breakdown: {}, details: [], monthsCount: 0 };
     },
 
 
@@ -1173,17 +1044,8 @@ const Store = {
 
     // --- CLOUD BACKUP ---
     async createCloudBackup() {
-        // 1. Gather Data
-        const backupData = {
-            timestamp: new Date().toISOString(),
-            version: '1.0',
-            shops: this.cache.shops,
-            applicants: this.cache.applicants,
-            payments: this.cache.payments,
-            waivers: this.cache.waivers,
-            remittances: this.cache.remittances,
-            settings: this.cache.settings
-        };
+        // 1. Gather Data (Reuse the central backup logic)
+        const backupData = this.getAllData();
 
         // 2. Prepare File
         const fileName = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
@@ -1291,9 +1153,9 @@ const Store = {
             proprietor_name: applicant.proprietorShopName || applicant.proprietorName,
             contact_no: applicant.mobileNo || applicant.contactNo,
             email: applicant.email || null,
-            aadhar_no: applicant.aadharNo || applicant.aadhar,
-            pan_no: applicant.panNo || applicant.pan,
-            gst_no: applicant.gstNo || applicant.shopGst,
+            aadhar_no: applicant.aadharNo,
+            pan_no: applicant.panNo,
+            gst_no: applicant.gstNo,
             address: applicant.address,
             agreement_url: applicant.agreementUrl || null,
 
@@ -1303,9 +1165,9 @@ const Store = {
             agreement_date: applicant.agreementDate,
             payment_day: parseInt(applicant.paymentDay) || 5,
 
-            rent_base: parseFloat(applicant.rentBase || applicant.baseRent || 0),
+            rent_base: parseFloat(applicant.rentBase || 0),
             gst_amount: parseFloat(applicant.gstAmount || 0),
-            rent_total: parseFloat(applicant.rentTotal || applicant.totalRent || 0),
+            rent_total: parseFloat(applicant.rentTotal || 0),
 
             status: 'Active'
         };
@@ -2884,11 +2746,10 @@ const ApplicantModule = {
         const data = Object.fromEntries(formData.entries());
         data.createdAt = new Date().toISOString();
 
-        // Map shopGst field to gstNo
-        if (data.shopGst) {
-            data.gstNo = data.shopGst;
-            delete data.shopGst;
-        }
+        // Map UI fields to state properties
+        if (data.pan) { data.panNo = data.pan; delete data.pan; }
+        if (data.aadhar) { data.aadharNo = data.aadhar; delete data.aadhar; }
+        if (data.shopGst) { data.gstNo = data.shopGst; delete data.shopGst; }
 
         // Handle Lease History JSON if present (for manual fixes)
         // Note: Field name is still 'rentHistoryJSON' in HTML but we map it to leaseHistory
@@ -2913,7 +2774,7 @@ const ApplicantModule = {
             }
         }
 
-        if (data.aadhar && !/^\d{12}$/.test(data.aadhar)) {
+        if (data.aadharNo && !/^\d{12}$/.test(data.aadharNo)) {
             AppUI.warn('Aadhar number must be exactly 12 digits.');
             return;
         }
@@ -3011,8 +2872,8 @@ const ApplicantModule = {
         form.querySelector('[name="proprietorShopName"]').value = app.proprietorName || app.proprietorShopName || '';
         form.querySelector('[name="shopGst"]').value = app.gstNo || '';
 
-        form.querySelector('[name="pan"]').value = app.panNo || '';
-        form.querySelector('[name="aadhar"]').value = app.aadharNo || '';
+        form.querySelector('[name="pan"]').value = app.panNo || app.pan || '';
+        form.querySelector('[name="aadhar"]').value = app.aadharNo || app.aadhar || '';
         form.querySelector('[name="address"]').value = app.address || '';
 
         const rBase = form.querySelector('#rentBase');

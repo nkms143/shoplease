@@ -106,19 +106,22 @@ const InvoiceModule = {
         const applicants = Store.getApplicants();
         const activeTenants = applicants.filter(a => a.status !== 'Terminated'); // Basic filter
 
-        // Generate Invoice Objects
-        // Currently generating on-the-fly, could be persisted if needed.
-        this.currentInvoices = activeTenants.map(app => {
-            const rent = parseFloat(app.rentBase || 0);
-            const gst = parseFloat(app.gstAmount || (rent * 0.18)); // Fallback calc
+        const settings = Store.getSettings();
+        const payments = Store.payments || [];
+        const waivers = Store.getWaivers() || [];
 
-            // Calculate Arrears (Up to END of Previous Month)
-            // If selecting May, we want arrears up to April 30.
-            const prevMonthEnd = new Date(year, month - 1, 0); // Day 0 of this month = Last day of prev month
+        // Generate Invoice Objects using Core Module
+        this.currentInvoices = activeTenants.map(app => {
+            if (window.DuesCore) {
+                return window.DuesCore.generateInvoice(app, payments, waivers, settings, month, year);
+            }
+
+            // Fallback (should ideally never be reached if core modules are loaded correctly)
+            const rent = parseFloat(app.rentBase || 0);
+            const gst = parseFloat(app.gstAmount || (rent * 0.18));
+            const prevMonthEnd = new Date(year, month - 1, 0);
             const duesObj = Store.calculateOutstandingDues(app, prevMonthEnd);
             const arrears = duesObj.totalAmount || 0;
-
-            const total = rent + gst + arrears; // Include Arrears in Total
 
             return {
                 shopNo: app.shopNo,
@@ -127,9 +130,9 @@ const InvoiceModule = {
                 rent: rent,
                 gst: gst,
                 arrears: arrears,
-                total: total,
+                total: rent + gst + arrears,
                 details: app,
-                status: 'Draft' // Draft, Sent, Paid? (Paid check can be complex, let's stick to Invoice Status)
+                status: 'Draft'
             };
         });
 
@@ -187,54 +190,45 @@ const InvoiceModule = {
         const rateText = mode === 'MONTHLY' ? `Rs. ${rate} per month` : `Rs. ${rate} per day`;
 
         return `
-            <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-                <div style="background: #1e293b; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0;">SIDDIPET URBAN DEVELOPMENT AUTHORITY</h2>
-                    <p style="margin: 5px 0 0;">Rent Invoice for ${monthName} ${year}</p>
+            <div style="max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; padding: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <div>
+                        <strong>To:</strong><br>
+                        ${invoice.name}<br>
+                        Shop No: ${invoice.shopNo}
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Due Date:</strong> ${dueDate}<br>
+                        <strong>Status:</strong> <span style="color: #b91c1c; font-weight: bold;">Unpaid</span>
+                    </div>
                 </div>
-                <div style="padding: 20px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                        <div>
-                            <strong>To:</strong><br>
-                            ${invoice.name}<br>
-                            Shop No: ${invoice.shopNo}
-                        </div>
-                        <div style="text-align: right;">
-                            <strong>Due Date:</strong> ${dueDate}<br>
-                            <strong>Status:</strong> Unpaid
-                        </div>
-                    </div>
-                    
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                            <th style="padding: 10px; text-align: left;">Description</th>
-                            <th style="padding: 10px; text-align: right;">Amount</th>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px;">Monthly Rent for Shop ${invoice.shopNo}</td>
-                            <td style="padding: 10px; text-align: right;">₹${invoice.rent.toFixed(2)}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px;">GST (18%)</td>
-                            <td style="padding: 10px; text-align: right;">₹${invoice.gst.toFixed(2)}</td>
-                        </tr>
-                        ${invoice.arrears > 0 ? `
-                        <tr style="border-bottom: 1px solid #e2e8f0; color: #b91c1c; background: #fef2f2;">
-                            <td style="padding: 10px;">Arrears / Previous Dues</td>
-                            <td style="padding: 10px; text-align: right;">₹${invoice.arrears.toFixed(2)}</td>
-                        </tr>` : ''}
-                        <tr style="font-weight: bold; background: #f1f5f9;">
-                            <td style="padding: 10px;">Total Payable</td>
-                            <td style="padding: 10px; text-align: right;">₹${invoice.total.toFixed(2)}</td>
-                        </tr>
-                    </table>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                        <th style="padding: 10px; text-align: left;">Description</th>
+                        <th style="padding: 10px; text-align: right;">Amount</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 10px;">Monthly Rent for Shop ${invoice.shopNo} (${monthName} ${year})</td>
+                        <td style="padding: 10px; text-align: right;">₹${invoice.rent.toFixed(2)}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 10px;">GST (18%)</td>
+                        <td style="padding: 10px; text-align: right;">₹${invoice.gst.toFixed(2)}</td>
+                    </tr>
+                    ${invoice.arrears > 0 ? `
+                    <tr style="border-bottom: 1px solid #e2e8f0; color: #b91c1c; background: #fef2f2;">
+                        <td style="padding: 10px;">Arrears / Previous Dues</td>
+                        <td style="padding: 10px; text-align: right;">₹${invoice.arrears.toFixed(2)}</td>
+                    </tr>` : ''}
+                    <tr style="font-weight: bold; background: #f1f5f9; font-size: 1.1rem;">
+                        <td style="padding: 10px;">Total Payable</td>
+                        <td style="padding: 10px; text-align: right;">₹${invoice.total.toFixed(2)}</td>
+                    </tr>
+                </table>
 
-                    <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 15px; border-radius: 6px; color: #9a3412; font-size: 0.9rem;">
-                        <strong>Note:</strong> Please pay by the ${dueDay}th of the month to avoid penalty (${rateText} after due date).
-                    </div>
-                    <div style="margin-top:20px; font-size: 0.8rem; text-align: center; color: #64748b;">
-                        This is a computer-generated invoice. No signature required.
-                    </div>
+                <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 15px; border-radius: 6px; color: #9a3412; font-size: 0.9rem;">
+                    <strong>Note:</strong> Please pay by the ${dueDay}th of the month to avoid penalty (${rateText} after due date).
                 </div>
             </div>
         `;
@@ -243,9 +237,9 @@ const InvoiceModule = {
     preview(index) {
         const inv = this.currentInvoices[index];
         const html = this.generateHTML(inv);
-        const w = window.open('', '_blank');
-        w.document.write(html);
-        w.document.close();
+        const monthName = new Date(2025, parseInt(document.getElementById('inv-month').value) - 1).toLocaleString('default', { month: 'long' });
+        const year = document.getElementById('inv-year').value;
+        window.Printer.print(html, `Rent Invoice - ${monthName} ${year}`);
     },
 
     async sendSingle(index) {
@@ -289,27 +283,15 @@ const InvoiceModule = {
     printAll() {
         const monthName = new Date(2025, parseInt(document.getElementById('inv-month').value) - 1).toLocaleString('default', { month: 'long' });
         const year = document.getElementById('inv-year').value;
-        const w = window.open('', '_blank');
 
-        let allHtml = `
-            <html>
-            <head>
-                <title>Invoices ${monthName} ${year}</title>
-                 <style>
-                    @media print { .page-break { page-break-after: always; } }
-                    body { font-family: sans-serif; }
-                </style>
-            </head>
-            <body>
-        `;
-
-        this.currentInvoices.forEach(inv => {
+        let allHtml = '';
+        this.currentInvoices.forEach((inv, i) => {
             allHtml += this.generateHTML(inv);
-            allHtml += '<div class="page-break" style="margin-bottom: 50px; border-bottom: 2px dashed #ccc;"></div>';
+            if (i < this.currentInvoices.length - 1) {
+                allHtml += '<div class="page-break"></div>';
+            }
         });
 
-        allHtml += '</body></html>';
-        w.document.write(allHtml);
-        w.document.close();
+        window.Printer.print(allHtml, `Batch Invoices - ${monthName} ${year}`, { isBatch: true });
     }
 };
