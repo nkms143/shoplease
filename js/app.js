@@ -1807,8 +1807,8 @@ const Store = {
         const fyCounters = {};
 
         for (const payment of sortedPayments) {
-            // Skip if already has receiptId (new payment)
-            if (payment.receiptId) {
+            // Skip if already has a properly formatted SUDA- receiptId
+            if (payment.receiptId && payment.receiptId.startsWith('SUDA-')) {
                 skippedCount++;
                 continue;
             }
