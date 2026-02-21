@@ -5047,18 +5047,15 @@ const PaymentReportModule = {
 
             // Format payment method details
             let paymentMethodText = '';
-            let paymentDetailsText = '';
             if (p.paymentMethod === 'cash') {
                 paymentMethodText = 'Cash';
-                // For cash, try manual receiptNo first, then fall back to receiptId
-                paymentDetailsText = p.receiptNo || p.receiptId || '';
             } else if (p.paymentMethod === 'dd-cheque') {
-                paymentMethodText = 'DD/Cheque';
-                paymentDetailsText = `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
+                paymentMethodText = `DD/Cheque (${p.ddChequeNo || ''} - ${p.ddChequeDate || ''})`;
             } else if (p.paymentMethod === 'online') {
-                paymentMethodText = 'Online';
-                paymentDetailsText = p.transactionNo || '';
+                paymentMethodText = `Online (${p.transactionNo || ''})`;
             }
+
+            const receiptNoText = p.receiptId || p.receiptNo || '-';
 
             csv.push([
                 p.paymentForMonth || '',
@@ -5069,7 +5066,7 @@ const PaymentReportModule = {
                 penalty > 0 ? penalty.toFixed(2) : '',
                 grandTotal.toFixed(2),
                 paymentMethodText,
-                paymentDetailsText
+                receiptNoText
             ]);
         });
 
@@ -5179,23 +5176,17 @@ const PaymentReportModule = {
         const formatPaymentMethod = (p) => {
             if (!p.paymentMethod) return '-';
             if (p.paymentMethod === 'cash') return 'Cash';
-            if (p.paymentMethod === 'dd-cheque') return 'DD/Cheque';
-            if (p.paymentMethod === 'online') return 'Online';
+            if (p.paymentMethod === 'dd-cheque') {
+                return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
+            }
+            if (p.paymentMethod === 'online') {
+                return `Online<br><small style="color: #475569;">${p.transactionNo || ''}</small>`;
+            }
             return '-';
         };
 
         const getReceiptNoText = (p) => {
-            if (!p.paymentMethod) return '-';
-            if (p.paymentMethod === 'cash') {
-                return p.receiptNo || p.receiptId || '-';
-            }
-            if (p.paymentMethod === 'dd-cheque') {
-                return `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
-            }
-            if (p.paymentMethod === 'online') {
-                return p.transactionNo || '-';
-            }
-            return '-';
+            return p.receiptId || p.receiptNo || '-';
         };
 
         let totalCollected = 0;
