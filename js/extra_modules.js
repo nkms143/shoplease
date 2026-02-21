@@ -5055,7 +5055,15 @@ const PaymentReportModule = {
                 paymentMethodText = `Online (${p.transactionNo || ''})`;
             }
 
-            const receiptNoText = p.receiptId || p.receiptNo || '-';
+            // Extract the proper receipt number, prioritizing SUDA- format
+            let receiptNoText = '-';
+            if (p.receiptId && p.receiptId.startsWith('SUDA-')) {
+                receiptNoText = p.receiptId;
+            } else if (p.receiptNo && p.receiptNo.startsWith('SUDA-')) {
+                receiptNoText = p.receiptNo;
+            } else {
+                receiptNoText = p.receiptId || p.receiptNo || '-';
+            }
 
             csv.push([
                 p.paymentForMonth || '',
@@ -5186,6 +5194,12 @@ const PaymentReportModule = {
         };
 
         const getReceiptNoText = (p) => {
+            if (p.receiptId && p.receiptId.startsWith('SUDA-')) {
+                return p.receiptId;
+            }
+            if (p.receiptNo && p.receiptNo.startsWith('SUDA-')) {
+                return p.receiptNo;
+            }
             return p.receiptId || p.receiptNo || '-';
         };
 
