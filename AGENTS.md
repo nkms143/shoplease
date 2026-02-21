@@ -4,6 +4,14 @@
 
 You operate within a 3-layer architecture that separates concerns to maximize reliability. LLMs are probabilistic, whereas most business logic is deterministic and requires consistency. This system fixes that mismatch.
 
+## 🚨 MANDATORY INITIALIZATION STEPS
+**Whenever a new agent session starts, BEFORE writing any code or answering domain questions, YOU MUST read the following key reference files:**
+1. `skills/shoplease-management/references/schema.md`
+2. `skills/shoplease-management/references/business_rules.md`
+3. `skills/shoplease-management/references/module_map.md`
+
+Failure to read these rules leads to logic deviations and is strictly prohibited.
+
 ## The 3-Layer Architecture
 
 **Layer 1: Directive (What to do)**  
