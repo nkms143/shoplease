@@ -34,7 +34,7 @@ penalty = diffDays × dailyRate
 | `paymentDay` | 5th of month | Due date day |
 
 ### Historical Rates
-Penalty rates can change over time. `settings.penaltyHistory` contains `{effectiveDate, rate, mode}` entries. Use `DuesCore.getPenaltyParams(settings, dueDate)` to get the correct rate for a specific month's due date — **never use the current rate for historical months**.
+Penalty rates can change over time. `settings.penaltyHistory` contains `{effectiveDate, rate, mode}` entries. Use the core `window.PenaltiesCore` functions to handle this context — **never use the current rate for historical months without checking effective dates.**
 
 ### Uniform Application
 The same penalty formula must be applied identically across:
@@ -64,8 +64,8 @@ These are **two different views** of financial data. Do not try to make them mat
 
 ## GST Rules
 
-- **Rate**: 18% on base rent
-- **Calculation**: `gst = Math.round(baseRent * 0.18)` — always `Math.round`
+- **Rate**: 18% on base rent (historically handled in settings)
+- **Calculation**: Always use `window.GSTCore.calculateGST(baseAmount)` and `window.GSTCore.getApplicableRate()` to calculate applicable taxes.
 - GST is included in every monthly payment and stored separately in `payments.gst`
 - GST collected is **not remitted automatically** — it is tracked separately in the `remittances` table
 - **Reconciliation**: Compare `SUM(payments.gst)` by month against `remittances.amount` for the same period to find shortfalls
@@ -86,7 +86,11 @@ Waivers are stored in the `waivers` table, one record per shop per month.
 
 ## Dues Calculation
 
-Outstanding dues for a shop are calculated **on-the-fly** — never stored.
+Outstanding dues for a shop are calculated using the 3-Layer Architecture.
+
+**Local Calculation**: Handled by `Store.calculateOutstandingDues(app, refDate)` which orchestrates calls to `PenaltiesCore`, `GSTCore`, and `LedgerCore` for processing arrays of payments.
+
+**Server-Side Aggregation**: Heavy ledger operations MUST use the Supabase RPC `get_shop_ledger_summary(p_shop_id)`. Do not pull all payment rows locally for bulk aggregations.
 
 ### Steps
 1. Start from `applicant.allotmentDate` (default: `2022-01-01` if missing)
