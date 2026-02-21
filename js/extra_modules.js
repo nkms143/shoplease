@@ -1544,109 +1544,68 @@ const GstRemittanceModule = {
         // Helper: Check if payment matches filter
         const matchesPayment = (p) => {
             if (!month && !year) return true;
-            const pm = getPaymentYearMonth(p);
+            const pm = getPaymentYearMonth(p); // {y, m}
             if (!pm) return false;
+
+            let matches = true;
 
             if (year) {
                 const fy = parseInt(year);
-                // Apr-Dec belongs to fy
-                // Jan-Mar belongs to fy+1
-                // Logic: Financial Year 2024 spans Apr 2024 to Mar 2025.
-                const pY = pm.y;
-                const pM = pm.m;
-
-                // If Month is Apr(4) or later, it belongs to FY==Year if pY==Year
-                // If Month is Jan(1)-Mar(3), it belongs to FY==Year if pY==Year+1
-                if (pM >= 4) {
-                    if (pY !== fy) return false;
+                // Financial Year 'year' spans Apr 'year' to Mar 'year+1'
+                if (pm.m >= 4) {
+                    if (pm.y !== fy) matches = false;
                 } else {
-                    if (pY !== fy + 1) return false;
+                    if (pm.y !== fy + 1) matches = false;
                 }
             }
 
             if (month) {
-                if (pm.m !== parseInt(month)) return false;
+                if (pm.m !== parseInt(month)) matches = false;
             }
-            return true;
+
+            return matches;
         };
 
         // Helper to check remittance match by remittance.date OR forMonth/forYear (Priority)
-        // Remittance matching using financial year when `year` provided
         const matchesRemit = (r) => {
             if (!month && !year) return true;
 
-            // 1. PRIORITY: Check standard `month` and `year` fields (Now mapped to Period)
+            // Determine the calendar period the remittance covers
+            let calYear, calMonth;
+
             if (r.year && r.month) {
-                if (year) {
-                    const rY = parseInt(r.year);
-                    const rM = parseInt(r.month);
-                    const fY = parseInt(year);
-                    // Construct a date in the middle of that month/year
-                    const periodDate = new Date(rY, rM - 1, 15);
-                    const fyStart = new Date(fY, 3, 1, 0, 0, 0);
-                    const fyEnd = new Date(fY + 1, 2, 31, 23, 59, 59);
-                    if (periodDate < fyStart || periodDate > fyEnd) return false;
-                    if (month && rM !== parseInt(month)) return false;
-                    return true;
-                } else {
-                    if (month && r.month != month) return false;
-                    return true;
+                calYear = parseInt(r.year);
+                calMonth = parseInt(r.month);
+            } else if (r.forYear && r.forMonth) {
+                calYear = parseInt(r.forYear);
+                calMonth = parseInt(r.forMonth);
+            } else if (r.date) {
+                const d = new Date(r.date);
+                if (!isNaN(d.getTime())) {
+                    calYear = d.getFullYear();
+                    calMonth = d.getMonth() + 1;
                 }
             }
 
-            // 2. BACKUP: Check explicit "For Period" fields if they exist
-            if (r.forYear && r.forMonth) {
-                if (year) {
-                    // If filter is Financial Year (e.g. 2024 -> Apr 2024 to Mar 2025)
-                    // We need to map the stored Calendar Year/Month to this range
-                    const fyStartMonthIndex = 3; // April (0-indexed 3)
+            if (!calYear || !calMonth) return false;
 
-                    const rY = parseInt(r.forYear);
-                    const rM = parseInt(r.forMonth);
-                    const fY = parseInt(year);
-
-                    // Logic: 
-                    // If rM >= 4 (Apr-Dec), it belongs to FY rY if rY == fY
-                    // If rM < 4 (Jan-Mar), it belongs to FY (rY-1) if rY == fY+1
-
-                    // Actually simpler: construct a date from the period and check range
-                    const periodDate = new Date(rY, rM - 1, 15); // Middle of month
-                    const fyStart = new Date(fY, 3, 1, 0, 0, 0);
-                    const fyEnd = new Date(fY + 1, 2, 31, 23, 59, 59);
-
-                    if (periodDate < fyStart || periodDate > fyEnd) return false;
-
-                    if (month) {
-                        // Month filter provided (Calendar Month 1..12)
-                        // This implies the specific month of the selected FY
-                        if (rM !== parseInt(month)) return false;
-                    }
-                    return true;
-                } else {
-                    // Legacy Year Filter (Calendar Year) or just Month filter? 
-                    // The App seems to use FY logic mostly.
-                    // If year is NOT provided but month IS provided... (Unlikely case in UI)
-                    if (month && r.forMonth != month) return false;
-                    return true;
-                }
-            }
-
-            // 2. FALLBACK: Old Date-based logic
-            const d = new Date(r.date);
-            if (isNaN(d.getTime())) return false;
+            let matches = true;
 
             if (year) {
-                const startYear = parseInt(year);
-                const fyStart = new Date(startYear, 3, 1, 0, 0, 0);
-                const fyEnd = new Date(startYear + 1, 2, 31, 23, 59, 59);
-                if (d < fyStart || d > fyEnd) return false;
-                if (month && (d.getMonth() + 1) !== parseInt(month)) return false;
-                return true;
+                const fy = parseInt(year);
+                // Check if calendar period falls within financial year
+                if (calMonth >= 4) {
+                    if (calYear !== fy) matches = false;
+                } else {
+                    if (calYear !== fy + 1) matches = false;
+                }
             }
 
-            if (year && d.getFullYear() !== parseInt(year)) return false;
-            if (month && (d.getMonth() + 1) !== parseInt(month)) return false;
-            return true;
+            if (month) {
+                if (calMonth !== parseInt(month)) matches = false;
+            }
+
+            return matches;
         };
 
         let matchedPaymentsCount = 0;
