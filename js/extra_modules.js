@@ -5114,50 +5114,87 @@ const PaymentReportModule = {
     },
 
     printReport() {
-        // Get all elements that shouldn't print
-        const hiddenElements = [];
-        const selectors = ['nav', '.sidebar', '.nav-btn', '.navbar', 'header', '.navigation'];
+        const tableContainer = document.querySelector('.table-container');
+        const summaryContainer = document.getElementById('report-summary');
+        const yearSelect = document.getElementById('report-filter-year');
 
-        selectors.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => {
-                hiddenElements.push({
-                    element: el,
-                    display: el.style.display,
-                    visibility: el.style.visibility
-                });
-                el.style.display = 'none';
-                el.style.visibility = 'hidden';
-            });
+        if (!tableContainer || !summaryContainer) {
+            alert('No report data available to print.');
+            return;
+        }
+
+        const selectedYear = yearSelect ? yearSelect.options[yearSelect.selectedIndex].text : '';
+        const title = selectedYear && selectedYear !== 'All Years'
+            ? `Monthly Payment Reports (FY: ${selectedYear})`
+            : 'Monthly Payment Reports (All Time)';
+
+        // Clone the table to remove 'Action' column and its content
+        const tableClone = tableContainer.cloneNode(true);
+        const theadRow = tableClone.querySelector('thead tr');
+        if (theadRow && theadRow.lastElementChild && theadRow.lastElementChild.textContent.trim().toLowerCase() === 'action') {
+            theadRow.removeChild(theadRow.lastElementChild);
+        }
+
+        const tbodyRows = tableClone.querySelectorAll('tbody tr');
+        tbodyRows.forEach(row => {
+            if (row.lastElementChild && row.lastElementChild.innerHTML.includes('btn-delete-pay')) {
+                row.removeChild(row.lastElementChild);
+            }
         });
 
-        // Hide delete buttons
-        document.querySelectorAll('.btn-delete-pay').forEach(btn => {
-            hiddenElements.push({
-                element: btn,
-                display: btn.style.display,
-                visibility: btn.style.visibility
-            });
-            btn.style.display = 'none';
-        });
+        // Basic styling for the print window to match the current theme
+        const content = `
+            <!doctype html>
+            <html>
+            <head>
+                <title>Print - ${title}</title>
+                <style>
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
+                        padding: 20px; 
+                        color: #1e293b; 
+                        background: #fff;
+                    }
+                    h2 { text-align: center; color: #0f172a; margin-bottom: 20px; }
+                    /* Table Styles */
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; font-size: 13px; }
+                    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+                    th { font-weight: 600; color: #475569; background-color: #f8fafc; border-bottom: 2px solid #cbd5e1; }
+                    /* Summary Styles */
+                    #report-summary { margin-top: 2rem; text-align: right; }
+                    #report-summary div { margin-bottom: 8px; }
+                    hr { border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0; }
+                    /* Utility */
+                    strong { font-weight: 600; }
+                    small { display: block; margin-top: 4px; color: #64748b !important; }
+                    @page { size: A4 landscape; margin: 10mm; }
+                    @media print { 
+                        body { -webkit-print-color-adjust: exact; padding: 0; } 
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>${title}</h2>
+                ${tableClone.outerHTML}
+                <div id="report-summary">${summaryContainer.innerHTML}</div>
+                <script>
+                    window.onload = () => { 
+                        window.print(); 
+                        window.onafterprint = () => window.close(); 
+                    };
+                </script>
+            </body>
+            </html>
+        `;
 
-        // Force body to not have padding/margin that causes blank pages
-        const origBodyStyle = document.body.style.cssText;
-        document.body.style.margin = '0';
-        document.body.style.padding = '0';
-
-        // Trigger print after a very short delay
-        setTimeout(() => {
-            window.print();
-
-            // Restore elements immediately
-            setTimeout(() => {
-                hiddenElements.forEach(item => {
-                    item.element.style.display = item.display;
-                    item.element.style.visibility = item.visibility;
-                });
-                document.body.style.cssText = origBodyStyle;
-            }, 100);
-        }, 50);
+        const w = window.open('', '_blank', 'width=1000,height=800');
+        if (!w) {
+            alert('Popup blocked! Please allow popups to print the report.');
+            return;
+        }
+        w.document.open();
+        w.document.write(content);
+        w.document.close();
     },
 
 
