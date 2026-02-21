@@ -3626,7 +3626,20 @@ const RentModule = {
 
             // --- PENALTY CALC (Accumulate Auto) ---
             if (!manualOverride && paymentDate) {
-                const targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay);
+                let targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay);
+
+                // 2026-02-21: Adjustment for first month penalty
+                // If occupancy starts AFTER the due date of that month, penalty shouldn't start until next month's due date.
+                const leaseStartStr = currentApplicant.rentStartDate || currentApplicant.leaseDate;
+                if (leaseStartStr) {
+                    const leaseStart = new Date(leaseStartStr);
+                    if (leaseStart.getFullYear() === parseInt(year) && leaseStart.getMonth() === (parseInt(month) - 1)) {
+                        if (leaseStart > targetDueDate) {
+                            // Move due date to next month's due date
+                            targetDueDate = new Date(parseInt(year), parseInt(month), Math.min(dueDay, 28));
+                        }
+                    }
+                }
 
                 // Config from History
                 const penaltyParams = Store.getPenaltyParams(targetDueDate);
