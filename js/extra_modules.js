@@ -4870,7 +4870,11 @@ const PaymentReportModule = {
             <div class="glass-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>Monthly Payment Reports</h3>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                         <label style="font-weight: 500; font-size: 0.9rem;">Financial Year:</label>
+                         <select id="report-filter-year" class="form-select" style="padding: 6px; width: auto; margin-right: 1rem;">
+                              <!-- Populated by JS -->
+                         </select>
                          <button class="btn-primary" id="btn-export-report" style="background: #059669;">Export to Excel</button>
                          <button class="btn-primary" id="btn-print-report" style="background: #64748b;">Print Report</button>
                     </div>
@@ -4888,6 +4892,7 @@ const PaymentReportModule = {
                                 <th>Penalty</th>
                                 <th>Total Paid</th>
                                 <th>Payment Method</th>
+                                <th>Receipt No.</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -4911,7 +4916,8 @@ const PaymentReportModule = {
                 const ts = btn.dataset.ts; // timestamp as ID
                 if (confirm('Delete this payment record? This will reopen the month for payment.')) {
                     Store.deletePayment(ts);
-                    this.renderReport();
+                    const yr = document.getElementById('report-filter-year') ? document.getElementById('report-filter-year').value : '';
+                    this.renderReport(yr);
                 }
             }
         });
@@ -4956,7 +4962,51 @@ const PaymentReportModule = {
             });
         }
 
-        this.renderReport();
+        // Populate Financial Years in dropdown
+        const yearSelect = document.getElementById('report-filter-year');
+        if (yearSelect) {
+            const yearSet = new Set();
+            const currentYear = new Date().getFullYear();
+            yearSet.add(currentYear);
+            yearSet.add(currentYear - 1);
+
+            const payments = Store.getPayments();
+            payments.forEach(p => {
+                if (p.paymentDate) {
+                    const d = new Date(p.paymentDate);
+                    const y = d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1;
+                    yearSet.add(y);
+                }
+            });
+
+            const years = Array.from(yearSet).sort((a, b) => b - a);
+
+            // Allow an "All Time" or "All Years" option
+            const allOpt = document.createElement('option');
+            allOpt.value = '';
+            allOpt.textContent = 'All Years';
+            yearSelect.appendChild(allOpt);
+
+            years.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = `${y}-${String(y + 1).slice(2)}`;
+                yearSelect.appendChild(opt);
+            });
+
+            // Default to current financial year
+            const curMonth = new Date().getMonth() + 1;
+            const curFY = curMonth >= 4 ? currentYear : currentYear - 1;
+            yearSelect.value = curFY.toString();
+
+            yearSelect.addEventListener('change', () => {
+                this.renderReport(yearSelect.value);
+            });
+        }
+
+        // Pass initial value to renderReport
+        const initialYear = yearSelect ? yearSelect.value : '';
+        this.renderReport(initialYear);
     },
 
     exportReport() {
@@ -4976,7 +5026,7 @@ const PaymentReportModule = {
             'Penalty',
             'Total Paid',
             'Payment Method',
-            'Payment Details'
+            'Receipt No.'
         ]);
 
         let totalCollected = 0;
@@ -5101,8 +5151,19 @@ const PaymentReportModule = {
     },
 
 
-    renderReport() {
-        const payments = Store.getPayments();
+    renderReport(filterYear = '') {
+        let payments = Store.getPayments();
+
+        if (filterYear) {
+            const fy = parseInt(filterYear);
+            payments = payments.filter(p => {
+                if (!p.paymentDate) return false;
+                const d = new Date(p.paymentDate);
+                const pFy = d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1;
+                return pFy === fy;
+            });
+        }
+
         const tbody = document.getElementById('report-list-body');
         const summary = document.getElementById('report-summary');
 
@@ -5110,21 +5171,29 @@ const PaymentReportModule = {
         payments.sort((a, b) => new Date(b.paymentDate || '') - new Date(a.paymentDate || ''));
 
         if (payments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color: var(--text-muted);">No payment records found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-muted);">No payment records found.</td></tr>';
             return;
         }
 
         // Helper to format payment method details
         const formatPaymentMethod = (p) => {
             if (!p.paymentMethod) return '-';
+            if (p.paymentMethod === 'cash') return 'Cash';
+            if (p.paymentMethod === 'dd-cheque') return 'DD/Cheque';
+            if (p.paymentMethod === 'online') return 'Online';
+            return '-';
+        };
+
+        const getReceiptNoText = (p) => {
+            if (!p.paymentMethod) return '-';
             if (p.paymentMethod === 'cash') {
-                return `Cash<br><small style="color: #475569;">${p.receiptNo || p.receiptId || ''}</small>`;
+                return p.receiptNo || p.receiptId || '-';
             }
             if (p.paymentMethod === 'dd-cheque') {
-                return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
+                return `${p.ddChequeNo || ''} (${p.ddChequeDate || ''})`;
             }
             if (p.paymentMethod === 'online') {
-                return `Online<br><small style="color: #475569;">${p.transactionNo || ''}</small>`;
+                return p.transactionNo || '-';
             }
             return '-';
         };
@@ -5155,6 +5224,7 @@ const PaymentReportModule = {
                     <td style="color: ${penalty > 0 ? '#ef4444' : 'inherit'};">${penalty > 0 ? Utils.formatCurrency(penalty) : '-'}</td>
                     <td style="font-weight: 500; color: #047857;">${Utils.formatCurrency(grandTotal)}</td>
                     <td style="font-size: 0.9rem;">${formatPaymentMethod(p)}</td>
+                    <td style="font-size: 0.9rem; color: #475569; font-family: monospace;">${getReceiptNoText(p)}</td>
                     <td>
                         <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
                     </td>
