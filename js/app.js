@@ -401,7 +401,7 @@ const Store = {
         }
 
         try {
-            // console.log("Store: Initializing Data from Cloud...");
+
             const [s, t, p, w, r, settingsDB] = await Promise.all([
                 supabaseClient.from('shops').select('*'),
                 supabaseClient.from('tenants').select('*'),
@@ -548,7 +548,7 @@ const Store = {
                 if (savedRemittances) this.cache.remittances = JSON.parse(savedRemittances);
             }
 
-            // console.log("Store: Data Loaded", this.cache);
+
         } catch (e) {
             console.error("Store Init Failed:", e);
             AppUI.error("Failed to load data from Cloud. Using Offline/Empty state.");
@@ -725,7 +725,7 @@ const Store = {
                 }, { onConflict: 'key' });
 
             if (error) throw error;
-            // console.log("Settings synced to cloud");
+
         } catch (e) {
             console.error("Settings Sync Failed:", e);
             AppUI.warn("Warning: Settings updated locally but failed to sync to Cloud.");
@@ -917,7 +917,7 @@ const Store = {
                 .in('id', targetIds);
 
             if (error) throw error;
-            console.log(`Store: Successfully cleared notice history for Shop ${shopNo}.`);
+
             return true;
         } catch (e) {
             console.error("Failed to clear notice logs:", e.message);
@@ -1107,7 +1107,7 @@ const Store = {
                 // Check Escalation Status
                 const esc = typeof NoticeModule !== 'undefined' ? NoticeModule.getEscalationInfo(tenant.shopNo, logs, dues) : null;
                 if (esc && esc.tooRecent) {
-                    console.log(`Skipping ${tenant.shopNo} - Sent recently.`);
+
                     continue;
                 }
 
@@ -1926,7 +1926,7 @@ const Store = {
 
         if (changed) {
             localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
-            // console.log('Store: normalized payments data');
+
         }
     },
 
@@ -3488,7 +3488,7 @@ const RentModule = {
                             rBase = parseFloat(match.rentBase);
                             rGst = parseFloat(match.gstAmount);
                             rTotal = parseFloat(match.rentTotal);
-                            // console.log(`Using Lease History Block [${match.periodLabel}] for ${monthVal}: ${rTotal}`);
+
                             historyFound = true;
                         }
                     } else if (currentApplicant.rentHistory && currentApplicant.rentHistory.length > 0) {
@@ -3502,7 +3502,7 @@ const RentModule = {
                             rBase = parseFloat(match.rentBase);
                             rGst = parseFloat(match.gstAmount);
                             rTotal = parseFloat(match.rentTotal);
-                            // console.log(`Using Legacy Rent History for ${monthVal}: ${rTotal}`);
+
                             historyFound = true;
                         }
                     }

@@ -49,6 +49,16 @@ Before writing logic, check `js/core/` and `js/utils/` per your directive. Only 
 **3. Update directives as you learn**  
 Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
 
+**4. Additive Extraction Pattern (Migration Strategy)**
+We are currently migrating legacy monolithic UI logic into the clean `js/core/` modules. 
+- **Rule:** Do not break production.
+- **Method:** Build the new `js/core/` logic so it is available globally, then test it side-by-side with the old monolith code. 
+- **Execution:** We do not replace the existing monolith code in `app.js` or `extra_modules.js` until the new core modules are fully proven. The `js/core/` folder serves as the future state.
+
+**5. Clean Production Code**
+- **Rule:** Do not leave `console.log` or other debugging statements in the codebase.
+- **Execution:** Always clean up your debugging hooks after a successful test or when refactoring. Keep the console clean.
+
 ## Self-annealing loop
 
 Errors are learning opportunities. When something breaks:  
@@ -75,7 +85,6 @@ Errors are learning opportunities. When something breaks:
 - `supabase/` - Database migrations and RLS policies  
 - `.tmp/` - Temporary/intermediate files (safe to delete and regenerate)  
 - `.env` - Environment variables and API keys
-
 
 **Key principle:** Business logic lives in `js/core/`. UI logic stays in `js/app.js` and `js/extra_modules.js`. Data lives in Supabase. Directives guide AI on how to use core modules correctly.
 

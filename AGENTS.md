@@ -55,6 +55,10 @@ We are currently migrating legacy monolithic UI logic into the clean `js/core/` 
 - **Method:** Build the new `js/core/` logic so it is available globally, then test it side-by-side with the old monolith code. 
 - **Execution:** We do not replace the existing monolith code in `app.js` or `extra_modules.js` until the new core modules are fully proven. The `js/core/` folder serves as the future state.
 
+**5. Clean Production Code**
+- **Rule:** Do not leave `console.log` or other debugging statements in the codebase.
+- **Execution:** Always clean up your debugging hooks after a successful test or when refactoring. Keep the console clean.
+
 ## Self-annealing loop
 
 Errors are learning opportunities. When something breaks:  

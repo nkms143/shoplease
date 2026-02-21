@@ -65,7 +65,7 @@ const LedgerCore = {
      * @returns {Promise<object>} Result from the RPC
      */
     async testRpcLedgerSummary(shopNo, supabaseClient) {
-        console.log(`[TEST] Calling RPC get_shop_ledger_summary for shop ${shopNo}`);
+
         try {
             const { data, error } = await supabaseClient.rpc('get_shop_ledger_summary', { p_shop_no: shopNo });
             if (error) {

@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const key in localStorage) {
         if (key.startsWith('sb-') && key.endsWith('-token')) {
             localStorage.removeItem(key);
-            console.log("Security: Wiped existing auth token from storage:", key);
+
         }
     }
     // Also remove the specific known key if configured differently
@@ -39,8 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputPass = document.getElementById('new-password');
     const msgDiv = document.getElementById('message');
 
-    console.log("Reset Page Loaded");
-    console.log("Hash:", window.location.hash);
+
 
     // Disable button initially until session is verified
     btnUpdate.disabled = true;
@@ -59,11 +58,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let sessionReady = false;
 
     supabaseResetClient.auth.onAuthStateChange((event, session) => {
-        console.log("Auth Event:", event, "Session:", session);
+
 
         if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
             if (session) {
-                console.log("Session established successfully");
+
                 sessionReady = true;
                 btnUpdate.disabled = false;
                 msgDiv.textContent = "Ready! Enter your new password above.";
@@ -75,10 +74,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Also try to get session immediately (in case event already fired)
     setTimeout(async () => {
         const { data: { session }, error } = await supabaseResetClient.auth.getSession();
-        console.log("Manual session check:", session, error);
 
         if (session && !sessionReady) {
-            console.log("Session found manually");
             sessionReady = true;
             btnUpdate.disabled = false;
             msgDiv.textContent = "Ready! Enter your new password above.";
@@ -93,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnUpdate.addEventListener('click', async () => {
         const newPassword = inputPass.value;
 
-        console.log("Update button clicked, password length:", newPassword.length);
+
 
         if (!newPassword || newPassword.length < 6) {
             msgDiv.textContent = "Password must be at least 6 characters.";
@@ -113,16 +110,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         msgDiv.style.color = '#64748b';
 
         try {
-            console.log("Calling updateUser...");
             const { data, error } = await supabaseResetClient.auth.updateUser({
                 password: newPassword
             });
 
-            console.log("Update result:", { data, error });
 
             if (error) throw error;
 
-            console.log("Password updated successfully!");
             msgDiv.textContent = "Success! Password updated. Redirecting to login...";
             msgDiv.style.color = 'green';
 
