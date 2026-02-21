@@ -31,8 +31,8 @@ Business workflows are documented in `directives/`:
 
 ## Key Principles
 
-1. **Check `js/core/` first** — `PenaltiesCore`, `DuesCore`, `PaymentsCore`, `ReportsCore` cover all financial calculations. Do not reimplement.
-2. **All data via `Store`** — Never query Supabase directly. Use `Store.get*()` (sync, cached) and `Store.save*()` (async upsert).
+1. **Check `js/core/` first** — `PenaltiesCore`, `GSTCore`, `PaymentsCore`, `ReportsCore` cover all financial calculations. Do not reimplement.
+2. **All data via `Store` or RPCs** — Use `Store.get*()` (sync, cached) and `Store.save*()` for UI state. For heavy data aggregation (like ledgers or archiving), use Supabase RPCs (e.g., `get_shop_ledger_summary`).
 3. **Shop IDs are strings** — Always normalize to zero-padded string: `String(shopNo).padStart(2, '0')`.
-4. **Penalties are historical** — Use `DuesCore.getPenaltyParams(settings, dueDate)` for the rate that applied at the time, not today's rate.
+4. **Penalties are historical** — Use the `window.PenaltiesCore` functions to handle the rate that applied at the time, not today's rate.
 5. **Invoice ≠ Ledger** — Do not try to reconcile them. See `references/business_rules.md`.
