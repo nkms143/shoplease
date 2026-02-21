@@ -60,6 +60,7 @@ Errors are learning opportunities. When something breaks:
 
 **Deliverables vs Intermediates:**  
 - **Deliverables**: Cloud-based data in Supabase (payments, waivers, applicants, settings)
+- **Production URL**: `https://nkms143.github.io/shoplease/` (GitHub Pages)
 - **Intermediates**: Temporary files needed during processing  
 - **UI**: HTML/CSS/JS files served to users
 
@@ -93,9 +94,10 @@ Understanding the business domain is critical for correct implementation. Key do
 - **Applied uniformly**: Dashboard, Rent Collection, DCB Report, Waiver Module, Shop Ledger all use same logic  
 - See `directives/penalty_calculation.md` for full policy
 
-**Data Sources**  
-- **Supabase tables**: `payments`, `waivers`, `applicants`, `settings`, `notice_logs`  
-- **Local calculations**: Penalties calculated on-the-fly based on due dates, never stored  
+**Data Sources & Optimizations**  
+- **Supabase tables**: `payments`, `waivers`, `applicants`, `settings`, `notice_logs`
+- **Supabase RPCs**: Heavy calculations (like Shop Ledger) and data archiving are executed via Supabase RPCs (e.g., `get_shop_ledger_summary`, `archive_financial_year`) to minimize frontend load.
+- **Local calculations**: Calculations handled via `js/core/` pure functions.
 - **Configuration**: Penalty rates, GST rates, payment day stored in `settings` table
 
 ## Summary
