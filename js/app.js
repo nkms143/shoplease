@@ -945,18 +945,6 @@ const Store = {
         const settings = this.getSettings();
         const penaltyRate = parseFloat(settings.penaltyRate) || 15;
 
-        // GST Settings (Legacy Support)
-        const globalGstBase = (parseFloat(settings.gstBaseRate) || 18) / 100;
-        const globalGstNew = (parseFloat(settings.gstNewRate) || 18) / 100;
-        const globalGstEffective = settings.gstEffectiveDate ? new Date(settings.gstEffectiveDate) : null;
-
-        // GST History (New Support)
-        // Ensure sorted descending by date (Newest first)
-        let gstHistory = settings.gstHistory || [];
-        if (gstHistory.length > 0) {
-            gstHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
-        }
-
         const implementationDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
         const today = referenceDate || new Date();
 
@@ -1027,35 +1015,11 @@ const Store = {
 
                 let p = 0;
                 if (today > dueDate) {
-                    // Normalize startCounting
-                    let startCounting = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-
-                    // Legacy Global Grace Period (Optional, usually unset)
                     const settings = this.getSettings();
                     const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
-                    if (impDate) {
-                        const impMidnight = new Date(impDate.getFullYear(), impDate.getMonth(), impDate.getDate());
-                        if (impMidnight > startCounting) {
-                            startCounting = impMidnight;
-                        }
-                    }
 
-                    // Check diff
-                    const diffTime = todayMidnight - startCounting;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Total days overdue from startCounting
-
-                    if (todayMidnight > startCounting && diffDays > 0) {
-                        if (penaltyMode === 'MONTHLY') {
-                            // Monthly Logic: Strict penalty enforcement
-                            // Any payment after due date = minimum 1 month penalty
-                            // Changed from Math.floor to Math.max(1, Math.ceil) to match Rent Collection module
-                            const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
-                            p = monthsOverdue * penaltyRate;
-                        } else {
-                            // DAILY Mode
-                            p = diffDays * penaltyRate;
-                        }
-                    }
+                    // Delegate to pure core logic
+                    p = window.PenaltiesCore.calculatePenaltyWithGrace(dueDate, today, penaltyRate, penaltyMode, impDate);
                 }
 
                 // Rent Logic
@@ -1063,25 +1027,8 @@ const Store = {
                 let gstAmt = 0;
 
                 // --- GST AMENDMENT LOGIC (MULTI-HISTORY) ---
-                // Find applicable rate for THIS specific month (curDate)
-                const curDate = new Date(cur.getFullYear(), cur.getMonth(), 1); // Start of the current month being processed
-                let applicableRate = 0.18; // Default Fallback
-
-                if (gstHistory && gstHistory.length > 0) {
-                    // Check history entries (Sorted Descending in initialization)
-                    for (const h of gstHistory) {
-                        // If curr month is ON or AFTER the effective date
-                        const effDate = new Date(h.date);
-                        if (curDate >= effDate) {
-                            applicableRate = (parseFloat(h.rate) || 0) / 100;
-                            break; // Found the most recent applicable rate
-                        }
-                    }
-                } else if (globalGstBase) {
-                    // Fallback to legacy settings if history missing
-                    applicableRate = globalGstBase;
-                    if (globalGstEffective && curDate >= globalGstEffective) applicableRate = globalGstNew;
-                }
+                const curDate = new Date(cur.getFullYear(), cur.getMonth(), 1); // Start of the current month
+                const applicableRate = window.GSTCore.getApplicableRate(curDate, this.getSettings());
 
                 if (period.meta && period.meta.entry) {
                     const e = period.meta.entry;
@@ -1092,11 +1039,11 @@ const Store = {
                         gstAmt = parseFloat(e.gstAmount);
                     } else {
                         // No saved GST? Calculate using the rate applicable for THAT period
-                        gstAmt = rentBase * applicableRate;
+                        gstAmt = window.GSTCore.calculateGST(rentBase) * (applicableRate / 0.18); // handle variable rates cleanly or just keep rentBase * rate
                     }
                 } else {
                     // Active Period: Use the rate applicable for this month
-                    gstAmt = rentBase * applicableRate;
+                    gstAmt = window.GSTCore.calculateGST(rentBase) * (applicableRate / 0.18);
                 }
 
                 const rentTotal = rentBase + gstAmt;
@@ -3833,20 +3780,16 @@ const RentModule = {
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                     if (diffDays > 0) {
-                        let p = 0;
+                        // Delegate core calculation to pure module
+                        const p = window.PenaltiesCore.calculatePenalty(targetDueDate, pMid, penaltyRate, penaltyMode);
+
                         if (penaltyMode === 'MONTHLY') {
-                            // Monthly Logic:
-                            // Use Math.max(1, ceil) logic for UI (Revenue Safety) vs calculateOutstandingDues (floor)
-                            // User previously accepted ceil/max.
                             const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
-                            p = monthsOverdue * penaltyRate;
                             usedRates.add(`₹${penaltyRate}/month`);
-                            lateInfo.push(`${cb.value}: ${monthsOverdue} mo (${penaltyRate}/m)`);
+                            lateInfo.push(`${cb.value}: ${monthsOverdue} mo (₹${penaltyRate}/m)`);
                         } else {
-                            // DAILY (New Rate)
-                            p = diffDays * penaltyRate;
                             usedRates.add(`₹${penaltyRate}/day`);
-                            lateInfo.push(`${cb.value}: ${diffDays} days (${penaltyRate}/d)`);
+                            lateInfo.push(`${cb.value}: ${diffDays} days (₹${penaltyRate}/d)`);
                         }
 
                         totalPenalty += p;

@@ -56,6 +56,27 @@ const LedgerCore = {
                 <p style="margin: 10px 0 0 0; font-size: 11px; color: #64748b; font-style: italic;">* Penalty is calculated as on ${asOfDateStr}.</p>
             </div>
         `;
+    },
+
+    /**
+     * [TESTING] Calls the Supabase RPC to compare against local logic
+     * @param {string} shopNo - Shop number to fetch ledger summary for
+     * @param {object} supabaseClient - Supabase client instance
+     * @returns {Promise<object>} Result from the RPC
+     */
+    async testRpcLedgerSummary(shopNo, supabaseClient) {
+        console.log(`[TEST] Calling RPC get_shop_ledger_summary for shop ${shopNo}`);
+        try {
+            const { data, error } = await supabaseClient.rpc('get_shop_ledger_summary', { p_shop_no: shopNo });
+            if (error) {
+                console.error("RPC Error:", error);
+                return null;
+            }
+            return data;
+        } catch (err) {
+            console.error("RPC Exception:", err);
+            return null;
+        }
     }
 };
 

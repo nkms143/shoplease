@@ -41,6 +41,12 @@ Before writing logic, check `js/core/` and `js/utils/` per your directive. Only 
 **3. Update directives as you learn**  
 Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
 
+**4. Additive Extraction Pattern (Migration Strategy)**
+We are currently migrating legacy monolithic UI logic into the clean `js/core/` modules. 
+- **Rule:** Do not break production.
+- **Method:** Build the new `js/core/` logic so it is available globally, then test it side-by-side with the old monolith code. 
+- **Execution:** We do not replace the existing monolith code in `app.js` or `extra_modules.js` until the new core modules are fully proven. The `js/core/` folder serves as the future state.
+
 ## Self-annealing loop
 
 Errors are learning opportunities. When something breaks:  

@@ -5,13 +5,46 @@
 
 const GSTCore = {
     /**
-     * Calculate 18% GST on a base amount.
+     * Calculate 18% GST on a base amount (Default legacy function).
      * @param {number} baseAmount 
      * @returns {number}
      */
     calculateGST(baseAmount) {
         if (!baseAmount || isNaN(baseAmount)) return 0;
         return parseFloat((baseAmount * 0.18).toFixed(2));
+    },
+
+    /**
+     * Determine applicable GST rate based on target date and settings history.
+     * @param {Date} targetDate - The month/date being calculated
+     * @param {Object} settings - The global settings object
+     * @returns {number} rate (e.g., 0.18)
+     */
+    getApplicableRate(targetDate, settings) {
+        if (!settings) return 0.18;
+
+        const gstHistory = settings.gstHistory || [];
+        // Ensure sorted descending (newest first)
+        const sortedHistory = [...gstHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        for (const h of sortedHistory) {
+            const effDate = new Date(h.date);
+            if (targetDate >= effDate) {
+                return (parseFloat(h.rate) || 0) / 100;
+            }
+        }
+
+        // Legacy Fallback
+        const globalGstBase = (parseFloat(settings.gstBaseRate) || 18) / 100;
+        const globalGstNew = (parseFloat(settings.gstNewRate) || 18) / 100;
+        const globalGstEffective = settings.gstEffectiveDate ? new Date(settings.gstEffectiveDate) : null;
+
+        let applicableRate = globalGstBase || 0.18;
+        if (globalGstEffective && targetDate >= globalGstEffective) {
+            applicableRate = globalGstNew;
+        }
+
+        return applicableRate;
     },
 
     /**
