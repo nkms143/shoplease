@@ -4966,9 +4966,16 @@ const PaymentReportModule = {
         const yearSelect = document.getElementById('report-filter-year');
         if (yearSelect) {
             const yearSet = new Set();
-            const currentYear = new Date().getFullYear();
-            yearSet.add(currentYear);
-            yearSet.add(currentYear - 1);
+            const curDate = new Date();
+            const curMonth = curDate.getMonth() + 1;
+            const currentYear = curDate.getFullYear();
+
+            // Current Financial Year start year
+            const curFY = curMonth >= 4 ? currentYear : currentYear - 1;
+
+            // Ensure we at least have the current FY and previous FY
+            yearSet.add(curFY);
+            yearSet.add(curFY - 1);
 
             const payments = Store.getPayments();
             payments.forEach(p => {
@@ -4995,8 +5002,6 @@ const PaymentReportModule = {
             });
 
             // Default to current financial year
-            const curMonth = new Date().getMonth() + 1;
-            const curFY = curMonth >= 4 ? currentYear : currentYear - 1;
             yearSelect.value = curFY.toString();
 
             yearSelect.addEventListener('change', () => {
@@ -5175,67 +5180,66 @@ const PaymentReportModule = {
         // Sort by date descending
         payments.sort((a, b) => new Date(b.paymentDate || '') - new Date(a.paymentDate || ''));
 
-        if (payments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-muted);">No payment records found.</td></tr>';
-            return;
-        }
-
-        // Helper to format payment method details
-        const formatPaymentMethod = (p) => {
-            if (!p.paymentMethod) return '-';
-            if (p.paymentMethod === 'cash') return 'Cash';
-            if (p.paymentMethod === 'dd-cheque') {
-                return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
-            }
-            if (p.paymentMethod === 'online') {
-                return `Online<br><small style="color: #475569;">${p.transactionNo || ''}</small>`;
-            }
-            return '-';
-        };
-
-        const getReceiptNoText = (p) => {
-            if (p.receiptId && p.receiptId.startsWith('SUDA-')) {
-                return p.receiptId;
-            }
-            if (p.receiptNo && p.receiptNo.startsWith('SUDA-')) {
-                return p.receiptNo;
-            }
-            return p.receiptId || p.receiptNo || '-';
-        };
-
         let totalCollected = 0;
         let totalBaseRent = 0;
         let totalGST = 0;
         let totalPenalty = 0;
 
-        tbody.innerHTML = payments.map(p => {
-            const rentAmount = Utils.getPaymentBaseRent(p);
-            const gstAmount = Utils.getPaymentGST(p);
-            const penalty = Utils.parseNumber(p.penalty);
-            const grandTotal = Utils.getPaymentTotal(p);
+        if (payments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-muted);">No payment records found.</td></tr>';
+        } else {
+            // Helper to format payment method details
+            const formatPaymentMethod = (p) => {
+                if (!p.paymentMethod) return '-';
+                if (p.paymentMethod === 'cash') return 'Cash';
+                if (p.paymentMethod === 'dd-cheque') {
+                    return `DD/Cheque<br><small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
+                }
+                if (p.paymentMethod === 'online') {
+                    return `Online<br><small style="color: #475569;">${p.transactionNo || ''}</small>`;
+                }
+                return '-';
+            };
 
-            totalCollected += grandTotal;
-            totalBaseRent += rentAmount;
-            totalGST += gstAmount;
-            totalPenalty += penalty;
+            const getReceiptNoText = (p) => {
+                if (p.receiptId && p.receiptId.startsWith('SUDA-')) {
+                    return p.receiptId;
+                }
+                if (p.receiptNo && p.receiptNo.startsWith('SUDA-')) {
+                    return p.receiptNo;
+                }
+                return p.receiptId || p.receiptNo || '-';
+            };
 
-            return `
-                <tr>
-                    <td><strong>${p.paymentForMonth || '-'}</strong></td>
-                    <td>${p.paymentDate || '-'}</td>
-                    <td><strong>${p.shopNo}</strong></td>
-                    <td>${Utils.formatCurrency(rentAmount)}</td>
-                    <td>${Utils.formatCurrency(gstAmount)}</td>
-                    <td style="color: ${penalty > 0 ? '#ef4444' : 'inherit'};">${penalty > 0 ? Utils.formatCurrency(penalty) : '-'}</td>
-                    <td style="font-weight: 500; color: #047857;">${Utils.formatCurrency(grandTotal)}</td>
-                    <td style="font-size: 0.9rem;">${formatPaymentMethod(p)}</td>
-                    <td style="font-size: 0.9rem; color: #475569; font-family: monospace;">${getReceiptNoText(p)}</td>
-                    <td>
-                        <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+            tbody.innerHTML = payments.map(p => {
+                const rentAmount = Utils.getPaymentBaseRent(p);
+                const gstAmount = Utils.getPaymentGST(p);
+                const penalty = Utils.parseNumber(p.penalty);
+                const grandTotal = Utils.getPaymentTotal(p);
+
+                totalCollected += grandTotal;
+                totalBaseRent += rentAmount;
+                totalGST += gstAmount;
+                totalPenalty += penalty;
+
+                return `
+                    <tr>
+                        <td><strong>${p.paymentForMonth || '-'}</strong></td>
+                        <td>${p.paymentDate || '-'}</td>
+                        <td><strong>${p.shopNo}</strong></td>
+                        <td>${Utils.formatCurrency(rentAmount)}</td>
+                        <td>${Utils.formatCurrency(gstAmount)}</td>
+                        <td style="color: ${penalty > 0 ? '#ef4444' : 'inherit'};">${penalty > 0 ? Utils.formatCurrency(penalty) : '-'}</td>
+                        <td style="font-weight: 500; color: #047857;">${Utils.formatCurrency(grandTotal)}</td>
+                        <td style="font-size: 0.9rem;">${formatPaymentMethod(p)}</td>
+                        <td style="font-size: 0.9rem; color: #475569; font-family: monospace;">${getReceiptNoText(p)}</td>
+                        <td>
+                            <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
 
         summary.innerHTML = `
             <div style="font-size: 1.1rem; line-height: 1.6;">
