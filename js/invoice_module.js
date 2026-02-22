@@ -177,6 +177,7 @@ const InvoiceModule = {
                 <td>
                     <button class="btn-primary" onclick="InvoiceModule.preview(${index})" style="padding: 4px 8px; font-size: 0.8rem; background: #64748b;">View</button>
                     ${inv.email ? `<button class="btn-primary" onclick="InvoiceModule.sendSingle(${index})" style="padding: 4px 8px; font-size: 0.8rem; background: #4f46e5;">Email</button>` : ''}
+                    <button class="btn-primary" onclick="InvoiceModule.sendWA(${index})" style="padding: 4px 8px; font-size: 0.8rem; background: #22c55e;">Send WA</button>
                 </td>
             </tr>
         `).join('');
@@ -273,6 +274,31 @@ const InvoiceModule = {
             status.textContent = 'Sent';
             status.style.background = '#d1fae5';
             status.style.color = '#059669';
+        }
+    },
+
+    sendWA(index) {
+        const inv = this.currentInvoices[index];
+        const status = document.getElementById(`status-${index}`);
+
+        let link;
+        if (window.NotificationsCore) {
+            link = window.NotificationsCore.generateWhatsAppLink(inv.details, inv, 'Invoice');
+        } else {
+            console.warn("NotificationsCore not found, using fallback WA generator");
+            const phone = String(inv.details.mobileNo || inv.details.contactNo || "").replace(/\D/g, "");
+            const finalPhone = phone.length === 10 ? "91" + phone : phone;
+            const text = encodeURIComponent(`Dear ${inv.name},\nYour rent invoice for Shop No. ${inv.shopNo} is ready.\nTotal Payable: ₹${inv.total.toFixed(2)}\nPlease pay by 5th.\nRegards, SUDA`);
+            link = `https://wa.me/${finalPhone}?text=${text}`;
+        }
+
+        if (link) {
+            window.open(link, '_blank');
+            if (status) {
+                status.innerHTML = '<i class="fa fa-whatsapp"></i> WA Opened';
+                status.style.background = '#dcfce7';
+                status.style.color = '#166534';
+            }
         }
     },
 

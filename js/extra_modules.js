@@ -795,6 +795,12 @@ const NoticeModule = {
                                 data-shop="${app.shopNo}" ${esc.tooRecent ? 'disabled title="Wait 7 days between notices"' : ''}>
                                 ${esc.tooRecent ? 'Sent ✉️' : '✉️ Email'}
                             </button>
+                            <button class="btn-wa-notice btn-primary" 
+                                style="padding: 4px 12px; font-size: 0.8rem; background: #22c55e;"
+                                title="Send via WhatsApp"
+                                data-shop="${app.shopNo}">
+                                WA
+                            </button>
                         </td>
                         <td id="comm-${app.shopNo}" style="font-size: 0.75rem;">
                             <span style="display: block; font-weight: bold; color: ${esc.color};">${esc.currentStatus}</span>
@@ -819,6 +825,13 @@ const NoticeModule = {
         emailButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 this.sendNoticeEmail(btn.dataset.shop, btn);
+            });
+        });
+
+        const waButtons = tbody.querySelectorAll('.btn-wa-notice');
+        waButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.sendNoticeWA(btn.dataset.shop, btn);
             });
         });
 
@@ -976,6 +989,59 @@ const NoticeModule = {
                 btn.disabled = false;
                 btn.textContent = '✉️ Email';
             }
+        }
+    },
+
+    async sendNoticeWA(shopNo, btn = null) {
+        try {
+            const normTarget = this.normalizeID(shopNo);
+            const app = Store.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
+            if (!app) {
+                AppUI.error('Error: Applicant not found.');
+                return;
+            }
+
+            const settings = Store.getSettings();
+            const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
+            const dues = this.calculateApplicantDues(app, parseFloat(settings.penaltyRate) || 15, impDate, new Date());
+
+            // 1. Determine Escalation from Logs
+            const logs = await Store.getNoticeLogs();
+            const esc = this.getEscalationInfo(app.shopNo, logs, dues);
+
+            // 2. Prepare Subject and Wording
+            let warningType = '1st Notice';
+            if (esc.isPenaltyOnly) {
+                warningType = 'Penalty Reminder';
+            } else if (esc.nextLevel === 2) {
+                warningType = '2nd Notice';
+            } else if (esc.nextLevel === 3) {
+                warningType = 'Final Notice';
+            }
+
+            const noticeMeta = { warningType: warningType, subject: '' };
+
+            let link;
+            if (window.NotificationsCore) {
+                link = window.NotificationsCore.generateWhatsAppLink(app, dues, 'Notice', noticeMeta);
+            } else {
+                console.warn("NotificationsCore not found, using fallback WA generator");
+                const phone = String(app.mobileNo || app.contactNo || "").replace(/\D/g, "");
+                const finalPhone = phone.length === 10 ? "91" + phone : phone;
+                const text = encodeURIComponent(`Dear ${app.applicantName},\nThis is a ${warningType} regarding pending dues of ₹${dues.totalAmount.toFixed(2)} for Shop No. ${app.shopNo}.\nPlease remit immediately.\nRegards, SUDA`);
+                link = `https://wa.me/${finalPhone}?text=${text}`;
+            }
+
+            if (link) {
+                window.open(link, '_blank');
+                if (btn) {
+                    btn.innerHTML = '<i class="fa fa-whatsapp"></i> WA Sent';
+                    btn.style.background = '#16a34a';
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            AppUI.error('Failed to generate WA link: ' + e.message);
         }
     },
 
