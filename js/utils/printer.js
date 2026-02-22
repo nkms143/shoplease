@@ -19,6 +19,31 @@ const Printer = {
             return;
         }
 
+        if (options.raw) {
+            const rawHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${title}</title>
+    ${options.styles || options.customCSS || ''}
+</head>
+<body style="margin: 0; padding: 0;">
+    ${contentHtml}
+    <script>
+        window.onload = function() {
+            setTimeout(() => {
+                window.print();
+                window.onafterprint = () => window.close();
+            }, 500);
+        };
+    </script>
+</body>
+</html>`;
+            printWindow.document.write(rawHtml);
+            printWindow.document.close();
+            return;
+        }
+
         const settings = window.Store ? window.Store.getSettings() : {};
         const logoUrl = settings.logoUrl || 'assets/logo.jpg';
         const showBranding = options.showBranding !== false;
