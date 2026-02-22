@@ -70,7 +70,7 @@ const DuesCore = {
 
                 // 2026-02-21: Adjustment for first month penalty
                 // If occupancy starts AFTER the due date of that month, penalty shouldn't start until next month's due date.
-                const leaseStart = period.start;
+                const leaseStart = applicant.occupancyStartDate ? new Date(applicant.occupancyStartDate) : period.start;
                 if (leaseStart.getFullYear() === y && leaseStart.getMonth() === cur.getMonth()) {
                     if (leaseStart > dueDate) {
                         // User Scenario: 19th Feb start, 5th Feb due date. 
@@ -242,9 +242,11 @@ const DuesCore = {
 
         // Find the applicable rate based on effective date
         if (penaltyHistory && penaltyHistory.length > 0) {
-            for (let i = penaltyHistory.length - 1; i >= 0; i--) {
-                const entry = penaltyHistory[i];
-                const effectiveDate = new Date(entry.effectiveDate);
+            // Ensure sorted descending
+            const sorted = [...penaltyHistory].sort((a, b) => new Date(b.effDate) - new Date(a.effDate));
+
+            for (const entry of sorted) {
+                const effectiveDate = new Date(entry.effDate);
 
                 if (date >= effectiveDate) {
                     return {

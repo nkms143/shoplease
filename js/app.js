@@ -528,7 +528,7 @@ const Store = {
             } else {
                 // DEFAULT UNIFORM POLICY INITIALLY
                 this.cache.penaltyHistory = [
-                    { effDate: '2022-01-01', rate: 500, mode: 'MONTHLY' }
+                    { effDate: '2023-01-01', rate: 500, mode: 'MONTHLY' }
                 ];
             }
             // Ensure consistency
@@ -3329,9 +3329,20 @@ const RentModule = {
 
                     // Construct Target Date
                     const targetDate = new Date(parseInt(year), parseInt(month) - 1, 15, 12, 0, 0);
-                    const targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay);
+                    let targetDueDate = new Date(parseInt(year), parseInt(month) - 1, dueDay);
 
-                    // --- LEASE HISTORY LOOKUP ---
+                    // 2026-02-21: Adjustment for first month penalty
+                    const leaseStartStr = currentApplicant.occupancyStartDate || currentApplicant.rentStartDate || currentApplicant.leaseDate;
+                    if (leaseStartStr) {
+                        const leaseStart = new Date(leaseStartStr);
+                        if (leaseStart.getFullYear() === parseInt(year) && leaseStart.getMonth() === (parseInt(month) - 1)) {
+                            if (leaseStart > targetDueDate) {
+                                targetDueDate = new Date(parseInt(year), parseInt(month), Math.min(dueDay, 28));
+                            }
+                        }
+                    }
+
+                    // --- RENT LOOKUP (Lease History Aware) ---
                     let rBase = parseFloat(currentApplicant.rentBase);
                     let rGst = parseFloat(currentApplicant.gstAmount);
                     let rTotal = parseFloat(currentApplicant.rentTotal);
@@ -3380,12 +3391,14 @@ const RentModule = {
                     if (!isManual) {
                         // Auto-Calculate if NOT manual
                         const paymentDateObj = new Date(paymentDateVal); // Use parsed val
-                        if (paymentDateObj > targetDueDate) {
-                            const diffTime = Math.abs(paymentDateObj - targetDueDate);
-                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                            // Calc: Flat Rate (Days * Rate)
-                            p = diffDays * rate;
-                        }
+                        const pMid = new Date(paymentDateObj.getFullYear(), paymentDateObj.getMonth(), paymentDateObj.getDate());
+
+                        // Pick historical penalty config for this due date
+                        const penaltyParams = Store.getPenaltyParams(targetDueDate);
+                        const penaltyMode = penaltyParams.mode || 'MONTHLY';
+                        const penaltyRate = parseFloat(penaltyParams.rate) || 500;
+
+                        p = window.PenaltiesCore.calculatePenalty(targetDueDate, pMid, penaltyRate, penaltyMode);
                     }
 
                     // Manual Penalty Distribution (Add to last item)
@@ -3632,7 +3645,8 @@ const RentModule = {
 
                 // 2026-02-21: Adjustment for first month penalty
                 // If occupancy starts AFTER the due date of that month, penalty shouldn't start until next month's due date.
-                const leaseStartStr = currentApplicant.rentStartDate || currentApplicant.leaseDate;
+                // Precedence: occupancyStartDate > rentStartDate > leaseDate
+                const leaseStartStr = currentApplicant.occupancyStartDate || currentApplicant.rentStartDate || currentApplicant.leaseDate;
                 if (leaseStartStr) {
                     const leaseStart = new Date(leaseStartStr);
                     if (leaseStart.getFullYear() === parseInt(year) && leaseStart.getMonth() === (parseInt(month) - 1)) {
@@ -3651,26 +3665,27 @@ const RentModule = {
                 // Fix: Normalize paymentDate to Local Midnight
                 const pMid = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
 
-                if (pMid > targetDueDate) {
-                    const diffTime = pMid - targetDueDate;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                // Use PenaltiesCore to ensure consistency (handles MONTHLY/DAILY correctly)
+                const p = window.PenaltiesCore.calculatePenalty(targetDueDate, pMid, penaltyRate, penaltyMode);
 
-                    if (diffDays > 0) {
-                        // Delegate core calculation to pure module
-                        const p = window.PenaltiesCore.calculatePenalty(targetDueDate, pMid, penaltyRate, penaltyMode);
-
-                        if (penaltyMode === 'MONTHLY') {
-                            const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
-                            usedRates.add(`₹${penaltyRate}/month`);
-                            lateInfo.push(`${cb.value}: ${monthsOverdue} mo (₹${penaltyRate}/m)`);
-                        } else {
-                            usedRates.add(`₹${penaltyRate}/day`);
-                            lateInfo.push(`${cb.value}: ${diffDays} days (₹${penaltyRate}/d)`);
-                        }
-
-                        totalPenalty += p;
-                        totalLateDays += diffDays;
+                if (p > 0) {
+                    if (penaltyMode === 'MONTHLY') {
+                        const diffTime = pMid - targetDueDate;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
+                        usedRates.add(`₹${penaltyRate}/month`);
+                        lateInfo.push(`${cb.value}: ${monthsOverdue} mo (₹${penaltyRate}/m)`);
+                    } else {
+                        const diffTime = pMid - targetDueDate;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        usedRates.add(`₹${penaltyRate}/day`);
+                        lateInfo.push(`${cb.value}: ${diffDays} days (₹${penaltyRate}/d)`);
                     }
+
+                    totalPenalty += p;
+                    // For hint display
+                    const diffTime = pMid - targetDueDate;
+                    totalLateDays += Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 }
             }
         });

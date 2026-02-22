@@ -28,8 +28,17 @@ const SettingsModule = {
                          <h4 style="margin-top: 0; color: #be185d; margin-bottom: 1rem;">🛑 Penalty Rate History</h4>
                          <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 1rem;">
                             Define penalty rates over time. The system picks the rate based on the effective date.
-                            Default: ₹500/Month (from 2022-01-01).
+                            Default: ₹500/Month (from 2023-01-01).
                          </p>
+
+                         <!-- Active Policy Indicator -->
+                         <div id="active-penalty-policy" style="background: white; padding: 1rem; border-radius: 8px; border: 2px dashed #fbcfe8; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+                            <div style="font-size: 1.5rem;">📢</div>
+                            <div>
+                                <div style="font-weight: bold; color: #be185d;">Active Policy (Today)</div>
+                                <div id="active-policy-text" style="font-size: 0.95rem; color: #475569;">Calculating...</div>
+                            </div>
+                         </div>
 
                          <div class="table-container" style="background: white; border-radius: 4px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
                             <table class="data-table">
@@ -286,6 +295,13 @@ const SettingsModule = {
         // Direct access to Store cache for this list
         const history = Store.cache.penaltyHistory || [];
         const tbody = document.getElementById('penalty-history-list');
+        const activeTextPlaceholder = document.getElementById('active-policy-text');
+
+        if (activeTextPlaceholder) {
+            const current = Store.getPenaltyParams(new Date());
+            activeTextPlaceholder.innerHTML = `<strong>₹${current.rate}</strong> per <strong>${current.mode === 'MONTHLY' ? 'Month' : 'Day'}</strong>`;
+        }
+
         if (!tbody) return;
 
         // Sort Descending
@@ -4753,7 +4769,7 @@ const PaymentReportModule = {
                                 <th>Date Paid</th>
                                 <th>Shop No</th>
                                 <th>Rent (Base)</th>
-                                <th>GST (18%)</th>
+                                <th>GST</th>
                                 <th>Penalty</th>
                                 <th>Total Paid</th>
                                 <th>Payment Method</th>
@@ -4892,7 +4908,7 @@ const PaymentReportModule = {
             'Date Paid',
             'Shop No',
             'Rent (Base)',
-            'GST (18%)',
+            'GST',
             'Penalty',
             'Total Paid',
             'Payment Method',
