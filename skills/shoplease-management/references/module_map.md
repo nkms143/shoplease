@@ -18,6 +18,8 @@ Quick-reference: which `js/core/` function to call for each workflow.
 | `DuesCore` | `window.DuesCore` | `js/core/dues.js` | Outstanding dues, unpaid months |
 | `PaymentsCore` | `window.PaymentsCore` | `js/core/payments.js` | Payment breakdown, receipt formatting |
 | `ReportsCore` | `window.ReportsCore` | `js/core/reports.js` | DCB, ledger, defaulters list |
+| `InvoiceModule` | `window.InvoiceModule` | `js/invoice_module.js` | Monthly Invoice Generation & Emailing |
+| `NoticeModule` | `window.NoticeModule` | `js/extra_modules.js` | Debt Collection & Statutory Notices |
 
 > All modules are loaded via `<script>` tags in `index.html` and exposed as `window.*` globals.
 
@@ -104,7 +106,7 @@ Never query Supabase directly from UI or core modules. Always use the `Store` ca
 ```js
 // Read (synchronous — from cache)
 Store.getApplicants()       // → applicant[]
-Store.getPayments()         // → payment[]
+Store.getPayments()         // → payment[] (⚠️ Use this Method, do not access Store.cache.payments)
 Store.getWaivers()          // → waiver[]
 Store.getSettings()         // → settings object
 

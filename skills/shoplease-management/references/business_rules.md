@@ -58,6 +58,8 @@ These are **two different views** of financial data. Do not try to make them mat
 | **Current month** | Always included as a bill | Included only when due date has passed |
 | **Purpose** | Billing statement (prospective) | Current account balance |
 
+**Manual Dispatch**: Both invoices and late warnings require an administrator to trigger bulk emails via the dashboard. No automated cron jobs are currently active.
+
 **Example**: A Feb 1st invoice shows ₹181,628 (arrears through Jan 31 + Feb bill). A Feb 16th ledger shows ₹180,128 (all dues as of today, with Feb now also overdue). Both are correct.
 
 ---
@@ -105,6 +107,9 @@ Outstanding dues for a shop are calculated using the 3-Layer Architecture.
 dueDate = new Date(year, month - 1, paymentDay)  // e.g., 5th of each month
 ```
 A month is overdue if `today > dueDate`. A month whose due date is in the future is NOT yet overdue.
+
+### Rule: First Month Occupancy
+If a tenant occupies a shop **after** the monthly due date (e.g., joins on the 10th when due date is the 5th), the penalty for that first month starts only after the **following** month's due date. This prevents penalizing new tenants for administrative delay in the first partial month.
 
 ---
 

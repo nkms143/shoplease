@@ -22,8 +22,9 @@ Primary table for shop tenants and lease details.
 | `applicantName` | text | Tenant's full name |
 | `email` | text | Contact email |
 | `address` | text | Address |
-| `rentBase` | numeric | Monthly base rent (excluding GST) |
-| `allotmentDate` | date | Lease start date — used as dues calculation start |
+| `rentBase` | numeric | Monthly base rent (Fixed ₹ amount) |
+| `allotmentDate` | date | Date shop was officially allotted |
+| `occupancyStartDate` | date | Date tenant took possession (used for dues calculation) |
 | `expiryDate` | date | Lease expiry date |
 | `status` | text | `"Active"` \| `"Terminated"` \| `"Expiring"` |
 | `shopType` | text | e.g. `"Commercial"` |

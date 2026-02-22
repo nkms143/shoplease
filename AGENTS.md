@@ -93,10 +93,10 @@ Errors are learning opportunities. When something breaks:
 Understanding the business domain is critical for correct implementation. Key domain concepts are documented in the `.brain/` artifacts from past conversations:
 
 **Invoice vs Shop Ledger Behavior**  
-- **Invoice**: Generated on 1st of each month, frozen snapshot showing arrears (as of previous month-end) + current month bill  
+- **Invoice**: Generated on 1st of each month (Manual process), frozen snapshot showing arrears (as of previous month-end) + current month bill  
 - **Shop Ledger**: Real-time account statement showing all outstanding dues as of today  
 - **Why different**: Invoice is a billing statement (prospective). Ledger is current balance (live).  
-- **Example**: Feb 1 invoice shows ₹181,628 (arrears through Jan 31 + Feb bill). Feb 16 ledger shows ₹180,128 (all dues as of Feb 16 with Feb now overdue).  
+- **Manual Dispatch**: Both invoices and late warnings require an administrator to trigger bulk emails via the dashboard. No automated cron jobs are currently active.
 - Both are correct for their purposes. Do not try to "fix" one to match the other.
 
 **Penalty Calculation Policy**  
