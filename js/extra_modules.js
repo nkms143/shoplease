@@ -4668,7 +4668,7 @@ const GstMonthwiseReportModule = {
         `;
 
         // 4. Print
-        window.Printer.print(html, `TSTC Form-58 - ${periodStr}`, { isBatch: false, customCSS: styles });
+        window.Printer.print(html, `TSTC Form-58 - ${periodStr}`, { isBatch: false, customCSS: styles, showBranding: false });
     }
 };
 
