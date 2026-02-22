@@ -1,0 +1,267 @@
+﻿commit 3fd11cefa40a76625b588106f001511f5b0cf111
+Author: nkms143 <nkms143@gmail.com>
+Date:   Sun Feb 22 19:14:50 2026 +0530
+
+    WhatsApp Integration Planning
+
+diff --git a/js/extra_modules.js b/js/extra_modules.js
+index a078209..e94763b 100644
+--- a/js/extra_modules.js
++++ b/js/extra_modules.js
+@@ -795,6 +795,12 @@ const NoticeModule = {
+                                 data-shop="${app.shopNo}" ${esc.tooRecent ? 'disabled title="Wait 7 days between notices"' : ''}>
+                                 ${esc.tooRecent ? 'Sent Γ£ë∩╕Å' : 'Γ£ë∩╕Å Email'}
+                             </button>
++                            <button class="btn-wa-notice btn-primary" 
++                                style="padding: 4px 12px; font-size: 0.8rem; background: #22c55e;"
++                                title="Send via WhatsApp"
++                                data-shop="${app.shopNo}">
++                                WA
++                            </button>
+                         </td>
+                         <td id="comm-${app.shopNo}" style="font-size: 0.75rem;">
+                             <span style="display: block; font-weight: bold; color: ${esc.color};">${esc.currentStatus}</span>
+@@ -822,6 +828,13 @@ const NoticeModule = {
+             });
+         });
+ 
++        const waButtons = tbody.querySelectorAll('.btn-wa-notice');
++        waButtons.forEach(btn => {
++            btn.addEventListener('click', () => {
++                this.sendNoticeWA(btn.dataset.shop, btn);
++            });
++        });
++
+         const historyButtons = tbody.querySelectorAll('.btn-history-notice');
+         historyButtons.forEach(btn => {
+             btn.addEventListener('click', () => {
+@@ -979,6 +992,59 @@ const NoticeModule = {
+         }
+     },
+ 
++    async sendNoticeWA(shopNo, btn = null) {
++        try {
++            const normTarget = this.normalizeID(shopNo);
++            const app = Store.getApplicants().find(a => this.normalizeID(a.shopNo) === normTarget);
++            if (!app) {
++                AppUI.error('Error: Applicant not found.');
++                return;
++            }
++
++            const settings = Store.getSettings();
++            const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
++            const dues = this.calculateApplicantDues(app, parseFloat(settings.penaltyRate) || 15, impDate, new Date());
++
++            // 1. Determine Escalation from Logs
++            const logs = await Store.getNoticeLogs();
++            const esc = this.getEscalationInfo(app.shopNo, logs, dues);
++
++            // 2. Prepare Subject and Wording
++            let warningType = '1st Notice';
++            if (esc.isPenaltyOnly) {
++                warningType = 'Penalty Reminder';
++            } else if (esc.nextLevel === 2) {
++                warningType = '2nd Notice';
++            } else if (esc.nextLevel === 3) {
++                warningType = 'Final Notice';
++            }
++
++            const noticeMeta = { warningType: warningType, subject: '' };
++
++            let link;
++            if (window.NotificationsCore) {
++                link = window.NotificationsCore.generateWhatsAppLink(app, dues, 'Notice', noticeMeta);
++            } else {
++                console.warn("NotificationsCore not found, using fallback WA generator");
++                const phone = String(app.mobileNo || app.contactNo || "").replace(/\D/g, "");
++                const finalPhone = phone.length === 10 ? "91" + phone : phone;
++                const text = encodeURIComponent(`Dear ${app.applicantName},\nThis is a ${warningType} regarding pending dues of Γé╣${dues.totalAmount.toFixed(2)} for Shop No. ${app.shopNo}.\nPlease remit immediately.\nRegards, SUDA`);
++                link = `https://wa.me/${finalPhone}?text=${text}`;
++            }
++
++            if (link) {
++                window.open(link, '_blank');
++                if (btn) {
++                    btn.innerHTML = '<i class="fa fa-whatsapp"></i> WA Sent';
++                    btn.style.background = '#16a34a';
++                }
++            }
++        } catch (e) {
++            console.error(e);
++            AppUI.error('Failed to generate WA link: ' + e.message);
++        }
++    },
++
+     getNoticeHTMLForEmail(app, dues, settings, warningType = 'Notice') {
+         const monthsText = dues.details.map(d => d.source === 'history' ? `${d.month} (prev)` : d.month).join(', ');
+ 
+
+commit 9181e5bb0b38a1c6675de4189a20609119381a3a
+Author: nkms143 <nkms143@gmail.com>
+Date:   Sun Feb 22 13:02:23 2026 +0530
+
+    fixing invoice error, improper tagging, shop ledger penalty implementation logic
+
+diff --git a/js/extra_modules.js b/js/extra_modules.js
+index 09eb870..a078209 100644
+--- a/js/extra_modules.js
++++ b/js/extra_modules.js
+@@ -3495,7 +3495,8 @@ const ShopLedgerModule = {
+                                     <tr style="border-bottom: 2px solid #000;">
+                                         <th style="text-align: left; padding: 8px;">Sl No</th>
+                                         <th style="text-align: left; padding: 8px;">Due Month</th>
+-                                        <th style="text-align: right; padding: 8px;">Rent + GST</th>
++                                        <th style="text-align: right; padding: 8px;">Rent</th>
++                                        <th style="text-align: right; padding: 8px;">GST</th>
+                                         <th style="text-align: right; padding: 8px;">Penalty (Today)</th>
+                                         <th style="text-align: right; padding: 8px;">Total Due</th>
+                                     </tr>
+@@ -3544,21 +3545,23 @@ const ShopLedgerModule = {
+                     <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center;">${idx + 1}</td>
+                     <td style="border: 1px solid #e2e8f0; padding: 8px;">${m.month}</td>
+                     <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Γé╣${m.rent.toFixed(2)}</td>
++                    <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Γé╣${(m.gst || 0).toFixed(2)}</td>
+                     <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Γé╣${m.penalty.toFixed(2)}</td>
+-                    <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right; font-weight: bold;">Γé╣${(m.rent + m.penalty).toFixed(2)}</td>
++                    <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right; font-weight: bold;">Γé╣${(m.rent + (m.gst || 0) + m.penalty).toFixed(2)}</td>
+                 </tr>
+                 `;
+             });
+             rows += `
+             <tr style="background: #f8fafc; font-weight: bold;">
+                 <td colspan="2" style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">TOTAL</td>
+-                <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">Γé╣${(dues.baseRent + dues.gst).toFixed(2)}</td>
++                <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">Γé╣${dues.baseRent.toFixed(2)}</td>
++                <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">Γé╣${dues.gst.toFixed(2)}</td>
+                 <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">Γé╣${dues.penalty.toFixed(2)}</td>
+                 <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">Γé╣${dues.totalAmount.toFixed(2)}</td>
+             </tr>
+             `;
+         } else {
+-            rows = '<tr><td colspan="5" style="border: 1px solid #e2e8f0; padding: 20px; text-align: center;">No outstanding dues</td></tr>';
++            rows = '<tr><td colspan="6" style="border: 1px solid #e2e8f0; padding: 20px; text-align: center;">No outstanding dues</td></tr>';
+         }
+ 
+         const dateStr = typeof NoticeModule !== 'undefined' ? NoticeModule.formatDateDMY(new Date()) : new Date().toLocaleDateString('en-GB');
+@@ -3571,7 +3574,8 @@ const ShopLedgerModule = {
+                         <tr style="background: #f1f5f9; color: #475569;">
+                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: center;">Sl</th>
+                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Month</th>
+-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Rent+GST</th>
++                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Rent</th>
++                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">GST</th>
+                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Penalty</th>
+                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Total</th>
+                         </tr>
+@@ -3635,21 +3639,23 @@ const ShopLedgerModule = {
+                     <td class="data-cell" style="padding: 8px;">${idx + 1}</td>
+                     <td class="data-cell" style="padding: 8px;">${m.month}</td>
+                     <td class="data-cell" style="text-align: right; padding: 8px;">Γé╣${m.rent.toFixed(2)}</td>
++                    <td class="data-cell" style="text-align: right; padding: 8px;">Γé╣${(m.gst || 0).toFixed(2)}</td>
+                     <td class="data-cell" style="text-align: right; padding: 8px;">Γé╣${m.penalty.toFixed(2)}</td>
+-                    <td class="data-cell" style="text-align: right; padding: 8px; font-weight: bold;">Γé╣${(m.rent + m.penalty).toFixed(2)}</td>
++                    <td class="data-cell" style="text-align: right; padding: 8px; font-weight: bold;">Γé╣${(m.rent + (m.gst || 0) + m.penalty).toFixed(2)}</td>
+                 </tr>
+             `;
+             });
+             html += `
+                 <tr style="border-top: 2px solid #000; font-weight: bold; font-size: 1.05rem;">
+                     <td colspan="2" style="text-align: right; padding: 10px;">TOTAL OUTSTANDING</td>
+-                    <td style="text-align: right; padding: 10px;">Γé╣${(dues.baseRent + dues.gst).toFixed(2)}</td>
++                    <td style="text-align: right; padding: 10px;">Γé╣${dues.baseRent.toFixed(2)}</td>
++                    <td style="text-align: right; padding: 10px;">Γé╣${dues.gst.toFixed(2)}</td>
+                     <td style="text-align: right; padding: 10px;">Γé╣${dues.penalty.toFixed(2)}</td>
+                     <td style="text-align: right; padding: 10px; font-size: 1.1rem;">Γé╣${dues.totalAmount.toFixed(2)}</td>
+                 </tr>
+             `;
+         } else {
+-            html = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No outstanding dues</td></tr>';
++            html = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No outstanding dues</td></tr>';
+         }
+ 
+         tbody.innerHTML = html;
+@@ -5072,10 +5078,10 @@ const PaymentReportModule = {
+                 if (!p.paymentMethod) return '-';
+                 if (p.paymentMethod === 'cash') return 'Cash';
+                 if (p.paymentMethod === 'dd-cheque') {
+-                    return `DD / Cheque < br > <small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
++                    return `DD / Cheque <br> <small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
+                 }
+                 if (p.paymentMethod === 'online') {
+-                    return `Online < br > <small style="color: #475569;">${p.transactionNo || ''}</small>`;
++                    return `Online <br> <small style="color: #475569;">${p.transactionNo || ''}</small>`;
+                 }
+                 return '-';
+             };
+@@ -5102,7 +5108,7 @@ const PaymentReportModule = {
+                 totalPenalty += penalty;
+ 
+                 return `
+-    < tr >
++                    <tr>
+                         <td><strong>${p.paymentForMonth || '-'}</strong></td>
+                         <td>${p.paymentDate || '-'}</td>
+                         <td><strong>${p.shopNo}</strong></td>
+@@ -5115,20 +5121,20 @@ const PaymentReportModule = {
+                         <td>
+                             <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">Γ¥î</button>
+                         </td>
+-                    </tr >
+-    `;
++                    </tr>
++                `;
+             }).join('');
+         }
+ 
+         summary.innerHTML = `
+-    < div style = "font-size: 1.1rem; line-height: 1.6;" >
++            <div style="font-size: 1.1rem; line-height: 1.6;">
+                 <div>Total Base Rent: <strong>${Utils.formatCurrency(totalBaseRent)}</strong></div>
+                 <div>Total GST Collected: <strong>${Utils.formatCurrency(totalGST)}</strong></div>
+                 <div>Total Penalties: <span style="color: #ef4444;">${Utils.formatCurrency(totalPenalty)}</span></div>
+                 <hr style="margin: 0.5rem 0; opacity: 0.3;">
+                 <div style="font-size: 1.3rem;">Grand Total: <span style="color: #047857;">${Utils.formatCurrency(totalCollected)}</span></div>
+             </div>
+-`;
++        `;
+     }
+ };
+ 
+@@ -5140,7 +5146,7 @@ window.PaymentReportModule = PaymentReportModule;
+ const WaiverModule = {
+     render(container) {
+         container.innerHTML = `
+-    < div class="glass-panel" >
++            <div class="glass-panel">
+                 <h3>Penalty Waiver Management</h3>
+                 <div style="margin-top: 1.5rem; display: flex; gap: 2rem;">
+                     <!-- LEFT: Form -->
+@@ -5193,7 +5199,7 @@ const WaiverModule = {
+                         </table>
+                     </div>
+                 </div>
+-            </div >
++            </div>
+     `;
+ 
+         this.populateShops();
+@@ -5291,7 +5297,7 @@ const WaiverModule = {
+         }
+ 
+         tbody.innerHTML = waivers.map(w => `
+-    < tr >
++            <tr>
+                 <td><strong>${w.shopNo}</strong></td>
+                 <td>${w.month}</td>
+                 <td>${w.authorizedBy}</td>
+@@ -5301,8 +5307,8 @@ const WaiverModule = {
+                 <td>
+                     <button class="btn-delete-waiver" data-id="${w.id}" style="color:red;border:none;background:none;cursor:pointer;">≡ƒùæ∩╕Å</button>
+                 </td>
+-            </tr >
+-    `).join('');
++            </tr>
++        `).join('');
+ 
+         // Attach Delete Listeners
+         tbody.querySelectorAll('.btn-delete-waiver').forEach(btn => {
