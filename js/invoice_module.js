@@ -108,11 +108,19 @@ const InvoiceModule = {
         const activeTenants = applicants.filter(a => a.status !== 'Terminated'); // Basic filter
 
         const settings = Store.getSettings();
-        const payments = Store.payments || [];
+        const allPayments = Store.getPayments() || [];
         const waivers = Store.getWaivers() || [];
 
         // Generate Invoice Objects using Core Module
         this.currentInvoices = activeTenants.map(app => {
+            // Filter payments for this specific shop
+            const payments = allPayments.filter(p => {
+                if (typeof Store.idsMatch === 'function') {
+                    return Store.idsMatch(p.shopNo, app.shopNo);
+                }
+                return String(p.shopNo) === String(app.shopNo);
+            });
+
             if (window.DuesCore) {
                 return window.DuesCore.generateInvoice(app, payments, waivers, settings, month, year);
             }

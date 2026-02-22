@@ -3495,7 +3495,8 @@ const ShopLedgerModule = {
                                     <tr style="border-bottom: 2px solid #000;">
                                         <th style="text-align: left; padding: 8px;">Sl No</th>
                                         <th style="text-align: left; padding: 8px;">Due Month</th>
-                                        <th style="text-align: right; padding: 8px;">Rent + GST</th>
+                                        <th style="text-align: right; padding: 8px;">Rent</th>
+                                        <th style="text-align: right; padding: 8px;">GST</th>
                                         <th style="text-align: right; padding: 8px;">Penalty (Today)</th>
                                         <th style="text-align: right; padding: 8px;">Total Due</th>
                                     </tr>
@@ -3544,21 +3545,23 @@ const ShopLedgerModule = {
                     <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center;">${idx + 1}</td>
                     <td style="border: 1px solid #e2e8f0; padding: 8px;">${m.month}</td>
                     <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">₹${m.rent.toFixed(2)}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">₹${(m.gst || 0).toFixed(2)}</td>
                     <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">₹${m.penalty.toFixed(2)}</td>
-                    <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right; font-weight: bold;">₹${(m.rent + m.penalty).toFixed(2)}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right; font-weight: bold;">₹${(m.rent + (m.gst || 0) + m.penalty).toFixed(2)}</td>
                 </tr>
                 `;
             });
             rows += `
             <tr style="background: #f8fafc; font-weight: bold;">
                 <td colspan="2" style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">TOTAL</td>
-                <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">₹${(dues.baseRent + dues.gst).toFixed(2)}</td>
+                <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">₹${dues.baseRent.toFixed(2)}</td>
+                <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">₹${dues.gst.toFixed(2)}</td>
                 <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">₹${dues.penalty.toFixed(2)}</td>
                 <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: right;">₹${dues.totalAmount.toFixed(2)}</td>
             </tr>
             `;
         } else {
-            rows = '<tr><td colspan="5" style="border: 1px solid #e2e8f0; padding: 20px; text-align: center;">No outstanding dues</td></tr>';
+            rows = '<tr><td colspan="6" style="border: 1px solid #e2e8f0; padding: 20px; text-align: center;">No outstanding dues</td></tr>';
         }
 
         const dateStr = typeof NoticeModule !== 'undefined' ? NoticeModule.formatDateDMY(new Date()) : new Date().toLocaleDateString('en-GB');
@@ -3571,7 +3574,8 @@ const ShopLedgerModule = {
                         <tr style="background: #f1f5f9; color: #475569;">
                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: center;">Sl</th>
                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Month</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Rent+GST</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Rent</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">GST</th>
                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Penalty</th>
                             <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: right;">Total</th>
                         </tr>
@@ -3635,21 +3639,23 @@ const ShopLedgerModule = {
                     <td class="data-cell" style="padding: 8px;">${idx + 1}</td>
                     <td class="data-cell" style="padding: 8px;">${m.month}</td>
                     <td class="data-cell" style="text-align: right; padding: 8px;">₹${m.rent.toFixed(2)}</td>
+                    <td class="data-cell" style="text-align: right; padding: 8px;">₹${(m.gst || 0).toFixed(2)}</td>
                     <td class="data-cell" style="text-align: right; padding: 8px;">₹${m.penalty.toFixed(2)}</td>
-                    <td class="data-cell" style="text-align: right; padding: 8px; font-weight: bold;">₹${(m.rent + m.penalty).toFixed(2)}</td>
+                    <td class="data-cell" style="text-align: right; padding: 8px; font-weight: bold;">₹${(m.rent + (m.gst || 0) + m.penalty).toFixed(2)}</td>
                 </tr>
             `;
             });
             html += `
                 <tr style="border-top: 2px solid #000; font-weight: bold; font-size: 1.05rem;">
                     <td colspan="2" style="text-align: right; padding: 10px;">TOTAL OUTSTANDING</td>
-                    <td style="text-align: right; padding: 10px;">₹${(dues.baseRent + dues.gst).toFixed(2)}</td>
+                    <td style="text-align: right; padding: 10px;">₹${dues.baseRent.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 10px;">₹${dues.gst.toFixed(2)}</td>
                     <td style="text-align: right; padding: 10px;">₹${dues.penalty.toFixed(2)}</td>
                     <td style="text-align: right; padding: 10px; font-size: 1.1rem;">₹${dues.totalAmount.toFixed(2)}</td>
                 </tr>
             `;
         } else {
-            html = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No outstanding dues</td></tr>';
+            html = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No outstanding dues</td></tr>';
         }
 
         tbody.innerHTML = html;
@@ -5072,10 +5078,10 @@ const PaymentReportModule = {
                 if (!p.paymentMethod) return '-';
                 if (p.paymentMethod === 'cash') return 'Cash';
                 if (p.paymentMethod === 'dd-cheque') {
-                    return `DD / Cheque < br > <small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
+                    return `DD / Cheque <br> <small style="color: #475569;">${p.ddChequeNo || ''} (${p.ddChequeDate || ''})</small>`;
                 }
                 if (p.paymentMethod === 'online') {
-                    return `Online < br > <small style="color: #475569;">${p.transactionNo || ''}</small>`;
+                    return `Online <br> <small style="color: #475569;">${p.transactionNo || ''}</small>`;
                 }
                 return '-';
             };
@@ -5102,7 +5108,7 @@ const PaymentReportModule = {
                 totalPenalty += penalty;
 
                 return `
-    < tr >
+                    <tr>
                         <td><strong>${p.paymentForMonth || '-'}</strong></td>
                         <td>${p.paymentDate || '-'}</td>
                         <td><strong>${p.shopNo}</strong></td>
@@ -5115,20 +5121,20 @@ const PaymentReportModule = {
                         <td>
                             <button class="btn-delete-pay" data-ts="${p.timestamp}" style="background:none; border:none; cursor:pointer;" title="Delete Payment">❌</button>
                         </td>
-                    </tr >
-    `;
+                    </tr>
+                `;
             }).join('');
         }
 
         summary.innerHTML = `
-    < div style = "font-size: 1.1rem; line-height: 1.6;" >
+            <div style="font-size: 1.1rem; line-height: 1.6;">
                 <div>Total Base Rent: <strong>${Utils.formatCurrency(totalBaseRent)}</strong></div>
                 <div>Total GST Collected: <strong>${Utils.formatCurrency(totalGST)}</strong></div>
                 <div>Total Penalties: <span style="color: #ef4444;">${Utils.formatCurrency(totalPenalty)}</span></div>
                 <hr style="margin: 0.5rem 0; opacity: 0.3;">
                 <div style="font-size: 1.3rem;">Grand Total: <span style="color: #047857;">${Utils.formatCurrency(totalCollected)}</span></div>
             </div>
-`;
+        `;
     }
 };
 
@@ -5140,7 +5146,7 @@ window.PaymentReportModule = PaymentReportModule;
 const WaiverModule = {
     render(container) {
         container.innerHTML = `
-    < div class="glass-panel" >
+            <div class="glass-panel">
                 <h3>Penalty Waiver Management</h3>
                 <div style="margin-top: 1.5rem; display: flex; gap: 2rem;">
                     <!-- LEFT: Form -->
@@ -5193,7 +5199,7 @@ const WaiverModule = {
                         </table>
                     </div>
                 </div>
-            </div >
+            </div>
     `;
 
         this.populateShops();
@@ -5291,7 +5297,7 @@ const WaiverModule = {
         }
 
         tbody.innerHTML = waivers.map(w => `
-    < tr >
+            <tr>
                 <td><strong>${w.shopNo}</strong></td>
                 <td>${w.month}</td>
                 <td>${w.authorizedBy}</td>
@@ -5301,8 +5307,8 @@ const WaiverModule = {
                 <td>
                     <button class="btn-delete-waiver" data-id="${w.id}" style="color:red;border:none;background:none;cursor:pointer;">🗑️</button>
                 </td>
-            </tr >
-    `).join('');
+            </tr>
+        `).join('');
 
         // Attach Delete Listeners
         tbody.querySelectorAll('.btn-delete-waiver').forEach(btn => {

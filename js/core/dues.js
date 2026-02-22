@@ -42,7 +42,16 @@ const DuesCore = {
         pushPeriod(activeStart, null, { source: 'active' });
 
         // 2. Identify Paid Months
-        const paidMonths = new Set(payments.map(p => String(p.paymentForMonth)));
+        // Defensive: Filter payments for this specific shop if not already filtered
+        const shopNo = applicant.shopNo;
+        const shopPayments = payments.filter(p => {
+            if (typeof Store !== 'undefined' && typeof Store.idsMatch === 'function') {
+                return Store.idsMatch(p.shopNo, shopNo);
+            }
+            return String(p.shopNo) === String(shopNo);
+        });
+
+        const paidMonths = new Set(shopPayments.map(p => String(p.paymentForMonth)));
         const addedMonthKeys = new Set();
 
         let totalBase = 0;
