@@ -3568,7 +3568,8 @@ const RentModule = {
 
         const checkedBoxes = Array.from(monthContainer.querySelectorAll('input[type="checkbox"]:checked:not([disabled])'));
 
-        let totalBaseRent = 0;
+        let totalBaseRentOnly = 0;
+        let totalGstAmount = 0;
         let totalPenalty = 0;
         let lateInfo = [];
         let totalLateDays = 0;
@@ -3622,7 +3623,8 @@ const RentModule = {
             lastSeenGst = rGst;
             lastSeenTotal = rTotal;
 
-            totalBaseRent += rTotal;
+            totalBaseRentOnly += rBase;
+            totalGstAmount += rGst;
 
             // --- PENALTY CALC (Accumulate Auto) ---
             if (!manualOverride && paymentDate) {
@@ -3688,10 +3690,10 @@ const RentModule = {
         }
 
         // --- DYNAMIC UI UPDATES ---
-        if (checkedBoxes.length === 1) {
-            if (document.getElementById('disp-rent')) document.getElementById('disp-rent').value = lastSeenBase;
-            if (document.getElementById('disp-gst')) document.getElementById('disp-gst').value = lastSeenGst;
-            if (document.getElementById('disp-total')) document.getElementById('disp-total').value = lastSeenTotal;
+        if (checkedBoxes.length > 0) {
+            if (document.getElementById('disp-rent')) document.getElementById('disp-rent').value = totalBaseRentOnly.toFixed(2);
+            if (document.getElementById('disp-gst')) document.getElementById('disp-gst').value = totalGstAmount.toFixed(2);
+            if (document.getElementById('disp-total')) document.getElementById('disp-total').value = (totalBaseRentOnly + totalGstAmount).toFixed(2);
         } else {
             // Revert to Current Applicant Default
             if (document.getElementById('disp-rent')) document.getElementById('disp-rent').value = currentApplicant.rentBase;
@@ -3709,7 +3711,7 @@ const RentModule = {
         penaltyInput.value = totalPenalty.toFixed(2);
         penaltyInput.dataset.autoVal = totalPenalty; // Store for ref
 
-        finalInput.value = (totalBaseRent + totalPenalty).toFixed(2);
+        finalInput.value = (totalBaseRentOnly + totalGstAmount + totalPenalty).toFixed(2);
 
         // Update hint
         const hint = document.getElementById('due-date-hint');

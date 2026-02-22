@@ -54,9 +54,10 @@ const InvoiceModule = {
                             <tr>
                                 <th>Shop No</th>
                                 <th>Tenant Name</th>
-                                <th>Rent</th>
+                                <th>Rent (Base)</th>
                                 <th>GST</th>
-                                <th>Total Due</th>
+                                <th>Arrears</th>
+                                <th>Grand Total</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -162,6 +163,7 @@ const InvoiceModule = {
                 <td>${inv.name} <div style="font-size: 0.8rem; color: #64748b;">${inv.email || '<span style="color:#ef4444">No Email</span>'}</div></td>
                 <td>₹${inv.rent.toFixed(2)}</td>
                 <td>₹${inv.gst.toFixed(2)}</td>
+                <td>₹${inv.arrears.toFixed(2)}</td>
                 <td style="font-weight: bold;">₹${inv.total.toFixed(2)}</td>
                 <td><span class="status-badge status-draft" id="status-${index}">Ready</span></td>
                 <td>
@@ -213,7 +215,7 @@ const InvoiceModule = {
                         <td style="padding: 10px; text-align: right;">₹${invoice.rent.toFixed(2)}</td>
                     </tr>
                     <tr style="border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 10px;">GST (18%)</td>
+                        <td style="padding: 10px;">GST (${(invoice.gst / invoice.rent * 100).toFixed(0)}%)</td>
                         <td style="padding: 10px; text-align: right;">₹${invoice.gst.toFixed(2)}</td>
                     </tr>
                     ${invoice.arrears > 0 ? `

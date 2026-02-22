@@ -145,8 +145,10 @@ const DuesCore = {
 
                 pendingMonths.push({
                     month: cur.toLocaleString('default', { month: 'short', year: 'numeric' }),
-                    rent: rentTotal,
+                    rent: rentBase, // Now ONLY base rent
+                    gst: gstAmt,    // Separate GST
                     penalty: p,
+                    total: rentTotal + p, // Sum of Base + GST + Penalty
                     monthStr: monthStr,
                     source: period.meta && period.meta.source === 'history' ? 'history' : 'active',
                     year: y, // Needed by invoice module mapping fallback
@@ -239,15 +241,17 @@ const DuesCore = {
         const penaltyHistory = settings.penaltyHistory || [];
 
         // Find the applicable rate based on effective date
-        for (let i = penaltyHistory.length - 1; i >= 0; i--) {
-            const entry = penaltyHistory[i];
-            const effectiveDate = new Date(entry.effectiveDate);
+        if (penaltyHistory && penaltyHistory.length > 0) {
+            for (let i = penaltyHistory.length - 1; i >= 0; i--) {
+                const entry = penaltyHistory[i];
+                const effectiveDate = new Date(entry.effectiveDate);
 
-            if (date >= effectiveDate) {
-                return {
-                    rate: entry.rate || 500,
-                    mode: entry.mode || 'MONTHLY'
-                };
+                if (date >= effectiveDate) {
+                    return {
+                        rate: entry.rate || 500,
+                        mode: entry.mode || 'MONTHLY'
+                    };
+                }
             }
         }
 

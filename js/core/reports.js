@@ -74,7 +74,13 @@ const ReportsCore = {
      */
     formatReportRow(applicant, shopPayments, shopWaivers, settings, fyStart, fyEnd, serialNo) {
         const baseRent = applicant.rentBase || 0;
-        const gst = Math.round(baseRent * 0.18);
+
+        // Use GSTCore for dynamic rate lookup based on settings
+        let gstRate = 0.18;
+        if (window.GSTCore) {
+            gstRate = window.GSTCore.getApplicableRate(fyStart, settings);
+        }
+        const gst = Math.round(baseRent * gstRate);
         const monthlyRent = baseRent + gst;
 
         // Opening balance (dues before FY start)
@@ -169,7 +175,8 @@ const ReportsCore = {
                     // Get penalty parameters
                     const penaltyParams = window.DuesCore.getPenaltyParams(settings, dueDate);
 
-                    // Calculate penalty from due date to end of FY
+                    // Calculate penalty from due date to end of FY (March 31st)
+                    // Note: DCB Report is a snapshot of the Financial Year.
                     const penalty = window.PenaltiesCore.calculatePenalty(
                         dueDate,
                         fyEnd,
