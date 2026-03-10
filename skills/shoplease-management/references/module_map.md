@@ -18,6 +18,7 @@ Quick-reference: which `js/core/` function to call for each workflow.
 | `DuesCore` | `window.DuesCore` | `js/core/dues.js` | Outstanding dues, unpaid months |
 | `PaymentsCore` | `window.PaymentsCore` | `js/core/payments.js` | Payment breakdown, receipt formatting |
 | `ReportsCore` | `window.ReportsCore` | `js/core/reports.js` | DCB, ledger, defaulters list |
+| `NotificationsCore` | `window.NotificationsCore` | `js/core/notifications.js` | Email and WhatsApp notification pre-processing |
 | `InvoiceModule` | `window.InvoiceModule` | `js/invoice_module.js` | Monthly Invoice Generation & Emailing |
 | `NoticeModule` | `window.NoticeModule` | `js/extra_modules.js` | Debt Collection & Statutory Notices |
 

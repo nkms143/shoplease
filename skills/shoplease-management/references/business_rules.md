@@ -141,3 +141,6 @@ Notices are sent based on number of outstanding months and prior notice history.
 | Final Notice | > 6 months outstanding, 1st Warning sent > 30 days ago |
 
 After sending, log to `notice_logs` table with `noticeType`, `sentDate`, and `duesAtTime`.
+
+### WhatsApp Integration
+Both invoices and notices can now be sent via WhatsApp. Clicking 'Send WA' generates a `wa.me` Click-to-Chat link pre-filled with the dues summary or invoice details, using the tenant's registered mobile number (`mobileNo` or `contactNo`). Link generation logic is handled centrally by `NotificationsCore.generateWhatsAppLink()`.

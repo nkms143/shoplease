@@ -3632,10 +3632,6 @@ const RentModule = {
                 }
             }
 
-            lastSeenBase = rBase;
-            lastSeenGst = rGst;
-            lastSeenTotal = rTotal;
-
             totalBaseRentOnly += rBase;
             totalGstAmount += rGst;
 
@@ -3719,7 +3715,7 @@ const RentModule = {
         // Handle Manual Penalty Override
         if (manualOverride) {
             totalPenalty = parseFloat(penaltyInput.value) || 0;
-            finalInput.value = (totalBaseRent + totalPenalty).toFixed(2);
+            finalInput.value = (totalBaseRentOnly + totalGstAmount + totalPenalty).toFixed(2);
             return;
         }
 
