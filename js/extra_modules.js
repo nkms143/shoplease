@@ -3549,8 +3549,7 @@ const ShopLedgerModule = {
                             </div>
                             <div style="text-align: right;">
                                 <strong>Contact:</strong> <span id="stmt-contact"></span><br>
-                                <div id="stmt-rpc-summary" style="margin-top: 5px; font-size: 0.85rem; color: #0f766e; background: #ccfbf1; padding: 5px; border-radius: 4px; display: inline-block; text-align: left;">
-                                    Fetching server summary...
+                                <div id="stmt-rpc-summary" style="margin-top: 5px; font-size: 0.85rem; color: #0f766e; background: #ccfbf1; padding: 5px; border-radius: 4px; display: none; text-align: left;">
                                 </div>
                             </div>
                         </div>
@@ -3679,6 +3678,7 @@ const ShopLedgerModule = {
                 const { data, error } = await supabaseClient.rpc('get_shop_ledger_summary', { p_shop_no: shop.shopNo });
                 const rpcSummaryDiv = document.getElementById('stmt-rpc-summary');
                 if (!error && data && rpcSummaryDiv) {
+                    rpcSummaryDiv.style.display = 'inline-block';
                     rpcSummaryDiv.innerHTML = `
                         <strong>Total Base Rent Paid:</strong> ₹${parseFloat(data.rent_paid || 0).toLocaleString('en-IN')}<br>
                         <strong>Last Payment Date:</strong> ${data.last_payment_date ? new Date(data.last_payment_date).toLocaleDateString('en-GB') : 'N/A'}
