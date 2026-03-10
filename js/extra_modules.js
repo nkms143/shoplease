@@ -3549,6 +3549,7 @@ const ShopLedgerModule = {
                             </div>
                             <div style="text-align: right;">
                                 <strong>Contact:</strong> <span id="stmt-contact"></span><br>
+                                <strong>Due Date:</strong> <span id="stmt-due-day"></span> of every month<br>
                                 <div id="stmt-rpc-summary" style="margin-top: 5px; font-size: 0.85rem; color: #0f766e; background: #ccfbf1; padding: 5px; border-radius: 4px; display: none; text-align: left;">
                                 </div>
                             </div>
@@ -3670,6 +3671,10 @@ const ShopLedgerModule = {
         document.getElementById('stmt-name').textContent = app.applicantName || 'N/A';
         document.getElementById('stmt-contact').textContent = app.contactNo || app.mobileNo || 'N/A';
         document.getElementById('stmt-date').textContent = `As on: ${new Date().toLocaleDateString('en-GB')}`;
+
+        // Populate Due Date
+        const dueDay = parseInt(app.paymentDay) || 5;
+        document.getElementById('stmt-due-day').textContent = window.Utils ? window.Utils.getOrdinal(dueDay) : dueDay;
 
         // --- RPC Integration: Instant Server-Side Summary ---
         if (window.supabaseClient) {

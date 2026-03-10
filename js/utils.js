@@ -106,6 +106,16 @@ const Utils = {
             this.parseNumber(p.totalRent) ||
             this.parseNumber(p.amount_total) ||
             0;
+    },
+
+    /**
+     * Returns the ordinal suffix for a number (1st, 2nd, etc.)
+     * @param {number} n 
+     * @returns {string}
+     */
+    getOrdinal(n) {
+        return n + (n % 100 >= 11 && n % 100 <= 13 ? "th" :
+            ["th", "st", "nd", "rd"][n % 10] || "th");
     }
 };
 
