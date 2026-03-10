@@ -3596,6 +3596,7 @@ const RentModule = {
 
         // Track Rate Types for Label
         const usedRates = new Set();
+        const allWaivers = Store.getWaivers() || [];
 
         checkedBoxes.forEach(cb => {
             const [year, month] = cb.value.split('-');
@@ -3662,10 +3663,21 @@ const RentModule = {
                 const pMid = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
 
                 // Use PenaltiesCore to ensure consistency (handles MONTHLY/DAILY correctly)
-                const p = window.PenaltiesCore.calculatePenalty(targetDueDate, pMid, penaltyRate, penaltyMode);
+                let p = window.PenaltiesCore.calculatePenalty(targetDueDate, pMid, penaltyRate, penaltyMode);
 
-                if (p > 0) {
-                    if (penaltyMode === 'MONTHLY') {
+                // --- WAIVER CHECK ---
+                const mStr = `${year}-${month}`;
+                const hasWaiver = allWaivers.some(w => String(w.shopNo) === String(currentApplicant.shopNo) && w.month === mStr);
+
+                if (hasWaiver) {
+                    p = 0;
+                }
+
+                if (p > 0 || hasWaiver) {
+                    if (hasWaiver) {
+                        usedRates.add(`Waived`);
+                        lateInfo.push(`${cb.value}: Penalty Waived`);
+                    } else if (penaltyMode === 'MONTHLY') {
                         const diffTime = pMid - targetDueDate;
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         const monthsOverdue = Math.max(1, Math.ceil(diffDays / 30));
@@ -3680,8 +3692,10 @@ const RentModule = {
 
                     totalPenalty += p;
                     // For hint display
-                    const diffTime = pMid - targetDueDate;
-                    totalLateDays += Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (!hasWaiver) {
+                        const diffTime = pMid - targetDueDate;
+                        totalLateDays += Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    }
                 }
             }
         });
