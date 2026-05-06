@@ -1578,8 +1578,8 @@ const GstRemittanceModule = {
                 if (part.length >= 2) return { y: parseInt(part[0]), m: parseInt(part[1]) };
             }
             // Fallback to paymentDate
-            if (p.paymentDate) {
-                const d = new Date(p.paymentDate);
+            if ((p.paymentDate || p.timestamp || p.created_at)) {
+                const d = new Date((p.paymentDate || p.timestamp || p.created_at));
                 if (!isNaN(d.getTime())) return { y: d.getFullYear(), m: d.getMonth() + 1 };
             }
             return null;
@@ -1815,8 +1815,8 @@ const GstRemittanceModule = {
 
         const getPaymentYM = (p) => {
             // Prefer paymentDate (actual date paid) for month grouping
-            if (p.paymentDate) {
-                const d = new Date(p.paymentDate);
+            if ((p.paymentDate || p.timestamp || p.created_at)) {
+                const d = new Date((p.paymentDate || p.timestamp || p.created_at));
                 if (!isNaN(d.getTime())) return { y: d.getFullYear(), m: d.getMonth() + 1 };
             }
             if (p.paymentForMonth) {
@@ -1835,8 +1835,8 @@ const GstRemittanceModule = {
 
         // Helper: get payment date as Date object (prefer paymentDate)
         const getPaymentDate = (p) => {
-            if (p.paymentDate) {
-                const d = new Date(p.paymentDate);
+            if ((p.paymentDate || p.timestamp || p.created_at)) {
+                const d = new Date((p.paymentDate || p.timestamp || p.created_at));
                 if (!isNaN(d.getTime())) return d;
             }
             if (p.paymentForMonth) {
@@ -2142,8 +2142,8 @@ const GstRemittanceModule = {
         // Extract years from payments (based on paymentDate)
         const payments = Store.getPayments();
         payments.forEach(p => {
-            if (p.paymentDate) {
-                const year = new Date(p.paymentDate).getFullYear();
+            if ((p.paymentDate || p.timestamp || p.created_at)) {
+                const year = new Date((p.paymentDate || p.timestamp || p.created_at)).getFullYear();
                 if (year) yearSet.add(year);
             }
         });
@@ -2484,7 +2484,7 @@ const LeaseStatusModule = {
         const processRenewal = async () => {
             try {
                 const applicants = Store.getApplicants();
-                const index = applicants.findIndex(a => a.shopNo === shopNo);
+                const index = applicants.findIndex(a => String(a.shopNo) === String(shopNo));
 
                 if (index === -1) throw new Error('Applicant not found');
 
@@ -2682,7 +2682,7 @@ const ReportModule = {
             opt.value = s.shopNo;
             // Fallback shop display: prefer shopName, else applicant name, else proprietor name
             const applicants = Store.getApplicants();
-            const applicant = applicants.find(a => a.shopNo === s.shopNo);
+            const applicant = applicants.find(a => String(a.shopNo) === String(s.shopNo));
             const displayName = s.shopName || (applicant && (applicant.applicantName || applicant.proprietorShopName)) || '-';
             opt.textContent = `${s.shopNo} - ${displayName}`;
             select.appendChild(opt);
@@ -2769,7 +2769,7 @@ const ReportModule = {
 
         let targets = applicants;
         if (shopNo !== 'ALL') {
-            targets = applicants.filter(a => a.shopNo === shopNo);
+            targets = applicants.filter(a => String(a.shopNo) === String(shopNo));
         }
 
         // Calculation Dates (already Date objects)
@@ -3581,7 +3581,7 @@ const ShopLedgerModule = {
         const applicants = Store.getApplicants();
         const sel = document.getElementById('rep-stmt-shop');
         shops.forEach(s => {
-            const applicant = applicants.find(a => a.shopNo === s.shopNo);
+            const applicant = applicants.find(a => String(a.shopNo) === String(s.shopNo));
             const opt = document.createElement('option');
             opt.value = s.shopId || s.shopNo; // Use shopId if available, fallback to shopNo
             opt.textContent = `Shop ${s.shopNo} - ${applicant ? applicant.applicantName : 'Vacant'}`;
@@ -3658,10 +3658,10 @@ const ShopLedgerModule = {
 
     async generateStatement(shopIdOrNo) {
         const shops = Store.getShops();
-        const shop = shops.find(s => s.shopId === shopIdOrNo || s.shopNo === shopIdOrNo);
+        const shop = shops.find(s => s.shopId === shopIdOrNo || String(s.shopNo) === String(shopIdOrNo));
         if (!shop) return;
 
-        const app = Store.getApplicants().find(a => a.shopNo === shop.shopNo);
+        const app = Store.getApplicants().find(a => String(a.shopNo) === String(shop.shopNo));
         if (!app) {
             AppUI.error('No tenant found for this shop');
             return;
@@ -3846,8 +3846,8 @@ const GstMonthwiseReportModule = {
 
         // Extract years from payments
         payments.forEach(p => {
-            if (p.paymentDate) {
-                const year = new Date(p.paymentDate).getFullYear();
+            if ((p.paymentDate || p.timestamp || p.created_at)) {
+                const year = new Date((p.paymentDate || p.timestamp || p.created_at)).getFullYear();
                 years.add(year);
             }
         });
@@ -3895,8 +3895,8 @@ const GstMonthwiseReportModule = {
 
         // Filter payments
         const filtered = payments.filter(p => {
-            if (!p.paymentDate) return false;
-            const pDate = new Date(p.paymentDate);
+            if (!(p.paymentDate || p.timestamp || p.created_at)) return false;
+            const pDate = new Date((p.paymentDate || p.timestamp || p.created_at));
             if (year && pDate.getFullYear() !== parseInt(year)) return false;
             if (month && pDate.getMonth() + 1 !== parseInt(month)) return false;
             return true;
@@ -3918,7 +3918,7 @@ const GstMonthwiseReportModule = {
         let totalRent = 0, totalGST = 0, totalPenalty = 0, totalCollection = 0;
 
         tbody.innerHTML = filtered.map(p => {
-            const applicant = applicants.find(a => a.shopNo === p.shopNo);
+            const applicant = applicants.find(a => String(a.shopNo) === String(p.shopNo));
             // Combine both applicant and proprietor names if available
             let applicantName = 'N/A';
             if (applicant) {
@@ -3933,7 +3933,7 @@ const GstMonthwiseReportModule = {
             const rent = parseFloat(p.rentAmount || p.rentBase || 0);
             const gst = parseFloat(p.gstAmount || p.gst || 0);
             const penalty = parseFloat(p.penalty || 0);
-            const total = parseFloat(p.grandTotal || rent + gst + penalty);
+            const total = parseFloat(p.total || p.grandTotal || rent + gst + penalty);
 
             totalRent += rent;
             totalGST += gst;
@@ -3956,7 +3956,7 @@ const GstMonthwiseReportModule = {
             return `
                 <tr style="border: 1px solid #cbd5e1;">
                     <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">${slNo++}</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">${this.formatDate(p.paymentDate)}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">${this.formatDate((p.paymentDate || p.timestamp || p.created_at))}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-weight: bold;">${p.shopNo}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 8px;">${applicantName}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 8px;">${paymentMethod}</td>
@@ -3993,8 +3993,8 @@ const GstMonthwiseReportModule = {
 
         // Filter payments
         const filtered = payments.filter(p => {
-            if (!p.paymentDate) return false;
-            const pDate = new Date(p.paymentDate);
+            if (!(p.paymentDate || p.timestamp || p.created_at)) return false;
+            const pDate = new Date((p.paymentDate || p.timestamp || p.created_at));
             if (year && pDate.getFullYear() !== parseInt(year)) return false;
             if (month && pDate.getMonth() + 1 !== parseInt(month)) return false;
             return true;
@@ -4028,7 +4028,7 @@ const GstMonthwiseReportModule = {
         let totalRent = 0, totalGST = 0, totalPenalty = 0, totalCollection = 0;
 
         filtered.forEach(p => {
-            const applicant = applicants.find(a => a.shopNo === p.shopNo);
+            const applicant = applicants.find(a => String(a.shopNo) === String(p.shopNo));
             // Combine both applicant and proprietor names if available
             let applicantName = 'N/A';
             if (applicant) {
@@ -4043,7 +4043,7 @@ const GstMonthwiseReportModule = {
             const rent = parseFloat(p.rentAmount || p.rentBase || 0);
             const gst = parseFloat(p.gstAmount || p.gst || 0);
             const penalty = parseFloat(p.penalty || 0);
-            const total = parseFloat(p.grandTotal || rent + gst + penalty);
+            const total = parseFloat(p.total || p.grandTotal || rent + gst + penalty);
 
             totalRent += rent;
             totalGST += gst;
@@ -4064,7 +4064,7 @@ const GstMonthwiseReportModule = {
 
             csv.push([
                 slNo++,
-                this.formatDate(p.paymentDate),
+                this.formatDate((p.paymentDate || p.timestamp || p.created_at)),
                 p.shopNo,
                 applicantName,
                 paymentMethod,
@@ -4117,8 +4117,8 @@ const GstMonthwiseReportModule = {
 
         // Filter payments
         const filtered = payments.filter(p => {
-            if (!p.paymentDate) return false;
-            const pDate = new Date(p.paymentDate);
+            if (!(p.paymentDate || p.timestamp || p.created_at)) return false;
+            const pDate = new Date((p.paymentDate || p.timestamp || p.created_at));
             if (year && pDate.getFullYear() !== parseInt(year)) return false;
             if (month && pDate.getMonth() + 1 !== parseInt(month)) return false;
             return true;
@@ -4131,7 +4131,7 @@ const GstMonthwiseReportModule = {
 
         // Build table HTML
         let tableRows = filtered.map(p => {
-            const applicant = applicants.find(a => a.shopNo === p.shopNo);
+            const applicant = applicants.find(a => String(a.shopNo) === String(p.shopNo));
             // Combine both applicant and proprietor names if available
             let applicantName = 'N/A';
             if (applicant) {
@@ -4146,7 +4146,7 @@ const GstMonthwiseReportModule = {
             const rent = parseFloat(p.rentAmount || p.rentBase || 0);
             const gst = parseFloat(p.gstAmount || p.gst || 0);
             const penalty = parseFloat(p.penalty || 0);
-            const total = parseFloat(p.grandTotal || rent + gst + penalty);
+            const total = parseFloat(p.total || p.grandTotal || rent + gst + penalty);
 
             totalRent += rent;
             totalGST += gst;
@@ -4168,7 +4168,7 @@ const GstMonthwiseReportModule = {
             return `
                 <tr style="border: 1px solid #000; height: 25px;">
                     <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px;">${slNo++}</td>
-                    <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px;">${this.formatDate(p.paymentDate)}</td>
+                    <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px;">${this.formatDate((p.paymentDate || p.timestamp || p.created_at))}</td>
                     <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px; font-weight: bold;">${p.shopNo}</td>
                     <td style="border: 1px solid #000; padding: 5px; font-size: 11px;">${applicantName}</td>
                     <td style="border: 1px solid #000; padding: 5px; font-size: 11px;">${paymentMethod}</td>
@@ -4243,8 +4243,8 @@ const GstMonthwiseReportModule = {
         let totalGST = 0;
 
         payments.forEach(p => {
-            if (!p.paymentDate) return;
-            const pd = new Date(p.paymentDate);
+            if (!(p.paymentDate || p.timestamp || p.created_at)) return;
+            const pd = new Date((p.paymentDate || p.timestamp || p.created_at));
             if (pd.getFullYear() === parseInt(yearVar) && (pd.getMonth() + 1) === parseInt(monthVar)) {
                 totalGST += parseFloat(p.gstAmount || p.gst || 0);
             }
@@ -4711,8 +4711,8 @@ const ReceiptModule = {
         // Use stored immutable ID if available, else fallback to generated
         const receiptNo = payment.receiptId || `REC-${!isNaN(dateObj.getTime()) ? dateObj.getTime().toString().slice(-6) : 'GEN'}-${uniqueSuffix}`;
         const dateStr = !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Invalid Date';
-        const amount = parseFloat(payment.grandTotal).toFixed(2);
-        const amountWords = this.numberToWords(Math.floor(parseFloat(payment.grandTotal)));
+        const amount = parseFloat(payment.total || payment.grandTotal).toFixed(2);
+        const amountWords = this.numberToWords(Math.floor(parseFloat(payment.total || payment.grandTotal)));
 
         // Fetch Logo
         const settings = Store.getSettings();
@@ -4721,8 +4721,8 @@ const ReceiptModule = {
 
         // Format Payment Date to DD-MM-YYYY
         let pDateDisplay = dateStr;
-        if (payment.paymentDate) {
-            const [y, m, d] = payment.paymentDate.split('-');
+        if ((payment.paymentDate || payment.timestamp || payment.created_at)) {
+            const [y, m, d] = (payment.paymentDate || payment.timestamp || payment.created_at).split('-');
             if (y && m && d) pDateDisplay = `${d}-${m}-${y}`;
         }
 
@@ -4938,8 +4938,8 @@ const PaymentReportModule = {
 
             const payments = Store.getPayments();
             payments.forEach(p => {
-                if (p.paymentDate) {
-                    const d = new Date(p.paymentDate);
+                if ((p.paymentDate || p.timestamp || p.created_at)) {
+                    const d = new Date((p.paymentDate || p.timestamp || p.created_at));
                     const y = d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1;
                     yearSet.add(y);
                 }
@@ -5031,7 +5031,7 @@ const PaymentReportModule = {
 
             csv.push([
                 p.paymentForMonth || '',
-                p.paymentDate || '',
+                (p.paymentDate || p.timestamp || p.created_at) || '',
                 p.shopNo || '',
                 rentAmount.toFixed(2),
                 gstAmount.toFixed(2),
@@ -5124,8 +5124,8 @@ const PaymentReportModule = {
         if (filterYear) {
             const fy = parseInt(filterYear);
             payments = payments.filter(p => {
-                if (!p.paymentDate) return false;
-                const d = new Date(p.paymentDate);
+                if (!(p.paymentDate || p.timestamp || p.created_at)) return false;
+                const d = new Date((p.paymentDate || p.timestamp || p.created_at));
                 const pFy = d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1;
                 return pFy === fy;
             });
@@ -5182,7 +5182,7 @@ const PaymentReportModule = {
                 return `
                     <tr>
                         <td><strong>${p.paymentForMonth || '-'}</strong></td>
-                        <td>${p.paymentDate || '-'}</td>
+                        <td>${(p.paymentDate || p.timestamp || p.created_at) || '-'}</td>
                         <td><strong>${p.shopNo}</strong></td>
                         <td>${Utils.formatCurrency(rentAmount)}</td>
                         <td>${Utils.formatCurrency(gstAmount)}</td>

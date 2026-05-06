@@ -102,10 +102,24 @@ const Utils = {
      * @returns {number} Grand Total
      */
     getPaymentTotal(p) {
-        return this.parseNumber(p.grandTotal) ||
+        return this.parseNumber(p.total) ||
+            this.parseNumber(p.grandTotal) ||
             this.parseNumber(p.totalRent) ||
             this.parseNumber(p.amount_total) ||
             0;
+    },
+
+    /**
+     * Helper to extract the actual Payment Date as a Date object or string.
+     * @param {Object} p - Payment object
+     * @returns {Date|null} Date object representing payment date
+     */
+    getPaymentDate(p) {
+        if (!p) return null;
+        const dStr = p.paymentDate || p.timestamp || p.created_at;
+        if (!dStr) return null;
+        const d = new Date(dStr);
+        return isNaN(d.getTime()) ? null : d;
     },
 
     /**

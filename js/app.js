@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SUDA Shop Lease Model Software
  * Single file version for easy local execution (No Server Required)
  */
@@ -1102,7 +1102,7 @@ const Store = {
 
     async saveShop(shop) {
         // 1. Optimistic Update (Cache)
-        const index = this.cache.shops.findIndex(s => s.shopNo === shop.shopNo);
+        const index = this.cache.shops.findIndex(s => String(s.shopNo) === String(shop.shopNo));
         if (index >= 0) this.cache.shops[index] = shop;
         else this.cache.shops.push(shop);
 
@@ -1124,7 +1124,7 @@ const Store = {
     },
 
     async markShopOccupied(shopNo) {
-        const shop = this.cache.shops.find(s => s.shopNo === shopNo);
+        const shop = this.cache.shops.find(s => String(s.shopNo) === String(shopNo));
         if (shop) {
             shop.status = 'Occupied';
             // Sync Status Only
@@ -1139,7 +1139,7 @@ const Store = {
 
     async saveApplicant(applicant) {
         // 1. Optimistic Update
-        const index = this.cache.applicants.findIndex(a => a.shopNo === applicant.shopNo);
+        const index = this.cache.applicants.findIndex(a => String(a.shopNo) === String(applicant.shopNo));
         if (index >= 0) {
             this.cache.applicants[index] = { ...this.cache.applicants[index], ...applicant };
         } else {
@@ -1236,7 +1236,7 @@ const Store = {
         // Standardize Shop ID
         payment.shopNo = this.formatShopID(payment.shopNo);
         // Check duplicate
-        const exists = this.cache.payments.find(p => p.shopNo === payment.shopNo && p.paymentForMonth === payment.paymentForMonth);
+        const exists = this.cache.payments.find(p => String(p.shopNo) === String(payment.shopNo) && p.paymentForMonth === payment.paymentForMonth);
         if (exists) {
             AppUI.warn(`Payment for ${payment.shopNo} for ${payment.paymentForMonth} already exists!`);
             return;
@@ -1248,12 +1248,12 @@ const Store = {
         // 2. Cloud Sync
         const dbPay = {
             shop_no: payment.shopNo,
-            payment_date: payment.paymentDate,
+            payment_date: (payment.paymentDate || payment.timestamp || payment.created_at),
             payment_for_month: payment.paymentForMonth,
             amount_base: parseFloat(payment.rentAmount || 0),
             amount_gst: parseFloat(payment.gstAmount || 0),
             amount_penalty: parseFloat(payment.penalty || 0),
-            amount_total: parseFloat(payment.grandTotal || 0),
+            amount_total: parseFloat(payment.total || payment.grandTotal || 0),
             payment_method: payment.paymentMethod || payment.paymentMode,
             // Use new receiptId (SUDA-0001/2025-26) with fallback to old receiptNo for backward compatibility
             receipt_no: payment.receiptId || payment.receiptNo,
@@ -1580,7 +1580,7 @@ const Store = {
     async markShopAvailable(shopNo) {
         shopNo = this.formatShopID(shopNo);
         const shops = this.getShops();
-        const shop = shops.find(s => s.shopNo === shopNo);
+        const shop = shops.find(s => String(s.shopNo) === String(shopNo));
         if (shop) {
             shop.status = 'Available';
             localStorage.setItem(this.SHOPS_KEY, JSON.stringify(shops));
@@ -1763,7 +1763,7 @@ const Store = {
             // Ensure numeric fields are stored as normalized strings with 2 decimals
             const gst = parseNumber(p.gstAmount || p.gst || 0);
             const rent = parseNumber(p.rentAmount || p.rentAmount || 0);
-            const total = parseNumber(p.totalRent || p.grandTotal || 0);
+            const total = parseNumber(p.total || p.totalRent || p.grandTotal || 0);
             const penalty = parseNumber(p.penalty || 0);
 
             if (String(p.gstAmount) !== gst.toFixed(2)) { p.gstAmount = gst.toFixed(2); changed = true; }
@@ -1772,9 +1772,9 @@ const Store = {
             if (String(p.penalty) !== penalty.toFixed(2)) { p.penalty = penalty.toFixed(2); changed = true; }
 
             // Ensure paymentForMonth exists (YYYY-MM)
-            if (!p.paymentForMonth && p.paymentDate) {
+            if (!p.paymentForMonth && (p.paymentDate || p.timestamp || p.created_at)) {
                 try {
-                    p.paymentForMonth = p.paymentDate.slice(0, 7);
+                    p.paymentForMonth = (p.paymentDate || p.timestamp || p.created_at).slice(0, 7);
                     changed = true;
                 } catch (e) { }
             }
@@ -2178,7 +2178,7 @@ const DashboardModule = {
         payments.forEach(p => {
             const pDate = new Date(p.paymentDate || p.timestamp);
             if (pDate >= fyStart && pDate <= fyEnd) {
-                totalRevFy += parseFloat(p.grandTotal || 0);
+                totalRevFy += parseFloat(p.total || p.grandTotal || 0);
             }
         });
 
@@ -2255,11 +2255,11 @@ const DashboardModule = {
         }).slice(0, 5);
 
         document.getElementById('dash-recent-list').innerHTML = sortedPayments.map(p => {
-            let dateDisplay = p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
+            let dateDisplay = (p.paymentDate || p.timestamp || p.created_at) ? new Date((p.paymentDate || p.timestamp || p.created_at)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
             return `
                 <tr>
                     <td style="font-weight:500;">Shop ${p.shopNo || 'N/A'}</td>
-                    <td style="text-align:right; color:#166534; font-weight:600;">₹${parseFloat(p.grandTotal || 0).toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; color:#166534; font-weight:600;">₹${parseFloat(p.total || p.grandTotal || 0).toLocaleString('en-IN')}</td>
                     <td style="text-align:right; font-size:0.8rem; color:#64748b;">${dateDisplay}</td>
                 </tr>
             `;
@@ -2275,8 +2275,8 @@ const DashboardModule = {
                 const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 labels.push(d.toLocaleString('default', { month: 'short' }));
                 const monthTotal = payments
-                    .filter(p => p.paymentDate && p.paymentDate.startsWith(mStr))
-                    .reduce((sum, p) => sum + (parseFloat(p.grandTotal || 0)), 0);
+                    .filter(p => (p.paymentDate || p.timestamp || p.created_at) && (p.paymentDate || p.timestamp || p.created_at).startsWith(mStr))
+                    .reduce((sum, p) => sum + (parseFloat(p.total || p.grandTotal || 0)), 0);
                 data.push(monthTotal);
             }
 
@@ -3085,7 +3085,7 @@ const RentModule = {
         const payments = Store.getPayments();
         const todayStr = new Date().toISOString().split('T')[0];
         // Filter for payments made TODAY
-        const recent = payments.filter(p => p.paymentDate === todayStr || (p.timestamp && p.timestamp.startsWith(todayStr))).reverse(); // Show newest first
+        const recent = payments.filter(p => (p.paymentDate || p.timestamp || p.created_at) === todayStr || (p.timestamp && p.timestamp.startsWith(todayStr))).reverse(); // Show newest first
 
         if (recent.length === 0) {
             container.innerHTML = '<p class="text-muted" style="text-align:center; padding: 1rem;">No payments recorded today.</p>';
@@ -3138,7 +3138,7 @@ const RentModule = {
         const allPayments = Store.getPayments();
         const target = allPayments.find(p => p.timestamp === ts);
         if (target) {
-            const app = Store.getApplicants().find(a => a.shopNo === target.shopNo);
+            const app = Store.getApplicants().find(a => String(a.shopNo) === String(target.shopNo));
             if (window.ReceiptModule) {
                 window.ReceiptModule.printReceipt(target, app);
             } else {
@@ -3496,7 +3496,7 @@ const RentModule = {
 
         payments.forEach(p => {
             // Fix timestamp for date display if needed
-            let dateDisplay = p.paymentDate;
+            let dateDisplay = (p.paymentDate || p.timestamp || p.created_at);
 
             // Receipt ID Display (Fallback if missing)
             const recId = p.receiptId || 'REC-OLD';

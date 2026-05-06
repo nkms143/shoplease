@@ -310,7 +310,7 @@ const ReportsCore = {
             }
 
             if (window.DuesCore) {
-                const shopPayments = payments.filter(p => p.shopNo === applicant.shopNo);
+                const shopPayments = payments.filter(p => String(p.shopNo) === String(applicant.shopNo));
                 const shopWaivers = waivers.filter(w => String(w.shopNo) === String(applicant.shopNo));
 
                 const dues = window.DuesCore.calculateOutstandingDues(
