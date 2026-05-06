@@ -38,7 +38,7 @@ const ReportsCore = {
         applicants.forEach((applicant, index) => {
             const row = this.formatReportRow(
                 applicant,
-                payments.filter(p => p.shopNo === applicant.shopNo),
+                payments.filter(p => String(p.shopNo) === String(applicant.shopNo)),
                 waivers.filter(w => String(w.shopNo) === String(applicant.shopNo)),
                 settings,
                 fyStart,
@@ -105,10 +105,12 @@ const ReportsCore = {
         // Collection (payments made during FY)
         const collection = shopPayments
             .filter(p => {
-                const paymentDate = new Date(p.paymentDate);
+                const dateStr = p.paymentDate || p.timestamp || p.created_at;
+                if (!dateStr) return false;
+                const paymentDate = new Date(dateStr);
                 return paymentDate >= fyStart && paymentDate <= fyEnd;
             })
-            .reduce((sum, p) => sum + (p.total || 0), 0);
+            .reduce((sum, p) => sum + (parseFloat(p.total) || parseFloat(p.grandTotal) || 0), 0);
 
         // Balance
         const balance = totalDemand - collection;

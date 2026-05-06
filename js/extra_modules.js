@@ -3044,8 +3044,9 @@ const ReportModule = {
         // Filter payments to ignore anything after the report 'toDate' (End of selected FY).
         // This ensures the report shows the status "As of March 31st", even if generated later.
         const payments = allPayments.filter(p => {
-            if (!p.paymentDate) return false;
-            const pd = new Date(p.paymentDate);
+            const dateStr = p.paymentDate || p.timestamp || p.created_at;
+            if (!dateStr) return false;
+            const pd = new Date(dateStr);
             return pd <= toDate;
         });
 
@@ -3134,7 +3135,7 @@ const ReportModule = {
             const { base: monthlyBase, gst: monthlyGst } = getRentDetails(current);
 
             // Find payment for this specific month
-            const payment = payments.find(p => p.shopNo === app.shopNo && p.paymentForMonth === monthStr);
+            const payment = payments.find(p => String(p.shopNo) === String(app.shopNo) && p.paymentForMonth === monthStr);
 
             // Determine if this month is "In Report Period" (Current) or "Before Report Period" (Arrear)
             const isArrearMonth = current < reportStart;
@@ -3235,7 +3236,7 @@ const ReportModule = {
 
                     // Collection Accumulation
                     if (payment) {
-                        const paid = Utils.parseNumber(payment.grandTotal || 0);
+                        const paid = Utils.parseNumber(payment.total || payment.grandTotal || 0);
                         const monthDemand = monthlyBase + monthlyGst + penaltyForMonth;
                         arrearCollection += Math.min(paid, monthDemand);
                     }
@@ -3249,7 +3250,7 @@ const ReportModule = {
                 currentDemandGst += monthlyGst;
 
                 if (payment) {
-                    const paid = Utils.parseNumber(payment.grandTotal || 0);
+                    const paid = Utils.parseNumber(payment.total || payment.grandTotal || 0);
                     const pPenalty = Utils.parseNumber(payment.penalty || 0);
 
                     // Logic Update: Track Current Year Penalty separately.
