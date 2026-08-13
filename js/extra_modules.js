@@ -2425,7 +2425,7 @@ const LeaseStatusModule = {
     },
 
     renderActiveList() {
-        const applicants = Store.getApplicants();
+        const applicants = Store.getApplicants().filter(a => a.status !== 'Terminated');
         const tbody = document.getElementById('lease-active-list');
 
         if (applicants.length === 0) {
@@ -3173,6 +3173,19 @@ const ReportModule = {
         // Loop through EVERY month from lease start until report end
         for (; current <= end; current.setMonth(current.getMonth() + 1)) {
             const monthStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+            
+            // Check if we should skip demand (if month is strictly after termination month)
+            let skipDemand = false;
+            if (app.status === 'Terminated' && app.terminationDate) {
+                const termDate = new Date(app.terminationDate);
+                const termYear = termDate.getFullYear();
+                const termMonth = termDate.getMonth();
+                const currentYear = current.getFullYear();
+                const currentMonth = current.getMonth();
+                if (currentYear > termYear || (currentYear === termYear && currentMonth > termMonth)) {
+                    skipDemand = true;
+                }
+            }
 
             // DYNAMIC RENT COMPONENTS
             const { base: monthlyBase, gst: monthlyGst } = getRentDetails(current);
@@ -3208,10 +3221,16 @@ const ReportModule = {
                     }
                 }
 
-                // 2. Calculate Theoretical Opening Penalty (Up to Previous FY End)
+                // 2. Calculate Theoretical Opening Penalty (Up to Previous FY End or Termination Date)
                 if (!isSettledBeforeReport) {
-                    if (prevFyEnd > countStart && !isNaN(prevFyEnd.getTime()) && !isNaN(countStart.getTime())) {
-                        const diffDays = Math.ceil((prevFyEnd - countStart) / (1000 * 60 * 60 * 24));
+                    let penaltyEnd = prevFyEnd;
+                    if (app.status === 'Terminated' && app.terminationDate) {
+                        const termDate = new Date(app.terminationDate);
+                        if (termDate < penaltyEnd) penaltyEnd = termDate;
+                    }
+                    
+                    if (penaltyEnd > countStart && !isNaN(penaltyEnd.getTime()) && !isNaN(countStart.getTime())) {
+                        const diffDays = Math.ceil((penaltyEnd - countStart) / (1000 * 60 * 60 * 24));
 
                         if (diffDays > 0) {
                             // Unified Logic using Store SOT
@@ -3273,8 +3292,10 @@ const ReportModule = {
 
                 // Demand Accumulation (Only if NOT historically settled)
                 if (!isSettledBeforeReport) {
-                    arrearDemandBase += monthlyBase;
-                    arrearDemandGst += monthlyGst;
+                    if (!skipDemand) {
+                        arrearDemandBase += monthlyBase;
+                        arrearDemandGst += monthlyGst;
+                    }
                     arrearDemandPenalty += penaltyForMonth;
 
                     // Collection Accumulation
@@ -3289,8 +3310,10 @@ const ReportModule = {
                 // CURRENT YEAR CALCULATION
                 // ...
                 // CURRENT REPORT PERIOD
-                currentDemandBase += monthlyBase;
-                currentDemandGst += monthlyGst;
+                if (!skipDemand) {
+                    currentDemandBase += monthlyBase;
+                    currentDemandGst += monthlyGst;
+                }
 
                 if (payment) {
                     const paid = Utils.parseNumber(payment.total || payment.grandTotal || 0);
