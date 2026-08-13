@@ -2313,6 +2313,30 @@ const LeaseStatusModule = {
                     </form>
                 </div>
             </div>
+
+            <!-- TERMINATION MODAL -->
+            <div id="termination-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+                <div class="glass-panel" style="background: white; width: 400px; max-width: 90%;">
+                    <h3 style="margin-bottom: 1rem; color: #e11d48;">Terminate Agreement</h3>
+                    <form id="termination-form">
+                        <input type="hidden" name="shopNo" id="terminate-shop-no">
+                        
+                        <div class="form-group">
+                            <label class="form-label">Termination Date</label>
+                            <input type="date" name="terminationDate" id="terminate-date" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Reason for Termination</label>
+                            <textarea name="terminationReason" id="terminate-reason" class="form-input" rows="3" placeholder="Enter reason for termination..." required></textarea>
+                        </div>
+
+                        <div style="margin-top: 1.5rem; text-align: right;">
+                             <button type="button" class="btn-primary" style="background: #94a3b8; margin-right: 0.5rem;" id="btn-close-terminate">Cancel</button>
+                             <button type="submit" class="btn-primary" style="background: #e11d48;">Confirm Termination</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         `;
 
         this.bindEvents();
@@ -2347,6 +2371,24 @@ const LeaseStatusModule = {
         // Close Modal
         document.getElementById('btn-close-renew').addEventListener('click', () => {
             document.getElementById('renewal-modal').style.display = 'none';
+        });
+        
+        document.getElementById('btn-close-terminate').addEventListener('click', () => {
+            document.getElementById('termination-modal').style.display = 'none';
+        });
+
+        // Termination Form Submit
+        document.getElementById('termination-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const form = new FormData(e.target);
+            const shopNo = form.get('shopNo');
+            const date = form.get('terminationDate');
+            const reason = form.get('terminationReason');
+            
+            Store.terminateApplicant(shopNo, { date, reason });
+            AppUI.success('Agreement Terminated. Moved to History.');
+            document.getElementById('termination-modal').style.display = 'none';
+            this.renderActiveList();
         });
 
         // Toggle Rent update fields
@@ -2467,13 +2509,14 @@ const LeaseStatusModule = {
     },
 
     promptTermination(shopNo) {
-        const reason = prompt('Are you sure you want to TERMINATE the agreement for Shop ' + shopNo + '?\n\nEnter Reason for Termination:');
-        if (reason !== null) { // If not cancelled
-            const date = new Date().toISOString().split('T')[0];
-            Store.terminateApplicant(shopNo, { date, reason: reason || 'Not Specified' });
-            AppUI.success('Agreement Terminated. Moved to History.');
-            this.renderActiveList();
-        }
+        const modal = document.getElementById('termination-modal');
+        const form = document.getElementById('termination-form');
+        
+        form.querySelector('#terminate-shop-no').value = shopNo;
+        form.querySelector('#terminate-date').value = new Date().toISOString().split('T')[0];
+        form.querySelector('#terminate-reason').value = '';
+        
+        modal.style.display = 'flex';
     },
 
     handleRenewal(formData) {

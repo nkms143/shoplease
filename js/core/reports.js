@@ -96,8 +96,18 @@ const ReportsCore = {
             openingBalance = openingDues.totalAmount;
         }
 
-        // Current year demand (12 months of rent)
-        const currentDemand = monthlyRent * 12;
+        // Current year demand (12 months of rent, prorated if terminated)
+        let activeMonths = 12;
+        if (applicant.status === 'Terminated' && applicant.terminationDate) {
+            const termDate = new Date(applicant.terminationDate);
+            if (termDate < fyStart) {
+                activeMonths = 0;
+            } else if (termDate <= fyEnd) {
+                activeMonths = (termDate.getFullYear() - fyStart.getFullYear()) * 12 + (termDate.getMonth() - fyStart.getMonth()) + 1;
+            }
+        }
+        
+        const currentDemand = monthlyRent * activeMonths;
 
         // Total demand
         const totalDemand = openingBalance + currentDemand;
@@ -156,9 +166,17 @@ const ReportsCore = {
         const startDate = allotmentDate > fyStart ? allotmentDate : fyStart;
         const paymentDay = settings.paymentDay || 5;
 
+        let effectiveEnd = fyEnd;
+        if (applicant.status === 'Terminated' && applicant.terminationDate) {
+            const termDate = new Date(applicant.terminationDate);
+            if (termDate < fyEnd) {
+                effectiveEnd = termDate;
+            }
+        }
+
         const current = new Date(startDate);
 
-        while (current <= fyEnd) {
+        while (current <= effectiveEnd) {
             const year = current.getFullYear();
             const month = current.getMonth() + 1;
             const monthStr = `${year}-${String(month).padStart(2, '0')}`;
@@ -177,11 +195,11 @@ const ReportsCore = {
                     // Get penalty parameters
                     const penaltyParams = window.DuesCore.getPenaltyParams(settings, dueDate);
 
-                    // Calculate penalty from due date to end of FY (March 31st)
+                    // Calculate penalty from due date to effective end (either FY End or Termination Date)
                     // Note: DCB Report is a snapshot of the Financial Year.
                     const penalty = window.PenaltiesCore.calculatePenalty(
                         dueDate,
-                        fyEnd,
+                        effectiveEnd,
                         penaltyParams.rate,
                         penaltyParams.mode
                     );

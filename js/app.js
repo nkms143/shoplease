@@ -1169,7 +1169,7 @@ const Store = {
             gst_amount: parseFloat(applicant.gstAmount || 0),
             rent_total: parseFloat(applicant.rentTotal || 0),
 
-            status: 'Active'
+            status: applicant.status || 'Active'
         };
 
         try {
@@ -1570,8 +1570,48 @@ const Store = {
             };
             this.saveToHistory(historyRecord);
 
-            // Use the ROBUST deleteApplicant to handle Cloud Sync/Cleanup
-            await this.deleteApplicant(shopNo);
+            // Update local cache instead of deleting
+            app.status = 'Terminated';
+            app.terminationDate = terminationRecord.date;
+            app.terminationReason = terminationRecord.reason;
+            app.terminatedAt = new Date().toISOString();
+            
+            localStorage.setItem(this.APPLICANTS_KEY, JSON.stringify(this.cache.applicants));
+
+            // Mark Shop as Available locally
+            const shop = this.cache.shops.find(s => this.idsMatch(s.shopNo, shopNo));
+            if (shop) {
+                shop.status = 'Available';
+                localStorage.setItem(this.SHOPS_KEY, JSON.stringify(this.cache.shops));
+            }
+
+            // Cloud Sync - Update instead of delete
+            try {
+                const sId = String(shopNo).trim();
+                const nId = Number(sId);
+                const isNum = !isNaN(nId);
+                let orQuery = `shop_no.eq.${sId}`;
+                if (isNum) {
+                    const altId = String(nId);
+                    if (altId !== sId) orQuery += `,shop_no.eq.${altId}`;
+                    const paddedId = nId < 10 && nId >= 0 ? `0${nId}` : String(nId);
+                    if (paddedId !== sId && paddedId !== altId) orQuery += `,shop_no.eq.${paddedId}`;
+                }
+
+                // Update Tenant Status
+                await supabaseClient.from('tenants').update({ 
+                    status: 'Terminated',
+                    termination_date: terminationRecord.date
+                }).or(orQuery);
+                
+                // Update Shop Status
+                await supabaseClient.from('shops').update({ status: 'Available' }).or(orQuery);
+                
+                // We DO NOT delete payments here so historical reports (like DCB) remain intact.
+            } catch(e) {
+                console.error("Terminate Applicant Sync Error:", e);
+                AppUI.error("Error: Terminated locally, but Cloud Sync failed!");
+            }
         } else {
             AppUI.warn("Applicant not found for termination.");
         }
