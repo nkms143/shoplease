@@ -17,6 +17,14 @@ const DuesCore = {
     calculateOutstandingDues(applicant, payments, waivers, settings, asOfDate) {
         const penaltyRate = parseFloat(settings.penaltyRate) || 15;
         const today = asOfDate || new Date();
+        
+        let effectiveToday = new Date(today);
+        if (applicant.status === 'Terminated' && applicant.terminationDate) {
+            const termDate = new Date(applicant.terminationDate);
+            if (termDate < effectiveToday) {
+                effectiveToday = termDate;
+            }
+        }
 
         // 1. Identify Lease Periods
         const periods = [];
@@ -39,7 +47,11 @@ const DuesCore = {
         }
 
         const activeStart = applicant.rentStartDate || applicant.leaseDate || null;
-        pushPeriod(activeStart, null, { source: 'active' });
+        let activeEnd = null;
+        if (applicant.status === 'Terminated' && applicant.terminationDate) {
+            activeEnd = applicant.terminationDate;
+        }
+        pushPeriod(activeStart, activeEnd, { source: 'active' });
 
         // 2. Identify Paid Months
         // Defensive: Filter payments for this specific shop if not already filtered
@@ -103,10 +115,10 @@ const DuesCore = {
                 }
 
                 let p = 0;
-                if (today > dueDate) {
+                if (effectiveToday > dueDate) {
                     const impDate = settings.penaltyDate ? new Date(settings.penaltyDate) : null;
                     if (window.PenaltiesCore) {
-                        p = window.PenaltiesCore.calculatePenaltyWithGrace(dueDate, today, pRate, pMode, impDate);
+                        p = window.PenaltiesCore.calculatePenaltyWithGrace(dueDate, effectiveToday, pRate, pMode, impDate);
                     }
                 }
 

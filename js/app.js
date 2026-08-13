@@ -447,7 +447,9 @@ const Store = {
                 paymentDay: row.payment_day,       // Correct: paymentDay
 
                 occupancyStartDate: row.rent_start_date || row.lease_date,
-                status: row.status
+                status: row.status,
+                terminationDate: row.termination_date,
+                terminationReason: row.termination_reason
             }));
 
             // 3. Map Payments
