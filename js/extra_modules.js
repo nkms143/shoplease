@@ -2957,7 +2957,6 @@ const ReportModule = {
                     </div>
                     <div class="glass-panel" style="background: #fff; color: #000; border: 1px solid #e2e8f0; padding: 2rem;" id="print-stmt-area">
                         <div style="text-align: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #000;">
-                             <h3 style="margin: 0; text-transform: uppercase;">Siddipet Urban Development Authority</h3>
                              <p style="margin: 5px 0;">Commercial Shop Lease - Outstanding Dues Statement</p>
                              <p style="margin: 5px 0; font-size: 0.9rem;" id="stmt-date">As on: </p>
                         </div>
@@ -3604,7 +3603,6 @@ const ShopLedgerModule = {
                     </div>
                     <div class="glass-panel" style="background: #fff; color: #000; border: 1px solid #e2e8f0; padding: 2rem;" id="print-stmt-area">
                         <div style="text-align: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #000;">
-                             <h3 style="margin: 0; text-transform: uppercase;">Siddipet Urban Development Authority</h3>
                              <p style="margin: 5px 0;">Commercial Shop Lease - Outstanding Dues Statement</p>
                              <p style="margin: 5px 0; font-size: 0.9rem;" id="stmt-date">As on: </p>
                         </div>
@@ -4252,7 +4250,6 @@ const GstMonthwiseReportModule = {
 
         const reportHtml = `
             <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="margin: 5px 0; font-size: 16px; font-weight: bold; text-transform: uppercase;">Siddipet Urban Development Authority</h1>
                 <p style="margin: 5px 0; font-size: 14px; font-weight: bold;">STATEMENT SHOWING THE RENT PARTICULARS FROM THE SUDA SHOPS</p>
                 <p style="margin: 5px 0; font-size: 13px;">FOR THE MONTH OF ${monthName.toUpperCase()} - ${year || new Date().getFullYear()}</p>
             </div>
@@ -4838,7 +4835,7 @@ const ReceiptModule = {
         `;
 
         // 3. Print Window
-        window.Printer.print(content, `Print Receipt - ${receiptNo}`, { isBatch: false });
+        window.Printer.print(content, `Print Receipt - ${receiptNo}`, { isBatch: false, showBranding: false });
     },
 
     getRefDetails(p) {
@@ -5169,7 +5166,6 @@ const PaymentReportModule = {
 
         const reportHtml = `
             <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="margin: 5px 0; font-size: 16px; font-weight: bold; text-transform: uppercase;">Siddipet Urban Development Authority</h1>
                 <h2 style="margin: 5px 0; font-size: 14px; font-weight: bold; color: #0f172a;">${title}</h2>
             </div>
             
