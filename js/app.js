@@ -3568,10 +3568,16 @@ const RentModule = {
         // Fix: Use occupancyStartDate if available to show full history, otherwise fallback to rentStart or leaseDate
         const start = applicant.occupancyStartDate ? new Date(applicant.occupancyStartDate) : (applicant.rentStartDate ? new Date(applicant.rentStartDate) : new Date(applicant.leaseDate));
 
-        const expiry = new Date(applicant.expiryDate);
         const today = new Date();
         const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        let end = currentMonthEnd < expiry ? currentMonthEnd : expiry;
+        
+        let end = currentMonthEnd;
+        if (applicant.status === 'Terminated' && applicant.terminationDate) {
+            const termDate = new Date(applicant.terminationDate);
+            if (termDate < end) {
+                end = termDate;
+            }
+        }
 
         const payments = Store.getShopPayments(applicant.shopNo);
         const paidMonths = new Set(payments.map(p => p.paymentForMonth));
